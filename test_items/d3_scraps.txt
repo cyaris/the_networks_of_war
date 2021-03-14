@@ -1,0 +1,20 @@
+// startDateDic[d.country] = formatDate.parse(d.start_date),
+// endDateDic[d.country] = formatDate.parse(d.end_date),
+// startYearDic[d.country] =+ parseInt(d.start_year),
+// endYearDic[d.country] =+ parseInt(d.end_year),
+// totalDaysDic[d.country] =+ d.days_at_war,
+
+// // totalExpenditureForWarTest += Math.max(parseFloat(d.military_expenditure_x), parseFloat(d.military_expenditure_y)),
+// // obtaining greatest value for descriptive statistics between the year the country entered the conflict and the year the country exited the conflict.
+// moneyFlowOutDic[d.country] = Math.max(parseFloat(d.money_flow_out_x), parseFloat(d.money_flow_out_y)),
+// moneyFlowOutDic[d.country] = Math.max(parseFloat(d.money_flow_out_x), parseFloat(d.money_flow_out_y)),
+// moneyFlowInDic[d.country] = Math.max(parseFloat(d.money_flow_in_x), parseFloat(d.money_flow_in_y)),
+// importsDic[d.country] = Math.max(parseFloat(d.imports_x), parseFloat(d.imports_y)),
+// exportsDic[d.country] = Math.max(parseFloat(d.exports_x), parseFloat(d.exports_y)),
+// militaryExpenditureDic[d.country] = Math.max(parseFloat(d.military_expenditure_x), parseFloat(d.military_expenditure_y)),
+// militaryPersonnelDic[d.country] = Math.max(parseFloat(d.military_personnel_x) + parseFloat(d.military_personnel_y)),
+// primEnergyConsumptionDic[d.country] = Math.max(parseFloat(d.prim_energy_consumption_x) + parseFloat(d.prim_energy_consumption_y)),
+// ironSteelProductionDic[d.country] = Math.max(parseFloat(d.iron_steel_production_x) + parseFloat(d.iron_steel_production_y)),
+// populationDic[d.country] = Math.max(parseFloat(d.total_population_x) + parseFloat(d.total_population_y)),
+// urbanPopulationDic[d.country] = Math.max(parseFloat(d.urban_population_x) + parseFloat(d.urban_population_y)),
+// cincScoreDic[d.country] = Math.max(parseFloat(d.cinc_score_x) + parseFloat(d.cinc_score_y));

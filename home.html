@@ -1,0 +1,54 @@
+<html>
+	<head>
+		<title>The Networks of War</title>
+	  <style type="text/css">
+
+			.center {
+				text-align: center;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				/* width: 50px; */
+			}
+
+			.btn-group button {
+			  background-color: #4CAF50; /* Green background */
+			  border: 1px solid green; /* Green border */
+			  color: white; /* White text */
+			  padding: 10px 16px; /* Some padding */
+			  cursor: pointer; /* Pointer/hand icon */
+			  float: center; /* Float the buttons side by side */
+			}
+
+			.btn-group button:not(:last-child) {
+			  border-right: none; /* Prevent double borders */
+			}
+			/* Clear floats (clearfix hack) */
+			.btn-group:after {
+			  content: "";
+			  clear: both;
+			  display: table;
+			}
+			/* Add a background color on hover */
+			.btn-group button:hover {
+			  background-color: #3e8e41;
+			}
+
+	  </style>
+	</head>
+	<body>
+		<p align="center">Choose a War Type</p>
+		<div class="center">
+			<div class="btn-group">
+				<a href="../the_networks_of_war_inter_state_wars/"><button class="button">Inter-State</button></a>
+				<a href="../the_networks_of_war_intra_state_wars/"><button class="button">Intra-State</button></a>
+			</div>
+		</div>
+		<div class="center" style="margin-top:20px; margin-bottom:40px;">
+			<div class="btn-group">
+				<a href="../the_networks_of_war_extra_state_wars/"><button class="button">Extra-State</button></a>
+				<!-- <a href="../the_networks_of_war_non_state_wars/"><button class="button">Non-State</button></a> -->
+			</div>
+		</div>
+	</body>
+</html>
