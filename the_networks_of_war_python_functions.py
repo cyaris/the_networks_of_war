@@ -420,10 +420,13 @@ def print_new_fields(descriptive_df, initial_columns, descriptive_columns):
     return
 
 
-def descriptive_participant_from_dyad(file_input, df_part_renaming_dic):
+def descriptive_participant_from_dyad(file_input, dataframe_input, df_part_renaming_dic):
 
     ## dyadic data that needs to be adjusted to be non-dyadic (by country, by year)
-    df_part = pd.read_csv(file_input, encoding='utf8')
+    if file_input==None:
+        df_part = dataframe_input
+    else:
+        df_part = pd.read_csv(file_input, encoding='utf8')
     df_part.rename(df_part_renaming_dic, axis = 1, inplace= True)
     df_part = deepcopy(df_part[list(df_part_renaming_dic.values())].reset_index(drop=True))
 
@@ -451,6 +454,7 @@ def descriptive_participant_aggregation(initial_part_df, df_part, renaming_input
     ## replacing unknowns with null before summation
     for field in aggregations_input.keys():
         if aggregations_input[field]=='sum':
+            df_part.loc[df_part[field]==-8, field] = None
             df_part.loc[df_part[field]==-9, field] = None
             df_part[field] = df_part[field].astype(float)
 
