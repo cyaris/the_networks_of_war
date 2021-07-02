@@ -13,7 +13,7 @@ def dictionary_from_field(dataframe, key_input, value_input):
 
 def define_c_code_dic():
 
-    c_code_df = pd.read_csv('/Users/the_networks_of_war/data_sources/csvs/COW country codes.csv', encoding='utf8')
+    c_code_df = pd.read_csv('/Users/charlieyaris/Personal/data_sources/the_networks_of_war/csvs/COW country codes.csv', encoding='utf8')
     c_code_df.rename({'CCode': 'c_code',
                       'StateNme': 'country'}, axis=1, inplace=True)
     c_code_df.drop(['StateAbb'], axis=1, inplace=True)
@@ -31,7 +31,7 @@ def define_c_code_dic():
 
 def define_country_abbreviation_dic():
 
-    c_abb_df = pd.read_csv('/Users/the_networks_of_war/data_sources/csvs/COW country codes.csv', encoding='utf8')
+    c_abb_df = pd.read_csv('/Users/charlieyaris/Personal/data_sources/the_networks_of_war/csvs/COW country codes.csv', encoding='utf8')
     c_abb_df.rename({'StateNme': 'country',
                       'StateAbb': 'country_abbrev'}, axis=1, inplace=True)
     c_abb_df.drop(['CCode'], axis=1, inplace=True)
