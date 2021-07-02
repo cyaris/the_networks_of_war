@@ -652,8 +652,6 @@
 				// the following functions are for both dyadic and participant descriptive fields
 				function getDefaultSelectors(defaultValues, timeFrameInput, grouping) {
 
-						// console.log(descriptiveFields);
-						// console.log(timeFrameInput);
 						// creating a value for a default descriptor for when no descriptive fields exist
 						if ( Object.keys(descriptiveFields[grouping][timeFrameInput]).length==0 )
 						// filling no selection with the default empty value ('None Available') if there are none to choose from.
@@ -767,7 +765,6 @@
 					nodeDescriptorSelected = defaultValues['node'][timeFrame];
 				};
 
-				console.log('1', nodeDescriptorSelected);
 
 				function nameFitsInNode(svgInput, nodeRadius, nameInput, textSize) {
 
@@ -880,30 +877,14 @@
 						return nodeMargins;
 				};
 
-				console.log('2', nodeDescriptorSelected);
-
-				function updateNodeSizes() {
-
-					if ( defaultValues['node'][timeFrame].includes(nodeDescriptorSelected) ) {
-
-						getNodeDescriptiveValuesOutput = getNodeDescriptiveValues(null),
-						nodeDescriptiveValues = getNodeDescriptiveValuesOutput[0],
-						maxDomain = getNodeDescriptiveValuesOutput[1],
-						stdNullRadiusSize = getNodeDescriptiveValuesOutput[2];
-					}
-					else {
-						nodeDescriptiveValues = descriptiveFields['node'][timeFrame][nodeDescriptorSelected]['values'],
-						maxDomain = descriptiveFields['node'][timeFrame][nodeDescriptorSelected]['max_domain'],
-						stdNullRadiusSize = descriptiveFields['node'][timeFrame][nodeDescriptorSelected]['std_node_size'];
-				}
-
-				console.log('3', nodeDescriptorSelected);
-				updateNodeSizes();
-				console.log('4', nodeDescriptorSelected);
+				getNodeDescriptiveValuesOutput = getNodeDescriptiveValues(null),
+				nodeDescriptiveValues = getNodeDescriptiveValuesOutput[0],
+				maxDomain = getNodeDescriptiveValuesOutput[1],
+				stdNullRadiusSize = getNodeDescriptiveValuesOutput[2],
 				// base value that will be used to calculate the values appended to the arrays above.
-				// including linkNodeSize inside of addedMarginSize.
 				nodeMargins = getNodeMargins(nodeDescriptiveValues, maxDomain, stdNullRadiusSize);
 
+				// // base value that will be used to calculate the values appended to the arrays above.
 				// // including linkNodeSize inside of addedMarginSize.
 				// var linkNodeSize = 10;
 
@@ -940,7 +921,6 @@
 				};
 
 				onlyOnePrimaryNode = OnlyOnePrimaryNodeCheck();
-				console.log('onlyOnePrimaryNode', onlyOnePrimaryNode);
 
 				function createGraphLayout() {
 
@@ -1145,6 +1125,7 @@
 						})
 			      .text('?');
 
+
 			  function ticked() {
 
 						// transform statement below prevents nodes from going beyond the dimensions of the svg2.
@@ -1211,210 +1192,227 @@
 					 })
 				};
 
-				// redefining graph layout with updated nodeMargins
-				graphLayout = createGraphLayout();
+				function updateNodeSizes() {
 
-				nodeTransitionDelay = 50,
-				nodeTransitionDuration = 3000;
-				textTransitionDelay = 1000;
-				textTransitionDuration = nodeTransitionDuration - textTransitionDelay;
+					if ( defaultValues['node'][timeFrame].includes(nodeDescriptorSelected) ) {
 
-				svg2.selectAll('.nodes')
-						.transition().delay(nodeTransitionDelay).duration(nodeTransitionDuration)
-						.attr('r', function(d) { return nodeMargins['radius_size'][d.id]; });
-
-				// calling same function used on tick to reposition node names
-				repositionNodeNames(textTransitionDelay, textTransitionDuration, true);
-
-				svg2.selectAll('.node_size_warnings')
-						// adjusting opacity will be a shorter transition than repositioning the label.
-						.transition().delay(nodeTransitionDelay).duration(nodeTransitionDelay)
-						.style('opacity', function(d) {
-							if ( nodeDescriptiveValues.uniqueNonNull().length==0 )
-							{ return 0; }
-							else if ( isNaN(parseFloat(nodeDescriptiveValues[d.id])) )
-								{ return 1; }
-							else
-							{ return 0; }
-						})
-						.transition().delay(textTransitionDelay).duration(textTransitionDuration)
-						// need a better solution for when text comes too close to node because nodesize is small
-						.attr('dx', function(d) { return  Math.min(nodeMargins['radius_size'][d.id] * -1.5, -30); })
-						.attr('dy', function(d) { return Math.max(nodeMargins['radius_size'][d.id], 10); });
-
-					d3.selectAll('.tooltip').remove();
-					defineNodeTooltips();
-			};
-
-			descriptorMaxNameLength = maxFromArray(descriptorNameLengths['link'].concat(descriptorNameLengths['node'])),
-			// adjusting x position for node to go below link dropdown selection options
-			descriptorRectWidth = descriptorMaxNameLength+10,
-			descriptorRectHeight = 30,
-			yAdjustment = 60,
-			xAdjustment = 30,
-			linkMenuTitle = 'Link Dashes: ',
-			nodeMenuTitle = 'Node Size: ',
-			// linkMenuTitleLength = getTextWidth(svg2, linkMenuTitle, graphMenuTextSize);
-			// nodeMenuTitleLength = getTextWidth(svg2, nodeMenuTitle, graphMenuTextSize);
-			descriptorTitleYLoc = 20,
-			descriptorRectYLoc = descriptorTitleYLoc + 6,
-			descriptorRectXLoc = width-descriptorMaxNameLength-xAdjustment,
-			descriptorTextXLoc = descriptorRectXLoc + 5,
-			descriptorTextYLoc = descriptorTitleYLoc + 27.5;
-			toolTipWidth = '250px',
-			toolTipHeight = '75px';
-
-			// the following two functions will be used for both links and participants
-			function descriptiveMenuMouseOver(groupingType, descriptiveArray, clickFunction, yAdjustmentInput) {
-
-					svg2.selectAll('.' + groupingType + '_descriptor_dropdowns').remove();
-
-					if ( Object.keys(descriptiveArray).length > 0) {
-
-						for ( var i = 0; i <= Object.keys(descriptiveArray).length-1; i++ ) {
-							dropdownSelected = Object.keys(descriptiveArray)[i];
-							if ( linkDescriptorSelected==dropdownSelected || nodeDescriptorSelected==dropdownSelected ) {
-								dropdownBackgroundColor = 'violet'
-							}
-							else {
-								dropdownBackgroundColor = 'white'
-							}
-							addStdRect(svg2, groupingType + '_descriptor_dropdowns', dropdownSelected, descriptorRectXLoc, yAdjustmentInput + descriptorRectYLoc + ((i+1)*descriptorRectHeight), descriptorRectWidth, descriptorRectHeight, 'black', 1, null, dropdownBackgroundColor, null, generalRectMO, generalRectML, clickFunction);
-							addStdText(svg2, groupingType + '_descriptor_dropdowns', null, descriptorTextXLoc, yAdjustmentInput + descriptorTextYLoc + ((i+1)*descriptorRectHeight), graphMenuTextSize, 0, dropdownSelected);
-						}
+						getNodeDescriptiveValuesOutput = getNodeDescriptiveValues(null),
+						nodeDescriptiveValues = getNodeDescriptiveValuesOutput[0],
+						maxDomain = getNodeDescriptiveValuesOutput[1],
+						stdNullRadiusSize = getNodeDescriptiveValuesOutput[2];
 					}
-					else
-					{ svg2.select('#' + groupingType + '_descriptor_selected_rect').style('stroke-width', 2); }
-			};
+					else {
+						nodeDescriptiveValues = descriptiveFields['node'][timeFrame][nodeDescriptorSelected]['values'],
+						maxDomain = descriptiveFields['node'][timeFrame][nodeDescriptorSelected]['max_domain'],
+						stdNullRadiusSize = descriptiveFields['node'][timeFrame][nodeDescriptorSelected]['std_node_size'];
+					}
+					// base value that will be used to calculate the values appended to the arrays above.
+					// including linkNodeSize inside of addedMarginSize.
+					nodeMargins = getNodeMargins(nodeDescriptiveValues, maxDomain, stdNullRadiusSize);
+					// redefining graph layout with updated nodeMargins
+					graphLayout = createGraphLayout();
 
-			// Two functions that change the the selection for link dash marks (based on interaction variables).
-			var linkMenuMouseOver = function(d) {
+					nodeTransitionDelay = 50,
+					nodeTransitionDuration = 3000,
+					textTransitionDelay = 1000,
+					textTransitionDuration = nodeTransitionDuration - textTransitionDelay;
 
-					descriptiveMenuMouseOver('link', descriptiveFields['link'][timeFrame], linkMenuClick, 0);
-			},
-					linkMenuClick = function(d) {
+					svg2.selectAll('.nodes')
+							.transition().delay(nodeTransitionDelay).duration(nodeTransitionDuration)
+							.attr('r', function(d) { return nodeMargins['radius_size'][d.id]; });
 
-					linkDescriptorSelected = d3.select(this).attr('id');
-					descriptiveMenuClick('link', linkDescriptorSelected, linkMenuMouseOver, 0);
+					// calling same function used on tick to reposition node names
+					repositionNodeNames(textTransitionDelay, textTransitionDuration, true);
 
-					link.selectAll('.link_dash')
-							.transition().delay(50).duration(1000)
-							.attr('stroke', function(d) {
-								if ( linkDescriptiveValues[d.index]==0 )
-								{ return 'transparent'; }
+					svg2.selectAll('.node_size_warnings')
+							// adjusting opacity will be a shorter transition than repositioning the label.
+							.transition().delay(nodeTransitionDelay).duration(nodeTransitionDelay)
+							.style('opacity', function(d) {
+								if ( nodeDescriptiveValues.uniqueNonNull().length==0 )
+								{ return 0; }
+								else if ( isNaN(parseFloat(nodeDescriptiveValues[d.id])) )
+									{ return 1; }
 								else
-								{ return 'blue'; }
+								{ return 0; }
 							})
-							.attr('stroke-width', linkDashStrokeWidth + 4)
-							.transition().duration(1000)
-							.attr('stroke-width', linkDashStrokeWidth);
-			},
-					// Two functions that change the the selection for participant node sizes
-					nodeMenuMouseOver = function(d) {
+							.transition().delay(textTransitionDelay).duration(textTransitionDuration)
+							// need a better solution for when text comes too close to node because nodesize is small
+							.attr('dx', function(d) { return  Math.min(nodeMargins['radius_size'][d.id] * -1.5, -30); })
+							.attr('dy', function(d) { return Math.max(nodeMargins['radius_size'][d.id], 10); });
 
-					descriptiveMenuMouseOver('node', descriptiveFields['node'][timeFrame], nodeMenuCLick, yAdjustment);
-			},
-					nodeMenuCLick = function(d) {
-
-					nodeDescriptorSelected = d3.select(this).attr('id');
-					descriptiveMenuClick('node', nodeDescriptorSelected, nodeMenuMouseOver, yAdjustment);
-			};
-
-			function descriptiveMenuClick(groupingType, descriptorName, moFunction, yAdjustmentInput) {
-
-					svg2.selectAll('.' + groupingType + '_descriptor_dropdowns').remove();
-					svg2.selectAll('#' + groupingType + '_descriptor_selected_text').remove();
-
-					addStdText(svg2, null, groupingType + '_descriptor_selected_text', descriptorTextXLoc, yAdjustmentInput + descriptorTextYLoc, graphMenuTextSize, 0, descriptorName);
-
-					if ( groupingType=='link' && defaultSelectorCheck('link', descriptorName) )
-					{ linkDescriptiveValues = getLinkDescriptiveValues(null); }
-					else if ( groupingType=='link' )
-					{ linkDescriptiveValues = descriptiveFields['link'][timeFrame][descriptorName]['values']; }
-					else
-					{ updateNodeSizes(); }
-			};
-
-			descriptiveMenuClick('link', linkDescriptorSelected, linkMenuMouseOver, 0);
-			descriptiveMenuClick('node', nodeDescriptorSelected, nodeMenuMouseOver, yAdjustment);
-
-			addStdText(svg2, null, 'node_descriptor_selected_title', descriptorRectXLoc, yAdjustment + descriptorTitleYLoc, graphMenuTextSize, 0, nodeMenuTitle);
-			addStdText(svg2, null, 'link_descriptor_selected_title', descriptorRectXLoc, descriptorTitleYLoc, graphMenuTextSize, 0, linkMenuTitle);
-			addStdRect(svg2, null, 'link_descriptor_selected_rect', descriptorRectXLoc, descriptorRectYLoc, descriptorRectWidth, descriptorRectHeight, 'black', 1, null, 'transparent', null, linkMenuMouseOver, generalRectML, null);
-			addStdRect(svg2, null, 'node_descriptor_selected_rect', descriptorRectXLoc, yAdjustment + descriptorRectYLoc, descriptorRectWidth, descriptorRectHeight, 'black', 1, null, 'transparent', null, nodeMenuMouseOver, generalRectML, null);
-			addStdText(svg2, null, 'link_descriptor_selected_text', descriptorTextXLoc, descriptorTextYLoc, graphMenuTextSize, 0, linkDescriptorSelected);
-			addStdText(svg2, null, 'node_descriptor_selected_text', descriptorTextXLoc, yAdjustment + descriptorTextYLoc, graphMenuTextSize, 0, nodeDescriptorSelected);
-
-			function defineNodeTooltips() {
-
-				for ( var i = 0; i <= Object.values(nodeMargins['radius_size']).length-1; i++ ) {
-
-						if ( defaultValues['node'][timeFrame].includes(nodeDescriptorSelected) )
-						{ textInput = nodeDescriptorSelected; }
-						else
-					 	{ textInput = nodeDescriptorSelected + ': ' + nodeDescriptiveValues[i].toLocaleString(); }
-						defineTooltip('war_network_analysis_graph', 'node_tooltip_' + i, 0, 0, toolTipWidth, toolTipHeight, textInput);
+						d3.selectAll('.tooltip').remove();
+						defineNodeTooltips();
 				};
-			};
 
-			// determining coordinates for the node
-			// then calculating the new position for the node tooltip based on the current position of the node
-			function repositionNodeTooltip(nodeTarget) {
+				descriptorMaxNameLength = maxFromArray(descriptorNameLengths['link'].concat(descriptorNameLengths['node'])),
+				// adjusting x position for node to go below link dropdown selection options
+				descriptorRectWidth = descriptorMaxNameLength+10,
+				descriptorRectHeight = 30,
+				yAdjustment = 60,
+				xAdjustment = 30,
+				linkMenuTitle = 'Link Dashes: ',
+				nodeMenuTitle = 'Node Size: ',
+				// linkMenuTitleLength = getTextWidth(svg2, linkMenuTitle, graphMenuTextSize);
+				// nodeMenuTitleLength = getTextWidth(svg2, nodeMenuTitle, graphMenuTextSize);
+				descriptorTitleYLoc = 20,
+				descriptorRectYLoc = descriptorTitleYLoc + 6,
+				descriptorRectXLoc = width-descriptorMaxNameLength-xAdjustment,
+				descriptorTextXLoc = descriptorRectXLoc + 5,
+				descriptorTextYLoc = descriptorTitleYLoc + 27.5;
+				toolTipWidth = '250px',
+				toolTipHeight = '75px';
 
-					// combining methods of getBox and element coordinates.
-					nodeElem = document.getElementById('node_' + nodeTarget),
-					nodeRadius = +nodeElem.getAttribute('r'),
-					nodeCTM = nodeElem.getCTM();
-					// calculating the position of the middle of the node, and then shifting the tooltip to the left.
-					// adjusting for when the node is on the left vs right side of the svg.
-					if ( nodeCTM.e >= width * 0.5 )
-					{ leftPosition = nodeCTM.e + nodeRadius + 50; }
-					else
-					{ leftPosition = nodeCTM.e - nodeRadius - parseInt(toolTipWidth) - 25; }
-					// needed to add an arbitrary value (425) to the top in order to make this work.
-					topPosition = nodeCTM.f + 200;
+				// the following two functions will be used for both links and participants
+				function descriptiveMenuMouseOver(groupingType, descriptiveArray, clickFunction, yAdjustmentInput) {
 
-					return {'left': leftPosition, 'top': topPosition};
-			};
+						svg2.selectAll('.' + groupingType + '_descriptor_dropdowns').remove();
 
-			defineNodeTooltips();
+						if ( Object.keys(descriptiveArray).length > 0) {
 
-			function dragStarted(d) {
+							for ( var i = 0; i <= Object.keys(descriptiveArray).length-1; i++ ) {
+								dropdownSelected = Object.keys(descriptiveArray)[i];
+								if ( linkDescriptorSelected==dropdownSelected || nodeDescriptorSelected==dropdownSelected ) {
+									dropdownBackgroundColor = 'violet'
+								}
+								else {
+									dropdownBackgroundColor = 'white'
+								}
+								addStdRect(svg2, groupingType + '_descriptor_dropdowns', dropdownSelected, descriptorRectXLoc, yAdjustmentInput + descriptorRectYLoc + ((i+1)*descriptorRectHeight), descriptorRectWidth, descriptorRectHeight, 'black', 1, null, dropdownBackgroundColor, null, generalRectMO, generalRectML, clickFunction);
+								addStdText(svg2, groupingType + '_descriptor_dropdowns', null, descriptorTextXLoc, yAdjustmentInput + descriptorTextYLoc + ((i+1)*descriptorRectHeight), graphMenuTextSize, 0, dropdownSelected);
+							}
+						}
+						else
+						{ svg2.select('#' + groupingType + '_descriptor_selected_rect').style('stroke-width', 2); }
+				};
 
-					// need to figure out why cursor is being interfered when drag has not ended
-					d3.select(this).style('cursor', 'grab');
-					// // not displaying tooltips during drag
-					d3.selectAll('.tooltip').style('opacity', 0);
+				// Two functions that change the the selection for link dash marks (based on interaction variables).
+				var linkMenuMouseOver = function(d) {
 
-					d3.event.sourceEvent.stopPropagation();
+						descriptiveMenuMouseOver('link', descriptiveFields['link'][timeFrame], linkMenuClick, 0);
+				},
+						linkMenuClick = function(d) {
 
-			    if ( !d3.event.active ) {
-						graphLayout.alphaTarget(0.3).restart();
-				    d.fx = d.x;
-				    d.fy = d.y;
-					}
-			};
+						linkDescriptorSelected = d3.select(this).attr('id');
+						descriptiveMenuClick('link', linkDescriptorSelected, linkMenuMouseOver, 0);
 
-			function dragged(d) {
+						link.selectAll('.link_dash')
+								.transition().delay(50).duration(1000)
+								.attr('stroke', function(d) {
+									if ( linkDescriptiveValues[d.index]==0 )
+									{ return 'transparent'; }
+									else
+									{ return 'blue'; }
+								})
+								.attr('stroke-width', linkDashStrokeWidth + 4)
+								.transition().duration(1000)
+								.attr('stroke-width', linkDashStrokeWidth);
+				},
+						// Two functions that change the the selection for participant node sizes
+						nodeMenuMouseOver = function(d) {
 
-					// need to figure out why cursor is being interfered when drag has not ended
-					d3.select(this).style('cursor', 'grab');
-					// // not displaying tooltips during drag
-					d3.selectAll('.tooltip').style('opacity', 0);
+						descriptiveMenuMouseOver('node', descriptiveFields['node'][timeFrame], nodeMenuCLick, yAdjustment);
+				},
+						nodeMenuCLick = function(d) {
 
-					d.fx = d3.event.x;
-			    d.fy = d3.event.y;
-			};
+						nodeDescriptorSelected = d3.select(this).attr('id');
+						descriptiveMenuClick('node', nodeDescriptorSelected, nodeMenuMouseOver, yAdjustment);
+				};
 
-			function dragEnded(d) {
+				function descriptiveMenuClick(groupingType, descriptorName, moFunction, yAdjustmentInput) {
 
-					// need to figure out why cursor is being interfered when drag has not ended
-					d3.select(this).style('cursor', 'pointer');
+						svg2.selectAll('.' + groupingType + '_descriptor_dropdowns').remove();
+						svg2.selectAll('#' + groupingType + '_descriptor_selected_text').remove();
 
-					if ( !d3.event.active ) {
-						graphLayout.alphaTarget(0).restart();
-				    d.fx = null;
-				    d.fy = null;
+						addStdText(svg2, null, groupingType + '_descriptor_selected_text', descriptorTextXLoc, yAdjustmentInput + descriptorTextYLoc, graphMenuTextSize, 0, descriptorName);
+
+						if ( groupingType=='link' && defaultSelectorCheck('link', descriptorName) )
+						{ linkDescriptiveValues = getLinkDescriptiveValues(null); }
+						else if ( groupingType=='link' )
+						{ linkDescriptiveValues = descriptiveFields['link'][timeFrame][descriptorName]['values']; }
+						else
+						{ updateNodeSizes(); }
+				};
+
+				descriptiveMenuClick('link', linkDescriptorSelected, linkMenuMouseOver, 0);
+				descriptiveMenuClick('node', nodeDescriptorSelected, nodeMenuMouseOver, yAdjustment);
+
+				addStdText(svg2, null, 'node_descriptor_selected_title', descriptorRectXLoc, yAdjustment + descriptorTitleYLoc, graphMenuTextSize, 0, nodeMenuTitle);
+				addStdText(svg2, null, 'link_descriptor_selected_title', descriptorRectXLoc, descriptorTitleYLoc, graphMenuTextSize, 0, linkMenuTitle);
+				addStdRect(svg2, null, 'link_descriptor_selected_rect', descriptorRectXLoc, descriptorRectYLoc, descriptorRectWidth, descriptorRectHeight, 'black', 1, null, 'transparent', null, linkMenuMouseOver, generalRectML, null);
+				addStdRect(svg2, null, 'node_descriptor_selected_rect', descriptorRectXLoc, yAdjustment + descriptorRectYLoc, descriptorRectWidth, descriptorRectHeight, 'black', 1, null, 'transparent', null, nodeMenuMouseOver, generalRectML, null);
+				addStdText(svg2, null, 'link_descriptor_selected_text', descriptorTextXLoc, descriptorTextYLoc, graphMenuTextSize, 0, linkDescriptorSelected);
+				addStdText(svg2, null, 'node_descriptor_selected_text', descriptorTextXLoc, yAdjustment + descriptorTextYLoc, graphMenuTextSize, 0, nodeDescriptorSelected);
+
+				function defineNodeTooltips() {
+
+					for ( var i = 0; i <= Object.values(nodeMargins['radius_size']).length-1; i++ ) {
+
+							if ( defaultValues['node'][timeFrame].includes(nodeDescriptorSelected) )
+							{ textInput = nodeDescriptorSelected; }
+							else
+						 	{ textInput = nodeDescriptorSelected + ': ' + nodeDescriptiveValues[i].toLocaleString(); }
+							defineTooltip('war_network_analysis_graph', 'node_tooltip_' + i, 0, 0, toolTipWidth, toolTipHeight, textInput);
+					};
+				};
+
+				// determining coordinates for the node
+				// then calculating the new position for the node tooltip based on the current position of the node
+				function repositionNodeTooltip(nodeTarget) {
+
+						// combining methods of getBox and element coordinates.
+						nodeElem = document.getElementById('node_' + nodeTarget),
+						nodeRadius = +nodeElem.getAttribute('r'),
+						nodeCTM = nodeElem.getCTM();
+						// calculating the position of the middle of the node, and then shifting the tooltip to the left.
+						// adjusting for when the node is on the left vs right side of the svg.
+						if ( nodeCTM.e >= width * 0.5 )
+						{ leftPosition = nodeCTM.e + nodeRadius + 50; }
+						else
+						{ leftPosition = nodeCTM.e - nodeRadius - parseInt(toolTipWidth) - 25; }
+						// needed to add an arbitrary value (425) to the top in order to make this work.
+						topPosition = nodeCTM.f + 200;
+
+						return {'left': leftPosition, 'top': topPosition};
+				};
+
+				defineNodeTooltips();
+
+				function dragStarted(d) {
+
+						// need to figure out why cursor is being interfered when drag has not ended
+						d3.select(this).style('cursor', 'grab');
+						// // not displaying tooltips during drag
+						d3.selectAll('.tooltip').style('opacity', 0);
+
+						d3.event.sourceEvent.stopPropagation();
+
+				    if ( !d3.event.active ) {
+							graphLayout.alphaTarget(0.3).restart();
+					    d.fx = d.x;
+					    d.fy = d.y;
+						}
+				};
+
+				function dragged(d) {
+
+						// need to figure out why cursor is being interfered when drag has not ended
+						d3.select(this).style('cursor', 'grab');
+						// // not displaying tooltips during drag
+						d3.selectAll('.tooltip').style('opacity', 0);
+
+						d.fx = d3.event.x;
+				    d.fy = d3.event.y;
+				};
+
+				function dragEnded(d) {
+
+						// need to figure out why cursor is being interfered when drag has not ended
+						d3.select(this).style('cursor', 'pointer');
+
+						if ( !d3.event.active ) {
+							graphLayout.alphaTarget(0).restart();
+					    d.fx = null;
+					    d.fy = null;
 				};
 			}});
 		}})
