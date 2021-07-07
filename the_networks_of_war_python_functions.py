@@ -30,24 +30,6 @@ def define_c_code_dic():
     return c_code_dic
 
 
-# def define_country_abbreviation_dic():
-#
-#     c_abb_df = pd.read_csv('/Users/charlieyaris/Personal/data_sources/the_networks_of_war/csvs/COW country codes.csv', encoding='utf8')
-#     c_abb_df.rename({'StateNme': 'country',
-#                       'StateAbb': 'country_abbrev'}, axis=1, inplace=True)
-#     c_abb_df.drop(['CCode'], axis=1, inplace=True)
-#
-#     duplicate_list = ['country', 'country_abbrev']
-#     c_abb_df.drop_duplicates(subset=duplicate_list, keep='first', inplace=True)
-#     c_abb_df = deepcopy(c_abb_df.reset_index(drop=True))
-#
-#     c_abb_df = deepcopy(dictionary_from_field(c_abb_df, 'country_abbrev', 'country'))
-#
-#     print('Total Abbreviated Names: {}'.format(format(len(c_abb_df.keys()), ',d')))
-#
-#     return c_abb_df
-
-
 def start_and_end_dates(dataframe):
 
     monthly_max_df = deepcopy(pd.read_csv('monthly_max_days.csv'))
@@ -116,46 +98,6 @@ def start_and_end_dates(dataframe):
     print("Total Estimated End Dates: {}\n".format(format(len(dataframe[dataframe['end_date_estimated']==1]), ',d')))
 
     return dataframe
-
-
-# def final_date_formatting(dataframe):
-#
-#     null_start_years = deepcopy(len(dataframe[dataframe['start_year'].isnull()]))
-#     ## accounting for ongoing participation (the only time when null year is okay)
-#     null_end_years = deepcopy(len(dataframe[(dataframe['end_year'].isnull()) & (dataframe['ongoing_participation']==1)]))
-#
-#     for i, row in enumerate(dataframe[list(dataframe.columns)[0]]):
-#         if len(str(dataframe.loc[i, 'start_year'])) < 4:
-#             try:
-#                 dataframe.loc[i, 'start_year'] = int(str(dataframe.loc[i, 'start_date'])[0:4])
-#             except:
-#                 pass
-#         if len(str(dataframe.loc[i, 'end_year'])) < 4 and dataframe.loc[i, 'ongoing_participation']==False:
-#             try:
-#                 dataframe.loc[i, 'end_year'] = int(str(dataframe.loc[i, 'end_date'])[0:4])
-#             except:
-#                 pass
-#
-#     final_null_start_years = deepcopy(len(dataframe[dataframe['start_year'].isnull()]))
-#     ## accounting for ongoing participation (the only time when null year is okay)
-#     final_null_end_years = deepcopy(len(dataframe[(dataframe['end_year'].isnull()) & (dataframe['ongoing_participation']==1)]))
-#
-#     print('Start Years Reformatted: {}'.format(format(null_start_years-final_null_start_years, ',d')))
-#     print('End Years Reformatted: {}\n'.format(format(null_end_years-final_null_end_years, ',d')))
-#
-#     return dataframe
-
-#
-# def remaining_participant_null_values(dataframe, remaining_fields):
-#
-#     ## defining null values (missing data)
-#     for field in remaining_fields:
-#         ## -8 is not applicable.
-#         dataframe.loc[dataframe[field]==-8, field] = None
-#         ## -9 is unknown.
-#         dataframe.loc[dataframe[field]==-9, field] = None
-#
-#     return dataframe
 
 
 def get_switched_columns(dataframe):
@@ -312,6 +254,8 @@ def process_dyadic_data(dy_df):
         coalesce(cca.state_name, a.participant_a) as participant_a,
         a.c_code_b,
         coalesce(ccb.state_name, a.participant_b) as participant_b,
+        sum(case when a.battle_deaths_a >= 0 then a.battle_deaths_a else null end) as battle_deaths_a,
+        sum(case when a.battle_deaths_b >= 0 then a.battle_deaths_b else null end) as battle_deaths_b,
         min(a.start_date) as start_date,
         cast(strftime('%Y', min(a.start_date)) as integer) as start_year,
         max(a.end_date) as end_date,
@@ -335,7 +279,6 @@ def process_dyadic_data(dy_df):
     dy_df = deepcopy(dy_df[(dy_df['participant_a']!='-8') & (dy_df['participant_b']!='-8')].reset_index(drop=True))
 
     return part_dataframe, dy_df
-
 
 
 def add_missing_dyads(pa_df_copy, dy_df, war_input, side_input, single_side):
@@ -366,29 +309,16 @@ def add_missing_dyads(pa_df_copy, dy_df, war_input, side_input, single_side):
         elif single_side=='state' and participant_a in dyadic_parties:
             pass
         else:
-            ## preparing list for start years, end years and all years in-between
-            ## each assumed dyad will be joined to all years where the participant being added (not in list) was a part of the war.
-            part_b_start_year = pa_df_copy[pa_df_copy['participant']==party_b]['start_year'].values[0]
-            part_b_end_year = pa_df_copy[pa_df_copy['participant']==party_b]['end_year'].values[0]
-            part_b_year_list = []
-            if len(str(part_b_start_year))==4 and len(str(part_b_end_year))==4:
-                for year in np.arange(int(part_b_start_year), int(part_b_end_year)+1):
-                    part_b_year_list.append(year)
-            elif len(str(part_b_start_year))==4:
-                part_b_year_list.append(int(part_b_start_year))
-            elif len(str(part_b_end_year))==4:
-                part_b_year_list.append(int(part_b_end_year))
-            else:
-                ## acounting for when the list is empty since that would break the loop
-                part_b_year_list.append(None)
-            for part_b_year in part_b_year_list:
-                df_length = deepcopy(len(dy_df))
-                dy_df.loc[df_length, 'war_num'] = war_input
-                dy_df.loc[df_length, 'c_code_a'] = c_code_a
-                dy_df.loc[df_length, 'participant_a'] = participant_a
-                dy_df.loc[df_length, 'year'] = part_b_year
-                dy_df.loc[df_length, 'c_code_b'] = pa_df_copy[pa_df_copy['participant']==party_b]['c_code'].values[0]
-                dy_df.loc[df_length, 'participant_b'] = party_b
+            df_length = deepcopy(len(dy_df))
+            dy_df.loc[df_length, 'war_num'] = war_input
+            dy_df.loc[df_length, 'c_code_a'] = c_code_a
+            dy_df.loc[df_length, 'participant_a'] = participant_a
+            dy_df.loc[df_length, 'c_code_b'] = pa_df_copy[pa_df_copy['participant']==party_b]['c_code'].values[0]
+            dy_df.loc[df_length, 'participant_b'] = party_b
+            dy_df.loc[df_length, 'start_year'] = pa_df_copy[pa_df_copy['participant']==party_b]['start_year'].values[0]
+            dy_df.loc[df_length, 'start_date'] = pa_df_copy[pa_df_copy['participant']==party_b]['start_date'].values[0]
+            dy_df.loc[df_length, 'end_year'] = pa_df_copy[pa_df_copy['participant']==party_b]['end_year'].values[0]
+            dy_df.loc[df_length, 'end_date'] = pa_df_copy[pa_df_copy['participant']==party_b]['end_date'].values[0]
 
     return dy_df
 
@@ -543,3 +473,63 @@ def adjust_participant_names(dataframe, grouping_type):
                 dataframe.loc[i, column] = dataframe.loc[i, column].replace(' resistence', ' Resistance')
 
     return dataframe
+
+
+
+
+# def define_country_abbreviation_dic():
+#
+#     c_abb_df = pd.read_csv('/Users/charlieyaris/Personal/data_sources/the_networks_of_war/csvs/COW country codes.csv', encoding='utf8')
+#     c_abb_df.rename({'StateNme': 'country',
+#                       'StateAbb': 'country_abbrev'}, axis=1, inplace=True)
+#     c_abb_df.drop(['CCode'], axis=1, inplace=True)
+#
+#     duplicate_list = ['country', 'country_abbrev']
+#     c_abb_df.drop_duplicates(subset=duplicate_list, keep='first', inplace=True)
+#     c_abb_df = deepcopy(c_abb_df.reset_index(drop=True))
+#
+#     c_abb_df = deepcopy(dictionary_from_field(c_abb_df, 'country_abbrev', 'country'))
+#
+#     print('Total Abbreviated Names: {}'.format(format(len(c_abb_df.keys()), ',d')))
+#
+#     return c_abb_df
+
+
+# def final_date_formatting(dataframe):
+#
+#     null_start_years = deepcopy(len(dataframe[dataframe['start_year'].isnull()]))
+#     ## accounting for ongoing participation (the only time when null year is okay)
+#     null_end_years = deepcopy(len(dataframe[(dataframe['end_year'].isnull()) & (dataframe['ongoing_participation']==1)]))
+#
+#     for i, row in enumerate(dataframe[list(dataframe.columns)[0]]):
+#         if len(str(dataframe.loc[i, 'start_year'])) < 4:
+#             try:
+#                 dataframe.loc[i, 'start_year'] = int(str(dataframe.loc[i, 'start_date'])[0:4])
+#             except:
+#                 pass
+#         if len(str(dataframe.loc[i, 'end_year'])) < 4 and dataframe.loc[i, 'ongoing_participation']==False:
+#             try:
+#                 dataframe.loc[i, 'end_year'] = int(str(dataframe.loc[i, 'end_date'])[0:4])
+#             except:
+#                 pass
+#
+#     final_null_start_years = deepcopy(len(dataframe[dataframe['start_year'].isnull()]))
+#     ## accounting for ongoing participation (the only time when null year is okay)
+#     final_null_end_years = deepcopy(len(dataframe[(dataframe['end_year'].isnull()) & (dataframe['ongoing_participation']==1)]))
+#
+#     print('Start Years Reformatted: {}'.format(format(null_start_years-final_null_start_years, ',d')))
+#     print('End Years Reformatted: {}\n'.format(format(null_end_years-final_null_end_years, ',d')))
+#
+#     return dataframe
+
+#
+# def remaining_participant_null_values(dataframe, remaining_fields):
+#
+#     ## defining null values (missing data)
+#     for field in remaining_fields:
+#         ## -8 is not applicable.
+#         dataframe.loc[dataframe[field]==-8, field] = None
+#         ## -9 is unknown.
+#         dataframe.loc[dataframe[field]==-9, field] = None
+#
+#     return dataframe
