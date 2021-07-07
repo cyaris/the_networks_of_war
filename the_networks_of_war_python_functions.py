@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+from pandasql import sqldf
 from copy import deepcopy
 from traceback import format_exc
 
@@ -29,137 +30,132 @@ def define_c_code_dic():
     return c_code_dic
 
 
-def define_country_abbreviation_dic():
-
-    c_abb_df = pd.read_csv('/Users/charlieyaris/Personal/data_sources/the_networks_of_war/csvs/COW country codes.csv', encoding='utf8')
-    c_abb_df.rename({'StateNme': 'country',
-                      'StateAbb': 'country_abbrev'}, axis=1, inplace=True)
-    c_abb_df.drop(['CCode'], axis=1, inplace=True)
-
-    duplicate_list = ['country', 'country_abbrev']
-    c_abb_df.drop_duplicates(subset=duplicate_list, keep='first', inplace=True)
-    c_abb_df = deepcopy(c_abb_df.reset_index(drop=True))
-
-    c_abb_df = deepcopy(dictionary_from_field(c_abb_df, 'country_abbrev', 'country'))
-
-    print('Total Abbreviated Names: {}'.format(format(len(c_abb_df.keys()), ',d')))
-
-    return c_abb_df
+# def define_country_abbreviation_dic():
+#
+#     c_abb_df = pd.read_csv('/Users/charlieyaris/Personal/data_sources/the_networks_of_war/csvs/COW country codes.csv', encoding='utf8')
+#     c_abb_df.rename({'StateNme': 'country',
+#                       'StateAbb': 'country_abbrev'}, axis=1, inplace=True)
+#     c_abb_df.drop(['CCode'], axis=1, inplace=True)
+#
+#     duplicate_list = ['country', 'country_abbrev']
+#     c_abb_df.drop_duplicates(subset=duplicate_list, keep='first', inplace=True)
+#     c_abb_df = deepcopy(c_abb_df.reset_index(drop=True))
+#
+#     c_abb_df = deepcopy(dictionary_from_field(c_abb_df, 'country_abbrev', 'country'))
+#
+#     print('Total Abbreviated Names: {}'.format(format(len(c_abb_df.keys()), ',d')))
+#
+#     return c_abb_df
 
 
 def start_and_end_dates(dataframe):
 
-    start_date_fields = ['start_day', 'start_month', 'start_year']
-    end_date_fields = ['end_day', 'end_month', 'end_year']
-    ## creating a field for ongoing wars
-    for date_part in end_date_fields:
-        dataframe.loc[dataframe[date_part]==-7, 'ongoing_participation'] = 1
+    monthly_max_df = deepcopy(pd.read_csv('monthly_max_days.csv'))
 
-    ## defining null values (missing or non-applicable data)
-    ## includes ongoing wars (end date is non-applicable)
-    for date_part in start_date_fields + end_date_fields:
+    date_fields = ['start_year', 'start_month', 'start_day', 'end_year', 'end_month', 'end_day']
 
-        dataframe.loc[dataframe[date_part].astype(float)<=0, date_part] = None
+    for i, date in enumerate(dataframe.index):
 
-        if date_part[-4:]!='year':
-            ## creating an initial flag to say that the value has been filled in arbitrarily
-            ## this will be made null if total_days_at_war is not calculated
-            dataframe.loc[dataframe[date_part].isnull(), date_part.split('_')[0] + '_date_estimated'] = 1
-            ## filling null days with the first day of the month
-            ## filling null months with the first month of the year
-            ## this will lead to an estimation for start_date-end_date (total days at war)
-            dataframe.loc[dataframe[date_part].isnull(), date_part] = 1
+        df_row = deepcopy(dataframe[dataframe.index==i].reset_index(drop=True))
 
-    dataframe.loc[dataframe['ongoing_participation'].isnull(), 'ongoing_participation'] = 0
-    ## if the above doesn't apply, then the dates were not calculated arbitrarily (or not calculated at all)
-    ## this value will be adjusted to None later if not calculated at all
-    dataframe.loc[dataframe['start_date_estimated'].isnull(), 'start_date_estimated'] = 0
-    dataframe.loc[dataframe['end_date_estimated'].isnull(), 'end_date_estimated'] = 0
+        for date_field in date_fields:
+            date_value = str(df_row[date_field].values[0]).replace('.', '')
+            if date_field[-4:] != 'year':
+                date_value = str(df_row[date_field].values[0]).replace('0', '')
+            try:
+                date_value = int(date_value)
+            except:
+                date_value = float(date_value)
 
-    ## calculating null for all without valid start/end dates.
-    ## those with invalid data will have null dates and increae the count for not_found.
-    dates_found = 0
-    dates_not_found = 0
+            df_row.loc[0, date_field] = date_value
 
-    for i, date in enumerate(dataframe['war_num']):
+        query_text = """
+        select
+            max(coalesce(a.start_year, 1), 1) as start_year,
+            max(coalesce(a.start_month, 1), 1) as start_month,
+            max(coalesce(a.start_day, 1), 1) as start_day,
+            case when coalesce(a.end_year, -1) < 0 then cast(strftime('%Y', date('now')) as integer)
+                else a.end_year end as end_year,
+            case when coalesce(a.end_year, -1) < 0 then cast(strftime('%m', date('now')) as integer)
+            when a.end_year > 0 and coalesce(a.end_month, -1) < 0 then 12
+                else a.end_month end as end_month,
+            case when coalesce(a.end_year, -1) < 0 then cast(strftime('%d', date('now')) as integer)
+            when a.end_month > 0 and coalesce(a.end_day, -1) < 0 then mm.max_days
+            when coalesce(a.end_month, -1) < 0 and coalesce(a.end_day, -1) < 0 then 31
+                else a.end_day end as end_day,
+            case when coalesce(a.end_year, -1) < 0 then 1
+                else 0 end as ongoing_participation,
+            case when coalesce(a.start_year, -1) < 0 or coalesce(a.start_month, -1) < 0 or coalesce(a.start_day, -1) < 0 then 1
+                else 0 end as start_date_estimated,
+            case when coalesce(a.end_year, -1) < 0 or coalesce(a.end_month, -1) < 0 or coalesce(a.end_day, -1) < 0 then 1
+                else 0 end as end_date_estimated
+        from df_row a
+        left join monthly_max_df mm on case when coalesce(a.end_year, -1) < 0 then cast(strftime('%m', date('now')) as integer) when a.end_year > 0 and coalesce(a.end_month, -1) < 0 then 12 else a.end_month end = mm.month"""
 
-        for date_part in start_date_fields + end_date_fields:
-            ## unsure why this occurs (.0 after integer)
-            if '.' in str(dataframe.loc[i, date_part]):
-                dataframe.loc[i, date_part] = str(dataframe.loc[i, date_part]).split('.')[0]
+        df_row = deepcopy(sqldf(query_text, {**locals(), **globals()}))
 
-        try:
-            dataframe.loc[i, 'start_date'] = pd.to_datetime(dataframe.loc[i, 'start_year'] + "-" + dataframe.loc[i, 'start_month'] + "-" + dataframe.loc[i, 'start_day'])
-            valid_start_date = 1
-        except:
-            dataframe.loc[i, 'start_date'] = None
-            dataframe.loc[i, 'start_date_estimated'] = None
-            valid_start_date = 0
-        try:
-            dataframe.loc[i, 'end_date'] = pd.to_datetime(dataframe.loc[i, 'end_year'] + "-" + dataframe.loc[i, 'end_month'] + "-" + dataframe.loc[i, 'end_day'])
-            valid_end_date = 1
-        except:
-            dataframe.loc[i, 'end_date'] = None
-            dataframe.loc[i, 'end_date_estimated'] = None
-            valid_end_date = 0
+        ## filling null start days with the first day of the month
+        ## filling null start months with the first month of the year
+        for column_name in df_row.columns:
+            dataframe.loc[i, column_name] = df_row[column_name].values[0]
 
-        if valid_start_date==1 and valid_end_date==1:
-            dataframe.loc[i, 'days_at_war'] = dataframe.loc[i, 'end_date'] - dataframe.loc[i, 'start_date']
-            dataframe.loc[i, 'days_at_war'] = int(str(dataframe.loc[i, 'days_at_war']).split(' ')[0]) + 1
-        else:
-            dataframe.loc[i, 'days_at_war'] = None
+        ## fixing for leap year issues below caused by date being filled in as final day for month.
+        if df_row['start_year'].values[0]%4 > 0 and df_row['start_month'].values[0]==2 and df_row['start_day'].values[0]==29:
+            dataframe.loc[i, 'start_day'] = 28
+        if df_row['end_year'].values[0]%4 > 0 and df_row['end_month'].values[0]==2 and df_row['end_day'].values[0]==29:
+            dataframe.loc[i, 'end_day'] = 28
 
-        if valid_start_date==1 and valid_end_date==1:
-            dates_found+=1
-        else:
-            dates_not_found+=1
+    ## fulfilling start and dates (in the same manner for all source tables).
+    dataframe['start_date'] = pd.to_datetime(dataframe['start_year'].astype(int).astype(str) + '-' + dataframe['start_month'].astype(int).astype(str) + '-' + dataframe['start_day'].astype(int).astype(str)).dt.date
+    dataframe['end_date'] = pd.to_datetime(dataframe['end_year'].astype(int).astype(str) + '-' + dataframe['end_month'].astype(int).astype(str) + '-' + dataframe['end_day'].astype(int).astype(str)).dt.date
+    dataframe.drop(['start_year', 'start_month', 'start_day', 'end_year', 'end_month', 'end_day'], axis=1, inplace = True)
 
-    print("Total Rows With Both Dates Found: {}".format(format(dates_found, ',d')))
-    print("Total Rows With At Least One Date Not Found: {}".format(format(dates_not_found, ',d')))
+    print("Total Rows With Both Dates Found: {}".format(format(len(dataframe[(dataframe['start_date'].isnull()==False) & (dataframe['end_date'].isnull()==False)]), ',d')))
+    print("Total Rows With At Least One Date Not Found: {}".format(format(len(dataframe[(dataframe['start_date'].isnull()) | (dataframe['end_date'].isnull())]), ',d')))
     print("Total Estimated Start Dates: {}".format(format(len(dataframe[dataframe['start_date_estimated']==1]), ',d')))
     print("Total Estimated End Dates: {}\n".format(format(len(dataframe[dataframe['end_date_estimated']==1]), ',d')))
 
     return dataframe
 
 
-def final_date_formatting(dataframe):
+# def final_date_formatting(dataframe):
+#
+#     null_start_years = deepcopy(len(dataframe[dataframe['start_year'].isnull()]))
+#     ## accounting for ongoing participation (the only time when null year is okay)
+#     null_end_years = deepcopy(len(dataframe[(dataframe['end_year'].isnull()) & (dataframe['ongoing_participation']==1)]))
+#
+#     for i, row in enumerate(dataframe[list(dataframe.columns)[0]]):
+#         if len(str(dataframe.loc[i, 'start_year'])) < 4:
+#             try:
+#                 dataframe.loc[i, 'start_year'] = int(str(dataframe.loc[i, 'start_date'])[0:4])
+#             except:
+#                 pass
+#         if len(str(dataframe.loc[i, 'end_year'])) < 4 and dataframe.loc[i, 'ongoing_participation']==False:
+#             try:
+#                 dataframe.loc[i, 'end_year'] = int(str(dataframe.loc[i, 'end_date'])[0:4])
+#             except:
+#                 pass
+#
+#     final_null_start_years = deepcopy(len(dataframe[dataframe['start_year'].isnull()]))
+#     ## accounting for ongoing participation (the only time when null year is okay)
+#     final_null_end_years = deepcopy(len(dataframe[(dataframe['end_year'].isnull()) & (dataframe['ongoing_participation']==1)]))
+#
+#     print('Start Years Reformatted: {}'.format(format(null_start_years-final_null_start_years, ',d')))
+#     print('End Years Reformatted: {}\n'.format(format(null_end_years-final_null_end_years, ',d')))
+#
+#     return dataframe
 
-    null_start_years = deepcopy(len(dataframe[dataframe['start_year'].isnull()]))
-    ## accounting for ongoing participation (the only time when null year is okay)
-    null_end_years = deepcopy(len(dataframe[(dataframe['end_year'].isnull()) & (dataframe['ongoing_participation']==1)]))
-
-    for i, row in enumerate(dataframe[list(dataframe.columns)[0]]):
-        if len(str(dataframe.loc[i, 'start_year'])) < 4:
-            try:
-                dataframe.loc[i, 'start_year'] = int(str(dataframe.loc[i, 'start_date'])[0:4])
-            except:
-                pass
-        if len(str(dataframe.loc[i, 'end_year'])) < 4 and dataframe.loc[i, 'ongoing_participation']==False:
-            try:
-                dataframe.loc[i, 'end_year'] = int(str(dataframe.loc[i, 'end_date'])[0:4])
-            except:
-                pass
-
-    final_null_start_years = deepcopy(len(dataframe[dataframe['start_year'].isnull()]))
-    ## accounting for ongoing participation (the only time when null year is okay)
-    final_null_end_years = deepcopy(len(dataframe[(dataframe['end_year'].isnull()) & (dataframe['ongoing_participation']==1)]))
-
-    print('Start Years Reformatted: {}'.format(format(null_start_years-final_null_start_years, ',d')))
-    print('End Years Reformatted: {}\n'.format(format(null_end_years-final_null_end_years, ',d')))
-
-    return dataframe
-
-
-def remaining_participant_null_values(dataframe, remaining_fields):
-
-    ## defining null values (missing data)
-    for field in remaining_fields:
-        ## -8 is not applicable.
-        dataframe.loc[dataframe[field]==-8, field] = None
-        ## -9 is unknown.
-        dataframe.loc[dataframe[field]==-9, field] = None
-
-    return dataframe
+#
+# def remaining_participant_null_values(dataframe, remaining_fields):
+#
+#     ## defining null values (missing data)
+#     for field in remaining_fields:
+#         ## -8 is not applicable.
+#         dataframe.loc[dataframe[field]==-8, field] = None
+#         ## -9 is unknown.
+#         dataframe.loc[dataframe[field]==-9, field] = None
+#
+#     return dataframe
 
 
 def get_switched_columns(dataframe):
@@ -175,10 +171,9 @@ def get_switched_columns(dataframe):
 
 def union_opposite_columns(dataframe):
 
-    union_dataframe = deepcopy(dataframe)
-
     switched_columns_list = deepcopy(get_switched_columns(dataframe))
 
+    union_dataframe = deepcopy(dataframe)
     ## doing these inefficient column name changes to fill in for a much needed sql union of mismatching column names
     for column in switched_columns_list:
         union_dataframe.rename({column: column + '_new'}, axis=1, inplace=True)
@@ -200,15 +195,17 @@ def union_opposite_columns(dataframe):
 
 def drop_participant_b_columns(dataframe):
 
-    for column in list(dataframe.columns):
+    dataframe_copy = deepcopy(dataframe)
+
+    for column in list(dataframe_copy.columns):
         if column[-2:]=='_b':
-            dataframe.drop(column, axis=1, inplace=True)
+            dataframe_copy.drop(column, axis=1, inplace=True)
 
-    for column in list(dataframe.columns):
+    for column in list(dataframe_copy.columns):
         if column[-2:]=='_a':
-            dataframe.rename({column: column[:-2]}, axis=1, inplace=True)
+            dataframe_copy.rename({column: column[:-2]}, axis=1, inplace=True)
 
-    return dataframe
+    return dataframe_copy
 
 
 def column_fills_and_converions(dataframe, grouping_type, conversion_dic):
@@ -264,7 +261,7 @@ def column_fills_and_converions(dataframe, grouping_type, conversion_dic):
     return dataframe
 
 
-def format_part_df_from_dyadic_data(dy_df):
+def process_dyadic_data(dy_df):
 
     ## whoever is originally marked as side a is getting labelled as 1.
     ## whoever is originally marked as side b is getting labelled as 2.
@@ -273,29 +270,67 @@ def format_part_df_from_dyadic_data(dy_df):
 
     ## getting start dates and end dates
     dy_df = deepcopy(start_and_end_dates(dy_df))
-
+    ## unioning opposite columns so this can be repurposed for participant data.
     dy_df = deepcopy(union_opposite_columns(dy_df))
 
-    switched_columns_list = deepcopy(get_switched_columns(dy_df))
-    ## making a copy before duplicates a taken out.
-    ## this will be used below for dyadic data (since no dyadic files are available for intra-state wars)
-    dy_df_columns = deepcopy(switched_columns_list)
-    ## this will be adjusted again later
-    dy_df.rename({'start_year': 'year'}, axis=1, inplace=True)
-
+    ## adding in blank names when they are not available.
+    ## these will be properly filled in later in the function.
+    if 'participant_a' not in list(dy_df.columns):
+        dy_df['participant_a'] = ''
+    if 'participant_b' not in list(dy_df.columns):
+        dy_df['participant_b'] = ''
+    if 'disno' not in list(dy_df.columns):
+        dy_df['disno'] = None
     # keeping one state (or non-state) per war after duplicate removal
-    duplicate_list = ['war_num', 'c_code_a', 'participant_a']
-    part_dataframe = deepcopy(dy_df)
-    part_dataframe.drop_duplicates(subset=duplicate_list, keep='first', inplace=True)
-    part_dataframe = deepcopy(part_dataframe.reset_index(drop=True))
-    part_dataframe = deepcopy(drop_participant_b_columns(part_dataframe))
+    part_dataframe = deepcopy(drop_participant_b_columns(dy_df))
 
-    dy_df_columns.append('war_num')
-    dy_df_columns.append('year')
-    dy_df = deepcopy(dy_df[dy_df_columns])
+    ## remove later!
+    csv_directory = '/Users/charlieyaris/Personal/data_sources/the_networks_of_war/csvs/'
+    c_code_df = pd.read_csv(csv_directory + 'COW country codes.csv', encoding='latin-1')
+    years_df = pd.DataFrame(np.arange(1500, 2100), columns=['year'])
 
-    ## removing non applicable participants
-    ## don't need to do this for inter-state war because all is applicable
+    query_text = """
+
+    select
+        ccode as c_code,
+        statenme as state_name,
+        stateabb as state_name_abbreviation
+    from c_code_df
+    group by 1, 2, 3
+
+    """
+
+    c_code_df = deepcopy(sqldf(query_text, {**locals(), **globals()}))
+
+    query_text = """
+
+    select
+        a.war_num,
+        a.war_name,
+        a.disno,
+        a.c_code_a,
+        coalesce(cca.state_name, a.participant_a) as participant_a,
+        a.c_code_b,
+        coalesce(ccb.state_name, a.participant_b) as participant_b,
+        min(a.start_date) as start_date,
+        cast(strftime('%Y', min(a.start_date)) as integer) as start_year,
+        max(a.end_date) as end_date,
+        cast(strftime('%Y', max(a.end_date)) as integer) as end_year
+    from dy_df a
+    left join c_code_df cca on a.c_code_a = cca.c_code
+    left join c_code_df ccb on a.c_code_b = ccb.c_code
+    group by 1, 2, 3, 4, 5, 6
+
+    """
+
+    if 'war_name' not in list(dy_df.columns):
+        query_text = query_text.replace('a.war_name,', '')
+        query_text = query_text.replace('group by 1, 2, 3, 4, 5, 6', 'group by 1, 2, 3, 4, 5')
+
+    dy_df = deepcopy(sqldf(query_text, {**locals(), **globals()}).reset_index(drop=True))
+
+    # removing non applicable participants
+    # don't need to do this for inter-state war because all is applicable
     part_dataframe = deepcopy(part_dataframe[(part_dataframe['participant']!='-8')].reset_index(drop=True))
     dy_df = deepcopy(dy_df[(dy_df['participant_a']!='-8') & (dy_df['participant_b']!='-8')].reset_index(drop=True))
 
@@ -478,7 +513,7 @@ def get_summation_aggregation_dic(df_renaming_dic, non_aggregation_values_input)
 
     return aggregations
 
-def adjustParticipantNames(dataframe, grouping_type):
+def adjust_participant_names(dataframe, grouping_type):
 
     if grouping_type=='participant':
         print('Adjusting and consolidating participant names for part_df.')

@@ -1,0 +1,10 @@
+﻿war_type_code,war_type,war_subtype
+1,Inter-State War,
+2,Extra-State War,Colonial (conflict with colony)
+3,Extra-State War,Imperial (state vs non-state)
+4,Intra-State War,Civil War (for central control)
+5,Intra-State War,Civil War (over local issues)
+6,Intra-State War,Regional/Internal
+7,Intra-State War,Intercommunal
+8,Non-State War,In Non-State Territory
+9,Non-State War,Across State Borders
