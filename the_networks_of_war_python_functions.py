@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from pandasql import sqldf
+import re
 from copy import deepcopy
 from traceback import format_exc
 
@@ -41,9 +42,8 @@ def start_and_end_dates(dataframe):
         df_row = deepcopy(dataframe[dataframe.index==i].reset_index(drop=True))
 
         for date_field in date_fields:
-            date_value = str(df_row[date_field].values[0]).replace('.', '')
-            if date_field[-4:] != 'year':
-                date_value = str(df_row[date_field].values[0]).replace('0', '')
+            ## applying regex from stackoverflow to remove trailing zeros after final non-zero digit.
+            date_value = str(df_row[date_field].values[0]).replace('/(\.\d*?[1-9])0+$/g', '$1')
             try:
                 date_value = int(date_value)
             except:
@@ -263,13 +263,13 @@ def process_dyadic_data(dy_df):
     from dy_df a
     left join c_code_df cca on a.c_code_a = cca.c_code
     left join c_code_df ccb on a.c_code_b = ccb.c_code
-    group by 1, 2, 3, 4, 5, 6
+    group by 1, 2, 3, 4, 5, 6, 7
 
     """
 
     if 'war_name' not in list(dy_df.columns):
         query_text = query_text.replace('a.war_name,', '')
-        query_text = query_text.replace('group by 1, 2, 3, 4, 5, 6', 'group by 1, 2, 3, 4, 5')
+        query_text = query_text.replace('group by 1, 2, 3, 4, 5, 6, 7', 'group by 1, 2, 3, 4, 5, 6')
 
     dy_df = deepcopy(sqldf(query_text, {**locals(), **globals()}).reset_index(drop=True))
 
@@ -302,23 +302,36 @@ def add_missing_dyads(pa_df_copy, dy_df, war_input, side_input, single_side):
         participant_a = pa_df_copy[(pa_df_copy['side']==side_input) & (pa_df_copy['c_code']!=-8)]['participant'].values[0]
     opposing_participants = sorted(list(pa_df_copy[pa_df_copy['side']==opposing_side_dic[side_input]]['participant'].unique()))
     dyadic_parties = sorted(list(set(list(dy_df_copy['participant_a']) + list(dy_df_copy['participant_b']))))
-    for i, party_b in enumerate(opposing_participants):
+    for i, participant_b in enumerate(opposing_participants):
         ## state is the only type allowed to iterate over participants that are already linked to other participants
-        if single_side!='state' and party_b in dyadic_parties and len(dyadic_parties) > 0:
+        if single_side!='state' and participant_b in dyadic_parties and len(dyadic_parties) > 0:
             pass
         elif single_side=='state' and participant_a in dyadic_parties:
             pass
         else:
-            df_length = deepcopy(len(dy_df))
-            dy_df.loc[df_length, 'war_num'] = war_input
-            dy_df.loc[df_length, 'c_code_a'] = c_code_a
-            dy_df.loc[df_length, 'participant_a'] = participant_a
-            dy_df.loc[df_length, 'c_code_b'] = pa_df_copy[pa_df_copy['participant']==party_b]['c_code'].values[0]
-            dy_df.loc[df_length, 'participant_b'] = party_b
-            dy_df.loc[df_length, 'start_year'] = pa_df_copy[pa_df_copy['participant']==party_b]['start_year'].values[0]
-            dy_df.loc[df_length, 'start_date'] = pa_df_copy[pa_df_copy['participant']==party_b]['start_date'].values[0]
-            dy_df.loc[df_length, 'end_year'] = pa_df_copy[pa_df_copy['participant']==party_b]['end_year'].values[0]
-            dy_df.loc[df_length, 'end_date'] = pa_df_copy[pa_df_copy['participant']==party_b]['end_date'].values[0]
+            if min(pa_df_copy[pa_df_copy['participant']==participant_a]['start_date'].values) < min(pa_df_copy[pa_df_copy['participant']==participant_b]['start_date'].values):
+                start_date = min(pa_df_copy[pa_df_copy['participant']==participant_b]['start_date'].values)
+                start_year = min(pa_df_copy[pa_df_copy['participant']==participant_b]['start_year'].values)
+            else:
+                start_date = min(pa_df_copy[pa_df_copy['participant']==participant_a]['start_date'].values)
+                start_year = min(pa_df_copy[pa_df_copy['participant']==participant_a]['start_year'].values)
+            if max(pa_df_copy[pa_df_copy['participant']==participant_a]['end_date'].values) < max(pa_df_copy[pa_df_copy['participant']==participant_b]['end_date'].values):
+                end_date = max(pa_df_copy[pa_df_copy['participant']==participant_a]['end_date'].values)
+                end_year = max(pa_df_copy[pa_df_copy['participant']==participant_a]['end_year'].values)
+            else:
+                end_date = max(pa_df_copy[pa_df_copy['participant']==participant_b]['end_date'].values)
+                end_year = max(pa_df_copy[pa_df_copy['participant']==participant_b]['end_year'].values)
+            if end_date > start_date:
+                df_length = deepcopy(len(dy_df))
+                dy_df.loc[df_length, 'war_num'] = war_input
+                dy_df.loc[df_length, 'c_code_a'] = c_code_a
+                dy_df.loc[df_length, 'participant_a'] = participant_a
+                dy_df.loc[df_length, 'c_code_b'] = pa_df_copy[pa_df_copy['participant']==participant_b]['c_code'].values[0]
+                dy_df.loc[df_length, 'participant_b'] = participant_b
+                dy_df.loc[df_length, 'start_date'] = start_date
+                dy_df.loc[df_length, 'start_year'] = start_year
+                dy_df.loc[df_length, 'end_date'] = end_date
+                dy_df.loc[df_length, 'end_year'] = end_year
 
     return dy_df
 
