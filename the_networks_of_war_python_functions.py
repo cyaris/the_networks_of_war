@@ -354,15 +354,17 @@ def descriptive_dyad_from_source(descriptive_df, source, dataframe, conditional_
     dy_df.rename({c_code_a: 'c_code_a',
                   c_code_b: 'c_code_b',
                   year: 'year'}, axis=1, inplace=True)
-    # removing any duplicates that may have occured
-    duplicate_columns_list = ['c_code_a', 'c_code_b', 'year']
-    dy_df.drop_duplicates(subset=duplicate_columns_list, keep='first', inplace=True)
     ## creating a binary field to represent this dataset
     ## more specific fields can be added later
     dy_df[binary_field] = 1
     dy_df = deepcopy(union_opposite_columns(dy_df))
+    # removing any duplicates that may have occured
+    duplicate_columns_list = ['c_code_a', 'c_code_b', 'year']
+    dy_df.drop_duplicates(subset=duplicate_columns_list, keep='first', inplace=True)
     ## intergrating the descriptive data into the master dataframe for all dyads
     descriptive_df = deepcopy(pd.merge(descriptive_df, dy_df, how='left', on=['c_code_a', 'c_code_b', 'year']))
+    descriptive_df.loc[descriptive_df[binary_field].isnull(), binary_field] = 0
+    descriptive_df.drop_duplicates(subset=list(descriptive_df.columns), keep='first', inplace=True)
 
     return descriptive_df
 
