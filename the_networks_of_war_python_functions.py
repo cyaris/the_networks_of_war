@@ -33,64 +33,161 @@ def define_c_code_dic():
 
 def start_and_end_dates(dataframe):
 
-    monthly_max_df = deepcopy(pd.read_csv('monthly_max_days.csv'))
-
     date_fields = ['start_year', 'start_month', 'start_day', 'end_year', 'end_month', 'end_day']
+    monthly_max_df = deepcopy(pd.read_csv('monthly_max_days.csv'))
+    years_df = pd.DataFrame(np.arange(1500, 2100), columns=['year'])
 
-    for i, date in enumerate(dataframe.index):
+    def get_max_suffix():
+
+        suffix_list = []
+        for column in dataframe.columns:
+            if column[:4] in ['star', 'end_']:
+                suffix_list.append(int(column[-1]))
+
+        max_suffix = max(suffix_list)
+
+        return max_suffix
+
+    max_suffix = get_max_suffix()
+
+    ## filling null start days with the first day of the month
+    ## filling null start months with the first month of the year
+    query_text_template = """
+
+    select
+        cast(SUFFIX as int) as suffix,
+        case when y1.year is null and coalesce(a.start_year_SUFFIX, -1) != -7 then null
+            else max(coalesce(a.start_year_SUFFIX, 1), 1) end as start_year,
+        case when y1.year is null and coalesce(a.start_year_SUFFIX, -1) != -7 then null
+            else max(coalesce(a.start_month_SUFFIX, 1), 1) end as start_month,
+        case when y1.year is null and coalesce(a.start_year_SUFFIX, -1) != -7 then null
+            else max(coalesce(a.start_day_SUFFIX, 1), 1) end as start_day,
+        case when y2.year is null and coalesce(a.end_year_SUFFIX, -1) != -7 then null
+        when coalesce(a.end_year_SUFFIX, -1) < 0 then cast(strftime('%Y', date('now')) as integer)
+            else a.end_year_SUFFIX end as end_year,
+        case when y2.year is null and coalesce(a.end_year_SUFFIX, -1) != -7 then null
+        when coalesce(a.end_year_SUFFIX, -1) < 0 then cast(strftime('%m', date('now')) as integer)
+        when a.end_year_SUFFIX > 0 and coalesce(a.end_month_SUFFIX, -1) < 0 then 12
+            else a.end_month_SUFFIX end as end_month,
+        case when y2.year is null and coalesce(a.end_year_SUFFIX, -1) != -7 then null
+        when coalesce(a.end_year_SUFFIX, -1) < 0 then cast(strftime('%d', date('now')) as integer)
+        when a.end_month_SUFFIX > 0 and coalesce(a.end_day_SUFFIX, -1) < 0 then mm.max_days
+        when coalesce(a.end_month_SUFFIX, -1) < 0 and coalesce(a.end_day_SUFFIX, -1) < 0 then 31
+            else a.end_day_SUFFIX end as end_day,
+        case when y1.year is null and coalesce(a.start_year_SUFFIX, -1) != -7 then 0
+        when coalesce(a.start_year_SUFFIX, -1) < 0 or coalesce(a.start_month_SUFFIX, -1) < 0 or coalesce(a.start_day_SUFFIX, -1) < 0 then 1
+            else 0 end as start_date_estimated,
+        case when y2.year is null and coalesce(a.end_year_SUFFIX, -1) != -7 then 0
+        when coalesce(a.end_year_SUFFIX, -1) < 0 or coalesce(a.end_month_SUFFIX, -1) < 0 or coalesce(a.end_day_SUFFIX, -1) < 0 then 1
+            else 0 end as end_date_estimated,
+        case when coalesce(a.end_year_SUFFIX, -1) = -7 then 1
+        when y2.year is null then 0
+            else 0 end as ongoing_conflict
+    from df_row a
+    left join years_df y1 on a.start_year_SUFFIX = y1.year
+    left join years_df y2 on a.end_year_SUFFIX = y2.year
+    left join monthly_max_df mm on case when coalesce(a.end_year_SUFFIX, -1) < 0 then cast(strftime('%m', date('now')) as integer) when a.end_year_SUFFIX > 0 and coalesce(a.end_month_SUFFIX, -1) < 0 then 12 else a.end_month_SUFFIX end = mm.month
+
+    """
+
+    def get_date_field(start_or_end):
+
+        if len(df_row_temp[df_row_temp[start_or_end + '_year'].isnull()])==0:
+            ## fixing for leap year issues below caused by date being filled in as final day for month.
+            df_row_temp.loc[(df_row_temp[start_or_end + '_year']%4>0) & (df_row_temp[start_or_end + '_month']==2) & (df_row_temp[start_or_end + '_day']==29), start_or_end + '_day'] = 28
+            ## fulfilling start and dates (in the same manner for all source tables).
+            df_row_temp[start_or_end + '_date'] = pd.to_datetime(df_row_temp[start_or_end + '_year'].astype(int).astype(str) + '-' + df_row_temp[start_or_end + '_month'].astype(int).astype(str) + '-' + df_row_temp[start_or_end + '_day'].astype(int).astype(str)).dt.date
+        else:
+            df_row_temp[start_or_end + '_date'] = None
+
+        df_row_temp.drop([start_or_end + '_month', start_or_end + '_day'], axis=1, inplace=True)
+
+        return df_row_temp
+
+    for i, row in enumerate(dataframe.index):
 
         df_row = deepcopy(dataframe[dataframe.index==i].reset_index(drop=True))
+        df_row_all_dates = pd.DataFrame()
 
-        for date_field in date_fields:
-            ## applying regex from stackoverflow to remove trailing zeros after final non-zero digit.
-            date_value = str(df_row[date_field].values[0]).replace('/(\.\d*?[1-9])0+$/g', '$1')
-            try:
-                date_value = int(date_value)
-            except:
-                date_value = float(date_value)
+        for suffix in np.arange(1, max_suffix+1):
 
-            df_row.loc[0, date_field] = date_value
+            for date_field in date_fields:
+                ## applying regex from stackoverflow to remove trailing zeros after final non-zero digit.
+                date_value = str(df_row.loc[0, date_field + '_' + str(suffix)]).replace('/(\.\d*?[1-9])0+$/g', '$1')
+                try:
+                    df_row.loc[0, date_field] = int(date_value)
+                except:
+                    df_row.loc[0, date_field] = float(date_value)
+
+            query_text = query_text_template.replace('SUFFIX', str(suffix))
+            df_row_temp = deepcopy(sqldf(query_text, {**locals(), **globals()}))
+            df_row_temp = deepcopy(get_date_field('start'))
+            df_row_temp = deepcopy(get_date_field('end'))
+
+            for column in df_row_temp.columns:
+                df_row_all_dates.loc[suffix-1, column] = df_row_temp.loc[0, column]
+
+        df_row_all_dates['next_start_date'] = df_row_all_dates['start_date'].shift(-1)
+        df_row_all_dates['days_not_at_war'] = df_row_all_dates['next_start_date'] - df_row_all_dates['end_date']
+        df_row_all_dates['days_not_at_war'] = df_row_all_dates['days_not_at_war'].astype(str)
+        for z, days_not_at_war in enumerate(df_row_all_dates['days_not_at_war']):
+            if days_not_at_war not in ['nan', 'NaT']:
+                df_row_all_dates.loc[z, 'days_not_at_war'] = days_not_at_war.split(' ')[0]
+            else:
+                df_row_all_dates.loc[z, 'days_not_at_war'] = '0'
+        df_row_all_dates['days_not_at_war'] = df_row_all_dates['days_not_at_war'].astype(int)
+        df_row_all_dates.drop('next_start_date', axis=1, inplace=True)
 
         query_text = """
+
+        with
+
+        start_date_table as (
+
+            select
+                start_date,
+                start_year,
+                start_date_estimated,
+                row_number() over(order by start_date) as start_date_count
+            from df_row_all_dates
+            where
+                start_date is not null),
+
+        end_date_table as (
+
+            select
+                end_date,
+                end_year,
+                end_date_estimated,
+                row_number() over(order by end_date desc) as end_date_count
+            from df_row_all_dates
+            where
+                end_date is not null)
+
         select
-            max(coalesce(a.start_year, 1), 1) as start_year,
-            max(coalesce(a.start_month, 1), 1) as start_month,
-            max(coalesce(a.start_day, 1), 1) as start_day,
-            case when coalesce(a.end_year, -1) < 0 then cast(strftime('%Y', date('now')) as integer)
-                else a.end_year end as end_year,
-            case when coalesce(a.end_year, -1) < 0 then cast(strftime('%m', date('now')) as integer)
-            when a.end_year > 0 and coalesce(a.end_month, -1) < 0 then 12
-                else a.end_month end as end_month,
-            case when coalesce(a.end_year, -1) < 0 then cast(strftime('%d', date('now')) as integer)
-            when a.end_month > 0 and coalesce(a.end_day, -1) < 0 then mm.max_days
-            when coalesce(a.end_month, -1) < 0 and coalesce(a.end_day, -1) < 0 then 31
-                else a.end_day end as end_day,
-            case when coalesce(a.end_year, -1) < 0 then 1
-                else 0 end as ongoing_participation,
-            case when coalesce(a.start_year, -1) < 0 or coalesce(a.start_month, -1) < 0 or coalesce(a.start_day, -1) < 0 then 1
-                else 0 end as start_date_estimated,
-            case when coalesce(a.end_year, -1) < 0 or coalesce(a.end_month, -1) < 0 or coalesce(a.end_day, -1) < 0 then 1
-                else 0 end as end_date_estimated
-        from df_row a
-        left join monthly_max_df mm on case when coalesce(a.end_year, -1) < 0 then cast(strftime('%m', date('now')) as integer) when a.end_year > 0 and coalesce(a.end_month, -1) < 0 then 12 else a.end_month end = mm.month"""
+            sd.start_date,
+            sd.start_year,
+            sd.start_date_estimated,
+            ed.end_date,
+            ed.end_year,
+            ed.end_date_estimated,
+            max(a.ongoing_conflict) as ongoing_conflict,
+            sum(a.days_not_at_war) as days_not_at_war
+        from df_row_all_dates a
+        left join start_date_table sd on sd.start_date_count = 1
+        left join end_date_table ed on ed.end_date_count = 1
+        group by 1, 2, 3, 4, 5, 6
 
-        df_row = deepcopy(sqldf(query_text, {**locals(), **globals()}))
+        """
 
-        ## filling null start days with the first day of the month
-        ## filling null start months with the first month of the year
-        for column_name in df_row.columns:
-            dataframe.loc[i, column_name] = df_row[column_name].values[0]
+        df_replace = deepcopy(sqldf(query_text, {**locals(), **globals()}))
 
-        ## fixing for leap year issues below caused by date being filled in as final day for month.
-        if df_row['start_year'].values[0]%4 > 0 and df_row['start_month'].values[0]==2 and df_row['start_day'].values[0]==29:
-            dataframe.loc[i, 'start_day'] = 28
-        if df_row['end_year'].values[0]%4 > 0 and df_row['end_month'].values[0]==2 and df_row['end_day'].values[0]==29:
-            dataframe.loc[i, 'end_day'] = 28
+        for column_name in df_replace.columns:
+            dataframe.loc[i, column_name] = df_replace[column_name].values[0]
 
-    ## fulfilling start and dates (in the same manner for all source tables).
-    dataframe['start_date'] = pd.to_datetime(dataframe['start_year'].astype(int).astype(str) + '-' + dataframe['start_month'].astype(int).astype(str) + '-' + dataframe['start_day'].astype(int).astype(str)).dt.date
-    dataframe['end_date'] = pd.to_datetime(dataframe['end_year'].astype(int).astype(str) + '-' + dataframe['end_month'].astype(int).astype(str) + '-' + dataframe['end_day'].astype(int).astype(str)).dt.date
-    dataframe.drop(['start_year', 'start_month', 'start_day', 'end_year', 'end_month', 'end_day'], axis=1, inplace = True)
+    # outside of main loop now.
+    for suffix in np.arange(1, max_suffix+1):
+        dataframe.drop(['start_year_' + str(suffix), 'start_month_' + str(suffix), 'start_day_' + str(suffix), 'end_year_' + str(suffix), 'end_month_' + str(suffix), 'end_day_' + str(suffix)], axis=1, inplace = True)
 
     print("Total Rows With Both Dates Found: {}".format(format(len(dataframe[(dataframe['start_date'].isnull()==False) & (dataframe['end_date'].isnull()==False)]), ',d')))
     print("Total Rows With At Least One Date Not Found: {}".format(format(len(dataframe[(dataframe['start_date'].isnull()) | (dataframe['end_date'].isnull())]), ',d')))
@@ -464,6 +561,7 @@ def get_summation_aggregation_dic(df_renaming_dic, non_aggregation_values_input)
 
     return aggregations
 
+
 def adjust_participant_names(dataframe, grouping_type):
 
     if grouping_type=='participant':
@@ -494,63 +592,3 @@ def adjust_participant_names(dataframe, grouping_type):
                 dataframe.loc[i, column] = dataframe.loc[i, column].replace(' resistence', ' Resistance')
 
     return dataframe
-
-
-
-
-# def define_country_abbreviation_dic():
-#
-#     c_abb_df = pd.read_csv('/Users/charlieyaris/Personal/data_sources/the_networks_of_war/csvs/COW country codes.csv', encoding='utf8')
-#     c_abb_df.rename({'StateNme': 'country',
-#                       'StateAbb': 'country_abbrev'}, axis=1, inplace=True)
-#     c_abb_df.drop(['CCode'], axis=1, inplace=True)
-#
-#     duplicate_list = ['country', 'country_abbrev']
-#     c_abb_df.drop_duplicates(subset=duplicate_list, keep='first', inplace=True)
-#     c_abb_df = deepcopy(c_abb_df.reset_index(drop=True))
-#
-#     c_abb_df = deepcopy(dictionary_from_field(c_abb_df, 'country_abbrev', 'country'))
-#
-#     print('Total Abbreviated Names: {}'.format(format(len(c_abb_df.keys()), ',d')))
-#
-#     return c_abb_df
-
-
-# def final_date_formatting(dataframe):
-#
-#     null_start_years = deepcopy(len(dataframe[dataframe['start_year'].isnull()]))
-#     ## accounting for ongoing participation (the only time when null year is okay)
-#     null_end_years = deepcopy(len(dataframe[(dataframe['end_year'].isnull()) & (dataframe['ongoing_participation']==1)]))
-#
-#     for i, row in enumerate(dataframe[list(dataframe.columns)[0]]):
-#         if len(str(dataframe.loc[i, 'start_year'])) < 4:
-#             try:
-#                 dataframe.loc[i, 'start_year'] = int(str(dataframe.loc[i, 'start_date'])[0:4])
-#             except:
-#                 pass
-#         if len(str(dataframe.loc[i, 'end_year'])) < 4 and dataframe.loc[i, 'ongoing_participation']==False:
-#             try:
-#                 dataframe.loc[i, 'end_year'] = int(str(dataframe.loc[i, 'end_date'])[0:4])
-#             except:
-#                 pass
-#
-#     final_null_start_years = deepcopy(len(dataframe[dataframe['start_year'].isnull()]))
-#     ## accounting for ongoing participation (the only time when null year is okay)
-#     final_null_end_years = deepcopy(len(dataframe[(dataframe['end_year'].isnull()) & (dataframe['ongoing_participation']==1)]))
-#
-#     print('Start Years Reformatted: {}'.format(format(null_start_years-final_null_start_years, ',d')))
-#     print('End Years Reformatted: {}\n'.format(format(null_end_years-final_null_end_years, ',d')))
-#
-#     return dataframe
-
-#
-# def remaining_participant_null_values(dataframe, remaining_fields):
-#
-#     ## defining null values (missing data)
-#     for field in remaining_fields:
-#         ## -8 is not applicable.
-#         dataframe.loc[dataframe[field]==-8, field] = None
-#         ## -9 is unknown.
-#         dataframe.loc[dataframe[field]==-9, field] = None
-#
-#     return dataframe
