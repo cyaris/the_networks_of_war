@@ -4,7 +4,7 @@ create or replace table source_country_codes (
     state_name varchar
 );
 
-create or replace table source_directed_dyadic_war (
+create or replace table source_interstate_war_dyads (
     war_num double,
     disno double,
     dyindex double,
@@ -24,7 +24,7 @@ create or replace table source_directed_dyadic_war (
     battle_deaths_total double
 );
 
-create or replace table source_dyadic_mid (
+create or replace table source_interstate_mid_dyads (
     disno double,
     c_code_a integer,
     c_code_b integer,

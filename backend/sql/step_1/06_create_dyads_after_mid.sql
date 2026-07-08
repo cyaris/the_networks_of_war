@@ -2,78 +2,6 @@ create or replace table dyads_after_mid as
 
 with
 
-cleaned_war_dyads as (
-
-select
-    war_num,
-    any_value(war_name) war_name,
-    any_value(war_type) war_type,
-    any_value(war_type_name) war_type_name,
-    any_value(war_subtype) war_subtype,
-    disno,
-    c_code_a,
-    c_code_b,
-    clean_participant(participant_a) participant_a,
-    clean_participant(participant_b) participant_b,
-    battle_deaths_a,
-    battle_deaths_b,
-    start_date,
-    start_year,
-    end_date,
-    end_year
-from war_dyads
-where
-    participant_a is not null
-    and participant_b is not null
-group by 1, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16
-union all
-select
-    war_num,
-    any_value(war_name) war_name,
-    any_value(war_type) war_type,
-    any_value(war_type_name) war_type_name,
-    any_value(war_subtype) war_subtype,
-    disno,
-    c_code_b c_code_a,
-    c_code_a c_code_b,
-    clean_participant(participant_b) participant_a,
-    clean_participant(participant_a) participant_b,
-    battle_deaths_b battle_deaths_a,
-    battle_deaths_a battle_deaths_b,
-    start_date,
-    start_year,
-    end_date,
-    end_year
-from war_dyads
-where
-    participant_a is not null
-    and participant_b is not null
-group by 1, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16),
-
-dyads_after_sources as (
-
-select
-    war_num,
-    any_value(war_name) war_name,
-    any_value(war_type) war_type,
-    any_value(war_type_name) war_type_name,
-    any_value(war_subtype) war_subtype,
-    disno,
-    c_code_a,
-    c_code_b,
-    participant_a,
-    participant_b,
-    sum(if(battle_deaths_a >= 0, battle_deaths_a, null)) battle_deaths_a,
-    sum(if(battle_deaths_b >= 0, battle_deaths_b, null)) battle_deaths_b,
-    0 battle_deaths_est_a,
-    0 battle_deaths_est_b,
-    min(start_date) start_date,
-    min(start_year) start_year,
-    max(end_date) end_date,
-    max(end_year) end_year
-from cleaned_war_dyads a
-group by 1, 6, 7, 8, 9, 10),
-
 mid_wars_directed as (
 
 select
@@ -103,7 +31,7 @@ select
     extract(year from cow_date(start_year_1, start_month_1, start_day_1, 1, 1))::integer start_year,
     cow_end_date(end_year_1, end_month_1, end_day_1) end_date,
     extract(year from cow_end_date(end_year_1, end_month_1, end_day_1))::integer end_year
-from source_dyadic_mid
+from source_interstate_mid_dyads
 where war = 1
 union all
 select
@@ -133,7 +61,7 @@ select
     extract(year from cow_date(start_year_1, start_month_1, start_day_1, 1, 1))::integer start_year,
     cow_end_date(end_year_1, end_month_1, end_day_1) end_date,
     extract(year from cow_end_date(end_year_1, end_month_1, end_day_1))::integer end_year
-from source_dyadic_mid
+from source_interstate_mid_dyads
 where war = 1),
 
 disno_war_nums as (

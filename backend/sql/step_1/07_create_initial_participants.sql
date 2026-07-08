@@ -54,7 +54,7 @@ side_assignments as (
 select
     a.war_num,
     a.c_code,
-    if(count(distinct case when c.side = 1 then 2 when c.side = 2 then 1 when c.side = 3 then 3 end) = 1, min(case when c.side = 1 then 2 when c.side = 2 then 1 when c.side = 3 then 3 end), null) side
+    if(count(distinct if(c.side = 3, 3, 3 - c.side)) = 1, min(if(c.side = 3, 3, 3 - c.side)), null) side
 from participant_union a
 join dyads_after_mid b on a.war_num = b.war_num
                        and a.c_code = b.c_code_a

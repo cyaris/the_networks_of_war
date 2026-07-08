@@ -38,7 +38,7 @@ select
     a.battle_deaths_total,
     a.outcome_a,
     null::integer outcome_b
-from source_directed_dyadic_war a
+from source_interstate_war_dyads a
 left join interstate_wars b on a.war_num = b.war_num
 left join war_types c on b.war_type = c.war_type
 left join country_codes d on a.c_code_a = d.c_code
@@ -107,3 +107,77 @@ from source_intrastate_wars a
 left join war_types c on a.war_type = c.war_type
 left join country_codes d on a.c_code_a = d.c_code
 left join country_codes e on a.c_code_b = e.c_code;
+
+create or replace table dyads_after_sources as
+
+with
+
+cleaned_war_dyads as (
+
+select
+    war_num,
+    any_value(war_name) war_name,
+    any_value(war_type) war_type,
+    any_value(war_type_name) war_type_name,
+    any_value(war_subtype) war_subtype,
+    disno,
+    c_code_a,
+    c_code_b,
+    clean_participant(participant_a) participant_a,
+    clean_participant(participant_b) participant_b,
+    battle_deaths_a,
+    battle_deaths_b,
+    start_date,
+    start_year,
+    end_date,
+    end_year
+from war_dyads
+where
+    participant_a is not null
+    and participant_b is not null
+group by 1, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16
+union all
+select
+    war_num,
+    any_value(war_name) war_name,
+    any_value(war_type) war_type,
+    any_value(war_type_name) war_type_name,
+    any_value(war_subtype) war_subtype,
+    disno,
+    c_code_b c_code_a,
+    c_code_a c_code_b,
+    clean_participant(participant_b) participant_a,
+    clean_participant(participant_a) participant_b,
+    battle_deaths_b battle_deaths_a,
+    battle_deaths_a battle_deaths_b,
+    start_date,
+    start_year,
+    end_date,
+    end_year
+from war_dyads
+where
+    participant_a is not null
+    and participant_b is not null
+group by 1, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)
+
+select
+    war_num,
+    any_value(war_name) war_name,
+    any_value(war_type) war_type,
+    any_value(war_type_name) war_type_name,
+    any_value(war_subtype) war_subtype,
+    disno,
+    c_code_a,
+    c_code_b,
+    participant_a,
+    participant_b,
+    sum(if(battle_deaths_a >= 0, battle_deaths_a, null)) battle_deaths_a,
+    sum(if(battle_deaths_b >= 0, battle_deaths_b, null)) battle_deaths_b,
+    0 battle_deaths_est_a,
+    0 battle_deaths_est_b,
+    min(start_date) start_date,
+    min(start_year) start_year,
+    max(end_date) end_date,
+    max(end_year) end_year
+from cleaned_war_dyads a
+group by 1, 6, 7, 8, 9, 10;

@@ -6,7 +6,7 @@ select
     clean_text("StateNme") state_name
 from read_csv_auto({country_codes_path}, normalize_names = false);
 
-insert into source_directed_dyadic_war
+insert into source_interstate_war_dyads
 
 select
     clean_number(warnum) war_num,
@@ -26,9 +26,9 @@ select
     if(clean_number(warnum) = 139 and clean_int(statea) = 800 and clean_int(stateb) = 710, 5569, clean_number(batdtha)) battle_deaths_a,
     clean_number(batdthb) battle_deaths_b,
     if(clean_number(warnum) = 139 and clean_int(statea) = 800 and clean_int(stateb) = 710, 6569, clean_number(batdths)) battle_deaths_total
-from read_csv_auto({directed_dyadic_war_path}, normalize_names = false, encoding = 'latin-1');
+from read_csv_auto({interstate_war_dyads_path}, normalize_names = false, encoding = 'latin-1');
 
-insert into source_dyadic_mid
+insert into source_interstate_mid_dyads
 
 select
     clean_number(disno) disno,
@@ -43,7 +43,7 @@ select
     clean_number(fatleva) battle_deaths_est_a,
     clean_number(fatlevb) battle_deaths_est_b,
     clean_int(war) war
-from read_csv_auto({dyadic_mid_path}, normalize_names = false, encoding = 'latin-1');
+from read_csv_auto({interstate_mid_dyads_path}, normalize_names = false, encoding = 'latin-1');
 
 insert into source_extrastate_wars
 

@@ -71,30 +71,7 @@ where (
         and b.side_2_state = 1
         and a.side = 2
         and a.c_code > 0
-    )
-union all
-select
-    source_file,
-    war_num,
-    war_name,
-    war_type,
-    war_type_name,
-    war_subtype,
-    c_code,
-    participant,
-    side,
-    start_date,
-    start_year,
-    end_date,
-    end_year,
-    start_date_estimated,
-    end_date_estimated,
-    ongoing_war,
-    battle_deaths
-from initial_participants
-where
-    war_num = 820
-    and participant in ('France', 'Democratic Republic of the Congo')),
+    )),
 
 inferred_dyads as (
 
@@ -125,6 +102,64 @@ join initial_participants b on a.war_num = b.war_num
                             )
 where least(a.end_date, b.end_date) > greatest(a.start_date, b.start_date)
 group by 1, 7, 8, 9, 10, 15, 16, 17, 18),
+
+group_dyads as (
+
+select
+    a.war_num,
+    any_value(a.war_name) war_name,
+    any_value(a.war_type) war_type,
+    any_value(a.war_type_name) war_type_name,
+    any_value(a.war_subtype) war_subtype,
+    a.disno,
+    b.c_code c_code_a,
+    a.c_code_b,
+    b.participant participant_a,
+    a.participant_b,
+    null::double battle_deaths_a,
+    null::double battle_deaths_b,
+    0 battle_deaths_est_a,
+    0 battle_deaths_est_b,
+    greatest(a.start_date, b.start_date) start_date,
+    extract(year from greatest(a.start_date, b.start_date))::integer start_year,
+    least(a.end_date, b.end_date) end_date,
+    extract(year from least(a.end_date, b.end_date))::integer end_year
+from war_dyads a
+join initial_participants b on a.war_num = b.war_num
+                            and a.side_a = b.side
+where
+    a.c_code_a = -8
+    and b.c_code <> -8
+    and least(a.end_date, b.end_date) > greatest(a.start_date, b.start_date)
+group by 1, 6, 7, 8, 9, 10, 15, 16, 17, 18
+union all
+select
+    a.war_num,
+    any_value(a.war_name) war_name,
+    any_value(a.war_type) war_type,
+    any_value(a.war_type_name) war_type_name,
+    any_value(a.war_subtype) war_subtype,
+    a.disno,
+    a.c_code_a,
+    b.c_code c_code_b,
+    a.participant_a,
+    b.participant participant_b,
+    null::double battle_deaths_a,
+    null::double battle_deaths_b,
+    0 battle_deaths_est_a,
+    0 battle_deaths_est_b,
+    greatest(a.start_date, b.start_date) start_date,
+    extract(year from greatest(a.start_date, b.start_date))::integer start_year,
+    least(a.end_date, b.end_date) end_date,
+    extract(year from least(a.end_date, b.end_date))::integer end_year
+from war_dyads a
+join initial_participants b on a.war_num = b.war_num
+                            and a.side_b = b.side
+where
+    a.c_code_b = -8
+    and b.c_code <> -8
+    and least(a.end_date, b.end_date) > greatest(a.start_date, b.start_date)
+group by 1, 6, 7, 8, 9, 10, 15, 16, 17, 18),
 
 dyads_after_inference as (
 
@@ -177,6 +212,27 @@ select
     war_type_name,
     war_subtype,
     disno,
+    c_code_a,
+    c_code_b,
+    participant_a,
+    participant_b,
+    battle_deaths_a,
+    battle_deaths_b,
+    battle_deaths_est_a,
+    battle_deaths_est_b,
+    start_date,
+    start_year,
+    end_date,
+    end_year
+from group_dyads
+union all
+select
+    war_num,
+    war_name,
+    war_type,
+    war_type_name,
+    war_subtype,
+    disno,
     c_code_b c_code_a,
     c_code_a c_code_b,
     participant_b participant_a,
@@ -210,7 +266,28 @@ select
     start_year,
     end_date,
     end_year
-from inferred_dyads)
+from inferred_dyads
+union all
+select
+    war_num,
+    war_name,
+    war_type,
+    war_type_name,
+    war_subtype,
+    disno,
+    c_code_b c_code_a,
+    c_code_a c_code_b,
+    participant_b participant_a,
+    participant_a participant_b,
+    battle_deaths_b battle_deaths_a,
+    battle_deaths_a battle_deaths_b,
+    battle_deaths_est_b battle_deaths_est_a,
+    battle_deaths_est_a battle_deaths_est_b,
+    start_date,
+    start_year,
+    end_date,
+    end_year
+from group_dyads)
 
 select
     a.war_num,
@@ -229,4 +306,7 @@ select
     b.range::integer "year"
 from dyads_after_inference a
 join range(1500, 2100) b on b.range between a.start_year and a.end_year
+where
+    a.c_code_a <> -8
+    and a.c_code_b <> -8
 group by 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14;

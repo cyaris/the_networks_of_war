@@ -40,40 +40,32 @@ python src/pipeline.py --step 1
 python src/pipeline.py --inspect
 ```
 
-## Documentation Consulted
+## Step 1 Sources And Tables
 
-The current backend ingests the following source files and uses the matching documentation in `documentation/` where available:
+The current backend ingests the following source files and uses the matching documentation in `documentation/` where available.
+The online source column is a placeholder for links to the original data pages.
 
-- `COW country codes.csv`: `Entities.pdf`
-- `directed_dyadic_war.csv`: `The Directed Dyadic Interstate War Dataset Codebook.pdf`
-- `dyadic_mid_4.02.csv`: `Dyadic MID Codebook V4.0.pdf`
-- `Extra-StateWarData_v4.0.csv`: `Extra-StateWars_Codebook.pdf`
-- `Inter-StateWarData_v4.0.csv`: `MII_v4.0_Codebook.pdf`
-- `INTRA-STATE_State_participants v5.1.csv`: `Codebook for Intra-state v5.1 2.9.20.pdf` and `Description of Intra-state v5.1.pdf`
-- `war_types.csv`: local helper file with no external codebook
+| Table | Source CSV | Documentation | Online source |
+| --- | --- | --- | --- |
+| `source_country_codes` | `COW country codes.csv` | `Entities.pdf` | TODO |
+| `source_extrastate_wars` | `Extra-StateWarData_v4.0.csv` | `Extra-StateWars_Codebook.pdf` | TODO |
+| `source_interstate_mid_dyads` | `dyadic_mid_4.02.csv` | `Dyadic MID Codebook V4.0.pdf` | TODO |
+| `source_interstate_war_dyads` | `directed_dyadic_war.csv` | `The Directed Dyadic Interstate War Dataset Codebook.pdf` | TODO |
+| `source_interstate_wars` | `Inter-StateWarData_v4.0.csv` | `MII_v4.0_Codebook.pdf` | TODO |
+| `source_intrastate_wars` | `INTRA-STATE_State_participants v5.1.csv` | `Codebook for Intra-state v5.1 2.9.20.pdf`; `Description of Intra-state v5.1.pdf` | TODO |
+| `source_war_types` | `war_types.csv` | local helper file with no external codebook | TODO |
 
 Other files in `documentation/` correspond to datasets that have not yet been incorporated and were not used for
 the current Step 1 assumptions.
 
-## Step 1 Tables
+Step 1 also materializes transformed tables:
 
-Step 1 creates typed source tables loaded from CSV files:
-
-- `source_country_codes`
-- `source_directed_dyadic_war`
-- `source_dyadic_mid`
-- `source_extrastate_wars`
-- `source_interstate_wars`
-- `source_intrastate_wars`
-- `source_war_types`
-
-It also materializes transformed Step 1 tables:
-
+- `dyads_after_mid`
+- `dyads_after_sources`
 - `war_dyads`
 - `war_participants`
-- `dyads_after_mid`
 
-It also materializes compatibility tables:
+Step 1 also materializes compatibility tables:
 
 - `initial_dyads`
 - `initial_participants`
@@ -87,9 +79,12 @@ It also materializes compatibility tables:
   use negative values for ongoing, not applicable, or unknown values.
 - Numeric date fields keep their negative sentinel values during load so date macros can distinguish ongoing wars from
   unknown or not-applicable dates.
-- Unknown or not-applicable start month/day values are interpreted as January 1 for date construction.
-- Unknown or not-applicable end month/day values are interpreted as December 31 for date construction.
-- Day values are capped to the last valid day of the resolved month.
+- Unknown or not-applicable start months are interpreted as January, and unknown or not-applicable start days are
+  interpreted as day `1` of the resolved month.
+- Unknown or not-applicable end months are interpreted as December, and unknown or not-applicable end days are
+  interpreted as the last day of the resolved month.
+- Day values are capped to the last valid day of the resolved month, so an end date with year `2012`, month `10`, and
+  day `-7` resolves to `2012-10-31`.
 - End year `-7` is treated as ongoing and resolved to December 31 of the current year at pipeline runtime.
 - A date is flagged as estimated when the year is ongoing (`-7`) or when a positive year has an unknown month or day
   marker (`-9`).
@@ -112,7 +107,8 @@ It also materializes compatibility tables:
   end date as the war dyad/participant span.
 - Interstate participant dates use the earliest start date and latest end date across the two source date spans.
 - Participants that appear on both side 1 and side 2 in dyadic data are assigned side `3` programmatically.
-- `dyads_after_mid` makes source war dyads directed by adding a reversed copy of each dyad.
+- `dyads_after_sources` makes source war dyads directed by adding a reversed copy of each dyad.
+- `dyads_after_mid` adds dyadic MID records to source war dyads.
 - Only dyadic MID records with `war = 1` are incorporated.
 - Dyadic MID fatality levels are converted to representative values as follows: `0 -> 0`, `1 -> 25`, `2 -> 100`,
   `3 -> 250`, `4 -> 500`, `5 -> 999`, and `6 -> 1000`.
@@ -130,18 +126,24 @@ It also materializes compatibility tables:
 - Missing participant sides are inferred from the opposite participant in dyadic data when that inference is unambiguous.
 - Inferred dyads are created by choosing anchor participants for each war. The anchor selection prefers a single
   participant on a side, then a single non-state participant, then a single state participant.
-- War `820` additionally treats France and the Democratic Republic of the Congo as anchor participants.
+- Source dyads with COW code `-8` on one side are expanded against every actual participant on that side. For example,
+  if `c_code_a = -8`, side B is treated as having fought each source participant on side A for that conflict.
+- Aggregate dyads with COW code `-8` on either side are excluded from `initial_dyads` after those rows are used for
+  named-participant expansion.
 - Inferred dyads are only created where the anchor and opposing participant date ranges overlap.
 - `initial_dyads` expands dyads into one row per year for years in the range `1500` through `2099`.
 
 ## Data-Entry Fixes
 
 - `directed_dyadic_war.csv`
-  - Start month `24` is corrected to `12`.
-  - End year `19118` is corrected to `1918`.
+  - Start month is corrected from original value `24` to `12`.
+  - End year is corrected from original value `19118` to `1918`.
   - The World War II Thailand dyad (`war_num = 139`, `statea = 800`, `stateb = 710`) is loaded with Thailand battle
-    deaths set to `5,569` and total battle deaths set to `6,569`.
+    deaths corrected from original blank `batdtha` to `5,569`; total battle deaths are corrected from original blank
+    `batdths` to `6,569`. The Thailand death count comes from Wikipedia's summary of Thailand in World War II:
+    <https://en.wikipedia.org/wiki/Thailand_in_World_War_II>.
 - `INTRA-STATE_State_participants v5.1.csv`
-  - War number `977` is corrected to `979`.
-  - War `976` has `StartYr1` corrected to `2011`.
-  - Wars `942`, `990.4`, `991`, `991.4`, and `992.5` are treated as ongoing by setting `EndYr1` to `-7`.
+  - War number is corrected from original value `977` to `979`.
+  - War `976` has `StartYr1` corrected from original value `2001` to `2011`.
+  - Wars `942`, `990.4`, `991`, `991.4`, and `992.5` are treated as ongoing by setting `EndYr1` to `-7`; the original
+    source values include `-7`, `-8`, and `-9`.

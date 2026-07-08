@@ -22,9 +22,9 @@ INSPECT_SQL = SQL_ROOT / "inspect_tables.sql"
 
 SOURCE_FILES = {
     "country_codes": "COW country codes.csv",
-    "directed_dyadic_war": "directed_dyadic_war.csv",
-    "dyadic_mid": "dyadic_mid_4.02.csv",
     "extrastate_wars": "Extra-StateWarData_v4.0.csv",
+    "interstate_mid_dyads": "dyadic_mid_4.02.csv",
+    "interstate_war_dyads": "directed_dyadic_war.csv",
     "interstate_wars": "Inter-StateWarData_v4.0.csv",
     "intrastate_wars": "INTRA-STATE_State_participants v5.1.csv",
     "war_types": "../war_types.csv",

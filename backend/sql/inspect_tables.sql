@@ -1,8 +1,8 @@
 select 'source_country_codes' table_name, count(*) row_count from source_country_codes
 union all
-select 'source_directed_dyadic_war', count(*) from source_directed_dyadic_war
+select 'source_interstate_war_dyads', count(*) from source_interstate_war_dyads
 union all
-select 'source_dyadic_mid', count(*) from source_dyadic_mid
+select 'source_interstate_mid_dyads', count(*) from source_interstate_mid_dyads
 union all
 select 'source_extrastate_wars', count(*) from source_extrastate_wars
 union all
@@ -15,6 +15,8 @@ union all
 select 'war_participants', count(*) from war_participants
 union all
 select 'war_dyads', count(*) from war_dyads
+union all
+select 'dyads_after_sources', count(*) from dyads_after_sources
 union all
 select 'initial_participants', count(*) from initial_participants
 union all
