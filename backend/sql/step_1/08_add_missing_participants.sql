@@ -12,8 +12,28 @@ select
 from war_participants
 group by 1),
 
-missing_participants as (
+participant_union as (
 
+select
+    source_file,
+    war_num,
+    war_name,
+    war_type,
+    war_type_name,
+    war_subtype,
+    c_code,
+    participant,
+    side,
+    start_date,
+    start_year,
+    end_date,
+    end_year,
+    start_date_estimated,
+    end_date_estimated,
+    ongoing_war,
+    battle_deaths
+from war_participants
+union all
 select
     'dyadic_data' source_file,
     a.war_num,
@@ -40,31 +60,6 @@ left join war_metadata b on a.war_num = b.war_num
 where c.c_code is null
 group by 2, 7, 8),
 
-participant_union as (
-
-select
-    source_file,
-    war_num,
-    war_name,
-    war_type,
-    war_type_name,
-    war_subtype,
-    c_code,
-    participant,
-    side,
-    start_date,
-    start_year,
-    end_date,
-    end_year,
-    start_date_estimated,
-    end_date_estimated,
-    ongoing_war,
-    battle_deaths
-from war_participants
-union all
-select *
-from missing_participants),
-
 side_options as (
 
 select
@@ -89,7 +84,7 @@ side_assignments as (
 select
     war_num,
     c_code,
-    iff(count(distinct side) = 1, min(side), null) side
+    if(count(distinct side) = 1, min(side), null) side
 from side_options
 group by 1, 2)
 
@@ -110,7 +105,7 @@ select
     a.start_date_estimated,
     a.end_date_estimated,
     a.ongoing_war,
-    iff(a.war_num = 139 and a.c_code = 800, 5569, a.battle_deaths) battle_deaths
+    a.battle_deaths
 from participant_union a
 left join side_assignments b on a.war_num = b.war_num
                              and a.c_code = b.c_code;

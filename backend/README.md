@@ -38,7 +38,7 @@ python src/pipeline.py --inspect
 
 ## Tables
 
-Step 1 creates raw source tables directly from CSV files:
+Step 1 creates typed source tables loaded from CSV files:
 
 - `source_country_codes`
 - `source_directed_dyadic_war`

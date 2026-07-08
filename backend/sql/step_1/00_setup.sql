@@ -6,16 +6,8 @@ create or replace macro clean_number(value) as (
     try_cast(nullif(trim(value::varchar), '') as double)
 );
 
-create or replace macro iff(condition, true_value, false_value) as (
-    if(condition, true_value, false_value)
-);
-
 create or replace macro clean_text(value) as (
-    iff(
-        nullif(trim(value::varchar), '') in ('-7', '-8', '-9'),
-        null,
-        nullif(trim(value::varchar), '')
-    )
+    if(nullif(trim(value::varchar), '') in ('-7', '-8', '-9'), null, nullif(trim(value::varchar), ''))
 );
 
 create or replace macro clean_participant(value) as (
@@ -33,64 +25,33 @@ create or replace macro clean_participant(value) as (
                             ' rebels',
                             ' Rebels'
                         ),
-                        ' tribe',
-                        ' Tribe'
+                        ' resistance',
+                        ' Resistance'
                     ),
-                    ' sultanate',
-                    ' Sultanate'
+                    ' resistence',
+                    ' Resistance'
                 ),
-                ' resistance',
-                ' Resistance'
+                ' sultanate',
+                ' Sultanate'
             ),
-            ' resistence',
-            ' Resistance'
+            ' tribe',
+            ' Tribe'
         )
     end
 );
 
 create or replace macro cow_date(year_value, month_value, day_value, default_month, default_day) as (
-    iff(
-        clean_int(year_value) > 0,
-        make_date(
-            clean_int(year_value),
-            iff(clean_int(month_value) between 1 and 12, clean_int(month_value), default_month),
-            least(
-                iff(clean_int(day_value) between 1 and 31, clean_int(day_value), default_day),
-                extract(
-                    day
-                    from last_day(
-                        make_date(
-                            clean_int(year_value),
-                            iff(clean_int(month_value) between 1 and 12, clean_int(month_value), default_month),
-                            1
-                        )
-                    )
-                )::integer
-            )
-        ),
-        null
-    )
+    if(clean_int(year_value) > 0, make_date(clean_int(year_value), if(clean_int(month_value) between 1 and 12, clean_int(month_value), default_month), least(if(clean_int(day_value) between 1 and 31, clean_int(day_value), default_day), extract(day from last_day(make_date(clean_int(year_value), if(clean_int(month_value) between 1 and 12, clean_int(month_value), default_month), 1)))::integer)), null)
 );
 
 create or replace macro cow_end_date(year_value, month_value, day_value) as (
-    iff(clean_int(year_value) = -7, date '2021-12-31', cow_date(year_value, month_value, day_value, 12, 31))
+    if(clean_int(year_value) = -7, make_date(extract(year from current_date)::integer, 12, 31), cow_date(year_value, month_value, day_value, 12, 31))
 );
 
 create or replace macro date_estimated(year_value, month_value, day_value) as (
-    iff(
-        clean_int(year_value) = -7
-            or (
-                clean_int(year_value) > 0
-                and (
-                    clean_int(month_value) = -9
-                    or clean_int(day_value) = -9
-                )
-            ),
-        1,
-        0
-    )
+    if(clean_int(year_value) = -7 or (clean_int(year_value) > 0 and (clean_int(month_value) = -9 or clean_int(day_value) = -9)), 1, 0)
 );
 
 create or replace macro ongoing_war(year_value) as (
-    iff(clean_int(year_value) = -7, 1, 0)
+    if(clean_int(year_value) = -7, 1, 0)
 );
