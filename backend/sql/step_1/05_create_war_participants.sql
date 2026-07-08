@@ -119,13 +119,13 @@ select
     min(a.start_year) start_year,
     max(a.end_date) end_date,
     max(a.end_year) end_year,
-    max(a.start_date_estimated) start_date_estimated,
+    min(a.start_date_estimated) start_date_estimated,
     max(a.end_date_estimated) end_date_estimated,
     max(a.ongoing_war) ongoing_war,
     sum(a.battle_deaths) battle_deaths
 from cleaned_participant_rows a
 left join dyadic_side_assignments b on a.war_num = b.war_num
-                                  and a.c_code = b.c_code
-                                  and a.participant = b.participant
+                                    and a.c_code = b.c_code
+                                    and a.participant = b.participant
 where a.participant is not null
 group by 2, 7, 8;
