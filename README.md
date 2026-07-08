@@ -119,8 +119,8 @@ Step 1 also materializes compatibility tables:
   1945 or earlier.
 - A small set of unmatched MID dyads among COW codes `483`, `490`, `500`, `517`, `540`, `552`, and `565` are assigned
   to war `905`.
-- An additional directed pair for World War II dispute `2581` between COW codes `220` and `255` is preserved as a
-  special case.
+- World War II dispute `2581` between COW codes `220` and `255` is preserved as a duplicate merge stream before
+  dyad aggregation.
 - Participants found in dyadic data but missing from `war_participants` are added to `initial_participants` from the
   dyadic side A records.
 - Missing participant sides are inferred from the opposite participant in dyadic data when that inference is unambiguous.
@@ -133,7 +133,7 @@ Step 1 also materializes compatibility tables:
 - Inferred dyads are only created where the anchor and opposing participant date ranges overlap.
 - `initial_dyads` expands dyads into one row per year for years in the range `1500` through `2099`.
 
-## Data-Entry Fixes
+## Data-Entry Fixes And Assignment Rules
 
 - `directed_dyadic_war.csv`
   - Start month is corrected from original value `24` to `12`.
@@ -142,6 +142,13 @@ Step 1 also materializes compatibility tables:
     deaths corrected from original blank `batdtha` to `5,569`; total battle deaths are corrected from original blank
     `batdths` to `6,569`. The Thailand death count comes from Wikipedia's summary of Thailand in World War II:
     <https://en.wikipedia.org/wiki/Thailand_in_World_War_II>.
+- `dyadic_mid_4.02.csv`
+  - The source does not include COW war numbers, so rows are assigned to known wars by matching `disno` to
+    `directed_dyadic_war.csv` where possible.
+  - Unmatched MID rows with start years through `1945` are assigned from original missing `war_num` to World War II
+    (`war_num = 139`) after manual review.
+  - Unmatched MID dyads among COW codes `483`, `490`, `500`, `517`, `540`, `552`, and `565` are assigned from original
+    missing `war_num` to Africa's World War (`war_num = 905`) after manual review.
 - `INTRA-STATE_State_participants v5.1.csv`
   - War number is corrected from original value `977` to `979`.
   - War `976` has `StartYr1` corrected from original value `2001` to `2011`.
