@@ -2,17 +2,6 @@ create or replace table initial_participants as
 
 with
 
-war_metadata as (
-
-select
-    war_num,
-    any_value(war_name) war_name,
-    any_value(war_type) war_type,
-    any_value(war_type_name) war_type_name,
-    any_value(war_subtype) war_subtype
-from war_participants
-group by 1),
-
 participant_union as (
 
 select
@@ -38,10 +27,10 @@ union all
 select
     'dyadic_data' source_file,
     a.war_num,
-    coalesce(any_value(b.war_name), '') war_name,
-    any_value(b.war_type) war_type,
-    any_value(b.war_type_name) war_type_name,
-    any_value(b.war_subtype) war_subtype,
+    coalesce(any_value(a.war_name), '') war_name,
+    any_value(a.war_type) war_type,
+    any_value(a.war_type_name) war_type_name,
+    any_value(a.war_subtype) war_subtype,
     a.c_code_a c_code,
     a.participant_a participant,
     null::integer side,
@@ -57,7 +46,6 @@ from dyads_after_mid a
 left join war_participants c on a.war_num = c.war_num
                              and a.c_code_a = c.c_code
                              and a.participant_a = c.participant
-left join war_metadata b on a.war_num = b.war_num
 where c.c_code is null
 group by 2, 7, 8),
 

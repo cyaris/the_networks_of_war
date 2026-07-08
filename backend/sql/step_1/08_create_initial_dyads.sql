@@ -61,28 +61,7 @@ where (
         and a.side = 2
         and a.c_code = -8
     )
-union all
-select
-    a.source_file,
-    a.war_num,
-    a.war_name,
-    a.war_type,
-    a.war_type_name,
-    a.war_subtype,
-    a.c_code,
-    a.participant,
-    a.side,
-    a.start_date,
-    a.start_year,
-    a.end_date,
-    a.end_year,
-    a.start_date_estimated,
-    a.end_date_estimated,
-    a.ongoing_war,
-    a.battle_deaths
-from initial_participants a
-join war_side_counts b on a.war_num = b.war_num
-where (
+    or (
         b.side_1_state = 1
         and a.side = 1
         and a.c_code > 0
