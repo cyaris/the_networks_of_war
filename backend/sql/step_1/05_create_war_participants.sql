@@ -89,7 +89,8 @@ select
     ongoing_war,
     battle_deaths_b battle_deaths
 from war_dyads
-where source_file in ('Extra-StateWarData_v4.0.csv', 'INTRA-STATE_State_participants v5.1.csv')
+where
+    source_file in ('Extra-StateWarData_v4.0.csv', 'INTRA-STATE_State_participants v5.1.csv')
     and participant_b is not null),
 
 cleaned_participant_rows as (

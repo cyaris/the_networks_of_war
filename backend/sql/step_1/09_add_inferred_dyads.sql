@@ -65,7 +65,8 @@ manual_anchors as (
 
 select *
 from participants_after_dyads
-where war_num = 820
+where
+    war_num = 820
     and participant in ('France', 'Democratic Republic of the Congo')),
 
 anchors as (
@@ -101,12 +102,10 @@ select
     least(a.end_date, b.end_date) end_date,
     extract(year from least(a.end_date, b.end_date))::integer end_year
 from anchors a
-join participants_after_dyads b
-    on a.war_num = b.war_num
-    and (
-        (a.side = 1 and b.side = 2)
-        or (a.side = 2 and b.side = 1)
-    )
+join participants_after_dyads b on a.war_num = b.war_num
+                                and ((a.side = 1 and b.side = 2)
+                                    or (a.side = 2 and b.side = 1
+                                )
 where least(a.end_date, b.end_date) > greatest(a.start_date, b.start_date)
 group by 1, 7, 8, 9, 10, 15, 16, 17, 18),
 

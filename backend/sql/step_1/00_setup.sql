@@ -21,8 +21,7 @@ create or replace macro clean_text(value) as (
 create or replace macro clean_participant(value) as (
     case
         when clean_text(value) = 'United States' then 'United States of America'
-        when clean_text(value) = 'Baron von Ungern-Sternbergs White army'
-        then 'Baron von Ungern-Sternberg''s White army'
+        when clean_text(value) = 'Baron von Ungern-Sternbergs White army' then 'Baron von Ungern-Sternberg''s White army'
         when clean_text(value) = ' Janissaries' then 'Janissaries'
         when clean_text(value) = 'Turkey/Ottoman Empire/Egypt' then 'Turkey, Ottoman Empire & Egypt'
         else replace(

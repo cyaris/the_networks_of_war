@@ -1,4 +1,5 @@
 create or replace table dyads_after_mid as
+
 with
 
 mid_wars as (
@@ -185,7 +186,8 @@ select
     max(end_date) end_date,
     max(end_year) end_year
 from assigned_dyads
-where war_num = 139
+where
+    war_num = 139
     and disno = 2581
     and (
         (c_code_a = 220 and c_code_b = 255)

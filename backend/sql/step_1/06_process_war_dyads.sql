@@ -21,7 +21,8 @@ select
     end_date,
     end_year
 from war_dyads
-where participant_a is not null
+where
+    participant_a is not null
     and participant_b is not null
 group by 1, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16
 union all
@@ -43,7 +44,8 @@ select
     end_date,
     end_year
 from war_dyads
-where participant_a is not null
+where
+    participant_a is not null
     and participant_b is not null
 group by 1, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)
 

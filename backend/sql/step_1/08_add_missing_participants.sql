@@ -33,10 +33,9 @@ select
     null::integer ongoing_war,
     sum(a.battle_deaths_a) battle_deaths
 from dyads_after_mid a
-left join war_participants c
-    on a.war_num = c.war_num
-    and a.c_code_a = c.c_code
-    and a.participant_a = c.participant
+left join war_participants c on a.war_num = c.war_num
+                             and a.c_code_a = c.c_code
+                             and a.participant_a = c.participant
 left join war_metadata b on a.war_num = b.war_num
 where c.c_code is null
 group by 2, 7, 8),
@@ -77,13 +76,12 @@ select
         when c.side = 3 then 3
     end side
 from participant_union a
-join dyads_after_mid b
-    on a.war_num = b.war_num
-    and a.c_code = b.c_code_a
-join participant_union c
-    on b.war_num = c.war_num
-    and b.c_code_b = c.c_code
-where a.side is null
+join dyads_after_mid b on a.war_num = b.war_num
+                       and a.c_code = b.c_code_a
+join participant_union c on b.war_num = c.war_num
+                         and b.c_code_b = c.c_code
+where
+    a.side is null
     and c.side is not null),
 
 side_assignments as (
@@ -114,6 +112,5 @@ select
     a.ongoing_war,
     iff(a.war_num = 139 and a.c_code = 800, 5569, a.battle_deaths) battle_deaths
 from participant_union a
-left join side_assignments b
-    on a.war_num = b.war_num
-    and a.c_code = b.c_code;
+left join side_assignments b on a.war_num = b.war_num
+                             and a.c_code = b.c_code;

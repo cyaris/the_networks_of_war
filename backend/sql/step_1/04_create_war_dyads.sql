@@ -1,4 +1,5 @@
 create or replace table war_dyads as
+
 with
 
 interstate_wars as (
