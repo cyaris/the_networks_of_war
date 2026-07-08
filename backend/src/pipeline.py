@@ -41,11 +41,10 @@ STEP_1_SQL = [
     "step_1/03_create_reference_tables.sql",
     "step_1/04_create_war_dyads.sql",
     "step_1/05_create_war_participants.sql",
-    "step_1/06_process_war_dyads.sql",
-    "step_1/07_add_mid_dyads.sql",
-    "step_1/08_add_missing_participants.sql",
-    "step_1/09_add_inferred_dyads.sql",
-    "step_1/10_create_initial_tables.sql",
+    "step_1/06_create_dyads_after_mid.sql",
+    "step_1/07_create_initial_participants.sql",
+    "step_1/08_create_initial_dyads.sql",
+    "step_1/09_create_initial_wars.sql",
 ]
 
 

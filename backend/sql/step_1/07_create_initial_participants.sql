@@ -1,4 +1,5 @@
-create or replace table participants_after_dyads as
+create or replace table initial_participants as
+
 with
 
 war_metadata as (
@@ -60,16 +61,12 @@ left join war_metadata b on a.war_num = b.war_num
 where c.c_code is null
 group by 2, 7, 8),
 
-side_options as (
+side_assignments as (
 
 select
     a.war_num,
     a.c_code,
-    case
-        when c.side = 1 then 2
-        when c.side = 2 then 1
-        when c.side = 3 then 3
-    end side
+    if(count(distinct case when c.side = 1 then 2 when c.side = 2 then 1 when c.side = 3 then 3 end) = 1, min(case when c.side = 1 then 2 when c.side = 2 then 1 when c.side = 3 then 3 end), null) side
 from participant_union a
 join dyads_after_mid b on a.war_num = b.war_num
                        and a.c_code = b.c_code_a
@@ -77,15 +74,7 @@ join participant_union c on b.war_num = c.war_num
                          and b.c_code_b = c.c_code
 where
     a.side is null
-    and c.side is not null),
-
-side_assignments as (
-
-select
-    war_num,
-    c_code,
-    if(count(distinct side) = 1, min(side), null) side
-from side_options
+    and c.side is not null
 group by 1, 2)
 
 select

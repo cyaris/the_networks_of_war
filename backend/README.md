@@ -50,6 +50,7 @@ Step 1 creates typed source tables loaded from CSV files:
 
 It also materializes transformed Step 1 tables:
 
+- `dyads_after_mid`
 - `war_dyads`
 - `war_participants`
 

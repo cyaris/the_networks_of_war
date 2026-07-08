@@ -1,4 +1,5 @@
-create or replace table dyads_after_inference as
+create or replace table initial_dyads as
+
 with
 
 war_side_counts as (
@@ -11,7 +12,7 @@ select
     count(distinct participant) filter (where side = 2 and c_code = -8) side_2_non_state,
     count(distinct c_code) filter (where side = 1 and c_code > 0) side_1_state,
     count(distinct c_code) filter (where side = 2 and c_code > 0) side_2_state
-from participants_after_dyads
+from initial_participants
 group by 1),
 
 anchors as (
@@ -34,7 +35,7 @@ select
     a.end_date_estimated,
     a.ongoing_war,
     a.battle_deaths
-from participants_after_dyads a
+from initial_participants a
 join war_side_counts b on a.war_num = b.war_num
 where (
         b.side_1_total = 1
@@ -79,7 +80,7 @@ select
     a.end_date_estimated,
     a.ongoing_war,
     a.battle_deaths
-from participants_after_dyads a
+from initial_participants a
 join war_side_counts b on a.war_num = b.war_num
 where (
         b.side_1_state = 1
@@ -111,7 +112,7 @@ select
     end_date_estimated,
     ongoing_war,
     battle_deaths
-from participants_after_dyads
+from initial_participants
 where
     war_num = 820
     and participant in ('France', 'Democratic Republic of the Congo')),
@@ -138,13 +139,15 @@ select
     least(a.end_date, b.end_date) end_date,
     extract(year from least(a.end_date, b.end_date))::integer end_year
 from anchors a
-join participants_after_dyads b on a.war_num = b.war_num
-                                and (
-                                    (a.side = 1 and b.side = 2)
-                                    or (a.side = 2 and b.side = 1)
-                                )
+join initial_participants b on a.war_num = b.war_num
+                            and (
+                                (a.side = 1 and b.side = 2)
+                                or (a.side = 2 and b.side = 1)
+                            )
 where least(a.end_date, b.end_date) > greatest(a.start_date, b.start_date)
-group by 1, 7, 8, 9, 10, 15, 16, 17, 18)
+group by 1, 7, 8, 9, 10, 15, 16, 17, 18),
+
+dyads_after_inference as (
 
 select
     war_num,
@@ -228,4 +231,23 @@ select
     start_year,
     end_date,
     end_year
-from inferred_dyads;
+from inferred_dyads)
+
+select
+    a.war_num,
+    a.c_code_a,
+    a.c_code_b,
+    a.participant_a,
+    a.participant_b,
+    a.battle_deaths_a,
+    a.battle_deaths_b,
+    a.battle_deaths_est_a,
+    a.battle_deaths_est_b,
+    a.start_date,
+    a.start_year,
+    a.end_date,
+    a.end_year,
+    b.range::integer "year"
+from dyads_after_inference a
+join range(1500, 2100) b on b.range between a.start_year and a.end_year
+group by 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14;
