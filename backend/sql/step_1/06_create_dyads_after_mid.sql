@@ -16,19 +16,11 @@ mid_wars_prepared as (
 select
     a.disno,
     case
-        when coalesce(b.war_num, -1) = -1 and a.start_year_1 <= 1945 then 139
-        when coalesce(b.war_num, -1) = -1
-            and (
-                (a.c_code_a = 483 and a.c_code_b in (500, 517))
-                or (a.c_code_a = 490 and a.c_code_b in (500, 517))
-                or (a.c_code_a = 500 and a.c_code_b in (483, 490, 540, 552, 565))
-                or (a.c_code_a = 517 and a.c_code_b in (483, 490, 540, 552, 565))
-                or (a.c_code_a = 540 and a.c_code_b in (500, 517))
-                or (a.c_code_a = 552 and a.c_code_b in (500, 517))
-                or (a.c_code_a = 565 and a.c_code_b in (500, 517))
-            )
-        then 905
-        else coalesce(b.war_num, -1)
+        when b.war_num is not null then b.war_num
+        when a.start_year_1 <= 1945 then 139
+        when a.disno = 4182 then 4182
+        when a.disno = 4339 then 905
+        else -1
     end war_num,
     a.war,
     a.c_code_a,
@@ -73,29 +65,14 @@ select
     war_num,
     any_value(war_name) war_name
 from dyads_after_sources
-group by 1),
-
-merged_dyads as (
-
-select
-    war_num,
-    war_name,
-    war_type,
-    war_type_name,
-    war_subtype,
-    null::double disno,
-    c_code_a,
-    c_code_b,
-    participant_a,
-    participant_b,
-    battle_deaths_a,
-    battle_deaths_b,
-    battle_deaths_est_a battle_deaths_estimated_a,
-    battle_deaths_est_b battle_deaths_estimated_b,
-    start_date,
-    end_date
-from dyads_after_sources
+group by 1
 union all
+select
+    4182 war_num,
+    'Israeli–Hezbollah Conflict (South Lebanon)' war_name),
+
+mid_dyads as (
+
 select
     a.war_num,
     any_value(b.war_name) war_name,
@@ -119,54 +96,48 @@ left join country_codes c on a.c_code_a = c.c_code
 left join country_codes d on a.c_code_b = d.c_code
 group by 1, 6, 7, 8, 9, 10),
 
-assigned_dyads as (
+merged_dyads as (
 
 select
-    null::double dyad_copy,
     war_num,
     war_name,
     war_type,
     war_type_name,
     war_subtype,
-    disno,
     c_code_a,
     c_code_b,
     participant_a,
     participant_b,
     battle_deaths_a,
     battle_deaths_b,
-    battle_deaths_estimated_a,
-    battle_deaths_estimated_b,
+    battle_deaths_est_a battle_deaths_estimated_a,
+    battle_deaths_est_b battle_deaths_estimated_b,
     start_date,
     end_date
-from merged_dyads
+from dyads_after_sources
 union all
 select
-    disno dyad_copy,
-    war_num,
-    war_name,
-    war_type,
-    war_type_name,
-    war_subtype,
-    disno,
-    c_code_a,
-    c_code_b,
-    participant_a,
-    participant_b,
-    battle_deaths_a,
-    battle_deaths_b,
-    battle_deaths_estimated_a,
-    battle_deaths_estimated_b,
-    start_date,
-    end_date
-from merged_dyads
-where
-    war_num = 139
-    and disno = 2581
-    and (
-        (c_code_a = 220 and c_code_b = 255)
-        or (c_code_a = 255 and c_code_b = 220)
-    ))
+    a.war_num,
+    a.war_name,
+    a.war_type,
+    a.war_type_name,
+    a.war_subtype,
+    a.c_code_a,
+    a.c_code_b,
+    a.participant_a,
+    a.participant_b,
+    a.battle_deaths_a,
+    a.battle_deaths_b,
+    a.battle_deaths_estimated_a,
+    a.battle_deaths_estimated_b,
+    a.start_date,
+    a.end_date
+from mid_dyads a
+left join dyads_after_sources b on a.war_num = b.war_num
+                                and a.c_code_a = b.c_code_a
+                                and a.c_code_b = b.c_code_b
+                                and least(a.end_date, b.end_date) >= greatest(a.start_date, b.start_date)
+where b.war_num is null)
 
 select
     war_num,
@@ -184,5 +155,5 @@ select
     if(nullif(sum(coalesce(battle_deaths_b, 0)), 0) is null and sum(coalesce(battle_deaths_estimated_b, 0)) > 0, 1, 0) battle_deaths_est_b,
     min(start_date) start_date,
     max(end_date) end_date
-from assigned_dyads
-group by 1, dyad_copy, 6, 7, 8, 9;
+from merged_dyads
+group by 1, 6, 7, 8, 9;

@@ -41,22 +41,16 @@ join war_side_counts b on a.war_num = b.war_num
                                and a.side = 1
                            )
                            or (
-                               b.side_1_total <> 1
-                               and b.side_2_total = 1
+                               b.side_2_total = 1
                                and a.side = 2
                            )
                            or (
-                               b.side_1_total <> 1
-                               and b.side_2_total <> 1
-                               and b.side_1_non_state = 1
+                               b.side_1_non_state = 1
                                and a.side = 1
                                and a.c_code = -8
                            )
                            or (
-                               b.side_1_total <> 1
-                               and b.side_2_total <> 1
-                               and b.side_1_non_state <> 1
-                               and b.side_2_non_state = 1
+                               b.side_2_non_state = 1
                                and a.side = 2
                                and a.c_code = -8
                            )
@@ -66,8 +60,7 @@ join war_side_counts b on a.war_num = b.war_num
                                and a.c_code > 0
                            )
                            or (
-                               b.side_1_state <> 1
-                               and b.side_2_state = 1
+                               b.side_2_state = 1
                                and a.side = 2
                                and a.c_code > 0
                            )
@@ -277,6 +270,8 @@ select
 from dyads_after_inference a
 join range(1500, 2100) b on b.range between extract(year from a.start_date)::integer and extract(year from a.end_date)::integer
 where
-    a.c_code_a <> -8
-    and a.c_code_b <> -8
+    a.participant_a is not null
+    and a.participant_b is not null
+    and a.participant_a <> '-8'
+    and a.participant_b <> '-8'
 group by 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12;

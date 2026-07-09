@@ -110,7 +110,7 @@ def test_date_macros_capture_step_1_date_assumptions(conn, expression, expected)
 
 def test_calculated_and_transient_source_columns_are_not_materialized(conn):
     assert {"batdths", "durindx", "battle_deaths_total"}.isdisjoint(column_names(conn, "source_interstate_war_dyads"))
-    assert {"durindx", "duration", "cumdurat"}.isdisjoint(column_names(conn, "source_interstate_mid_dyads"))
+    assert {"durindx", "duration", "cumdurat", "war_num"}.isdisjoint(column_names(conn, "source_interstate_mid_dyads"))
     assert {"wduratdays", "wduratmo", "totalbdeaths", "battle_deaths_total"}.isdisjoint(
         column_names(conn, "source_intrastate_wars")
     )
@@ -132,6 +132,164 @@ def test_calculated_and_transient_source_columns_are_not_materialized(conn):
         assert transient_columns.isdisjoint(column_names(conn, table_name))
 
 
+def test_source_interstate_war_dyad_data_entry_fixes_are_applied(conn):
+    assert (
+        scalar(
+            conn,
+            """
+            select start_month_1
+            from source_interstate_war_dyads
+            where
+                war_num = 106
+                and dyindex = 257.03
+                and c_code_a = 2
+                and c_code_b = 300
+            """,
+        )
+        == 12
+    )
+    assert (
+        scalar(
+            conn,
+            """
+            select end_year_1
+            from source_interstate_war_dyads
+            where
+                war_num = 106
+                and dyindex = 257.24
+                and c_code_a = 325
+                and c_code_b = 355
+                and source_year = 1916
+            """,
+        )
+        == 1918
+    )
+    assert (
+        scalar(
+            conn,
+            """
+            select battle_deaths_a
+            from source_interstate_war_dyads
+            where
+                war_num = 139
+                and dyindex = 1694.001
+                and c_code_a = 800
+                and c_code_b = 710
+            """,
+        )
+        == 5569
+    )
+
+
+def test_source_interstate_mid_fatality_levels_are_converted_to_estimates(conn):
+    assert (
+        scalar(
+            conn,
+            """
+            select count(*)
+            from source_interstate_mid_dyads
+            where
+                coalesce(battle_deaths_estimated_a, -1) not in (-1, 0, 25, 100, 250, 500, 999, 1000)
+                or coalesce(battle_deaths_estimated_b, -1) not in (-1, 0, 25, 100, 250, 500, 999, 1000)
+            """,
+        )
+        == 0
+    )
+    actual_estimates = {row[0] for row in conn.execute("""
+            select battle_deaths_estimated_a battle_deaths_estimated
+            from source_interstate_mid_dyads
+            where battle_deaths_estimated_a is not null
+            group by 1
+            union
+            select battle_deaths_estimated_b battle_deaths_estimated
+            from source_interstate_mid_dyads
+            where battle_deaths_estimated_b is not null
+            group by 1
+        """).fetchall()}
+
+    assert actual_estimates == {0, 25, 100, 250, 500, 999, 1000}
+
+
+def test_source_intrastate_war_data_entry_fixes_are_applied(conn):
+    assert scalar(conn, "select count(*) from source_intrastate_wars where war_num = 977") == 0
+    assert (
+        scalar(
+            conn,
+            """
+            select count(*)
+            from source_intrastate_wars
+            where
+                war_num = 976
+                and start_year_1 != 2011
+            """,
+        )
+        == 0
+    )
+    assert (
+        scalar(
+            conn,
+            """
+            select count(*)
+            from source_intrastate_wars
+            where
+                war_num in (942, 990.4, 991, 991.4, 992.5)
+                and end_year_1 != -7
+            """,
+        )
+        == 0
+    )
+
+
+def test_mid_dyads_do_not_duplicate_source_dyad_overlaps(conn):
+    assert (
+        scalar(
+            conn,
+            """
+            select count(*)
+            from dyads_after_mid a
+            join dyads_after_sources b on a.war_num = b.war_num
+                                      and a.c_code_a = b.c_code_a
+                                      and a.c_code_b = b.c_code_b
+                                      and least(a.end_date, b.end_date) >= greatest(a.start_date, b.start_date)
+            where
+                a.battle_deaths_est_a = 1
+                or a.battle_deaths_est_b = 1
+            """,
+        )
+        == 0
+    )
+
+
+def test_mid_dyads_resolve_all_mid_war_numbers(conn):
+    assert (
+        scalar(
+            conn,
+            """
+            select count(*)
+            from dyads_after_mid
+            where war_num = -1
+            """,
+        )
+        == 0
+    )
+    actual_dyads = set(conn.execute("""
+        select
+            war_num,
+            war_name,
+            c_code_a,
+            c_code_b,
+            participant_a,
+            participant_b
+        from dyads_after_mid
+        where war_num = 4182
+        """).fetchall())
+
+    assert actual_dyads == {
+        (4182, "Israeli–Hezbollah Conflict (South Lebanon)", 660, 666, "Lebanon", "Israel"),
+        (4182, "Israeli–Hezbollah Conflict (South Lebanon)", 666, 660, "Israel", "Lebanon"),
+    }
+
+
 def test_initial_dyads_apply_final_transformation_assumptions(conn):
     assert (
         scalar(
@@ -140,8 +298,10 @@ def test_initial_dyads_apply_final_transformation_assumptions(conn):
             select count(*)
             from initial_dyads
             where
-                c_code_a = -8
-                or c_code_b = -8
+                participant_a is null
+                or participant_b is null
+                or participant_a = '-8'
+                or participant_b = '-8'
             """,
         )
         == 0
@@ -172,3 +332,30 @@ def test_initial_dyads_apply_final_transformation_assumptions(conn):
         )
         == 0
     )
+
+
+def test_initial_dyads_retain_named_non_state_anchor_dyads(conn):
+    actual_dyads = set(conn.execute("""
+        select distinct
+            participant_a,
+            participant_b
+        from initial_dyads
+        where
+            war_num = 940.8
+            and participant_a in ('ICU', 'Eritrea')
+        """).fetchall())
+
+    expected_side_1_participants = {
+        "United States of America",
+        "Uganda",
+        "Kenya",
+        "Burundi",
+        "Somalia",
+        "Ethiopia",
+    }
+
+    assert actual_dyads == {
+        (anchor, participant)
+        for anchor in {"ICU", "Eritrea"}
+        for participant in expected_side_1_participants
+    }

@@ -57,7 +57,7 @@ python src/pipeline.py --step none --query "select * from initial_wars limit 10"
 Run Step 1, then query the freshly rebuilt tables:
 
 ```bash
-python src/pipeline.py --step 1 --query "select war_num, war_name from initial_wars order by war_num limit 10"
+python src/pipeline.py --step 1 --query "select war_num, war_name from initial_wars limit 10"
 ```
 
 Use non-default input or database paths:
@@ -204,30 +204,61 @@ Step 1 also materializes compatibility tables:
 - `dyads_after_sources` makes source war dyads directed by adding a reversed copy of each dyad.
 - `dyads_after_mid` adds dyadic MID records to source war dyads.
 - Only dyadic MID records with `war = 1` are incorporated.
-- Existing battle-death values take precedence over MID fatality estimates. MID estimates are used when summed source
-  battle deaths are null or zero and summed estimates are positive.
+- MID dyads are not incorporated when the same directed dyad in the same war overlaps an existing source war-dyad row.
+- Existing battle-death values take precedence over MID fatality estimates for remaining merged rows. MID estimates are
+  used when summed source battle deaths are null or zero and summed estimates are positive.
 - MID dyads are assigned to known wars by `disno` when possible.
 - MID dyads that cannot be assigned by `disno` are assigned to World War II (`war_num = 139`) when their start year is
   1945 or earlier.
-- A small set of unmatched MID dyads among COW codes `483`, `490`, `500`, `517`, `540`, `552`, and `565` are assigned
-  to war `905`.
-- World War II dispute `2581` between COW codes `220` and `255` is preserved as a duplicate merge stream before
-  dyad aggregation.
+- Unmatched MID dispute `4339` is assigned to Africa's World War (`war_num = 905`).
+- The unmatched Lebanon-Israel MID conflict (`disno = 4182`) is assigned synthetic `war_num = 4182` and named
+  `Israeli–Hezbollah Conflict (South Lebanon)` because no matching war number exists in the interstate war data.
 
 ### Participant Inference
 
 - Participants found in dyadic data but missing from `war_participants` are added to `initial_participants` from the
   dyadic side A records.
 - Missing participant sides are inferred from the opposite participant in dyadic data when that inference is unambiguous.
-- Inferred dyads are created by choosing anchor participants for each war. The anchor selection prefers a single
-  participant on a side, then a single non-state participant, then a single state participant.
+- Inferred dyads are created by choosing anchor participants for each war. An anchor is a participant that is treated as
+  a known adversary for all overlapping participants on the opposite side when source dyadic records are incomplete.
+- Anchor selection is independent by side and participant type. A participant is selected as an anchor when its side has
+  exactly one total participant, exactly one named non-state participant, or exactly one state participant. More than one
+  anchor can be selected for the same war, including anchors on both sides.
+- Named non-state participants with COW code `-8` are retained in `initial_dyads`. Unnamed or literal aggregate
+  placeholders are excluded.
+
+For example, in the Third Somalia War (`war_num = 940.8`), the source intra-state participant file lists six side 1
+states and two side 2 participants. Side 2 has exactly one named non-state participant, ICU (`c_code = -8`), and exactly
+one state participant, Eritrea (`c_code = 531`), so both become anchors.
+
+| Side | Source participants | Anchor rule | Selected anchors |
+| --- | --- | --- | --- |
+| 1 | United States of America, Uganda, Kenya, Burundi, Somalia, Ethiopia | No single total, non-state, or state participant | None |
+| 2 | ICU, Eritrea | One named non-state participant; one state participant | ICU, Eritrea |
+
+Those anchors are then linked to every overlapping participant on the opposite side:
+
+```mermaid
+graph LR
+    Burundi --- ICU
+    Burundi --- Eritrea
+    Ethiopia --- ICU
+    Ethiopia --- Eritrea
+    Kenya --- ICU
+    Kenya --- Eritrea
+    Somalia --- ICU
+    Somalia --- Eritrea
+    Uganda --- ICU
+    Uganda --- Eritrea
+    USA["United States of America"] --- ICU
+    USA --- Eritrea
+```
 
 ### Initial Dyads
 
 - Source dyads with COW code `-8` on one side are expanded against every actual participant on that side. For example,
   if `c_code_a = -8`, side B is treated as having fought each source participant on side A for that conflict.
-- Aggregate dyads with COW code `-8` on either side are excluded from `initial_dyads` after those rows are used for
-  named-participant expansion.
+- Unnamed aggregate dyads are excluded from `initial_dyads` after those rows are used for named-participant expansion.
 - Inferred dyads are only created where the anchor and opposing participant date ranges overlap.
 - `initial_dyads` expands dyads into one row per year for years in the range `1500` through `2099`.
 
@@ -245,8 +276,12 @@ Step 1 also materializes compatibility tables:
     `directed_dyadic_war.csv` where possible.
   - Unmatched MID rows with start years through `1945` are assigned from original missing `war_num` to World War II
     (`war_num = 139`) after manual review.
-  - Unmatched MID dyads among COW codes `483`, `490`, `500`, `517`, `540`, `552`, and `565` are assigned from original
-    missing `war_num` to Africa's World War (`war_num = 905`) after manual review.
+  - Unmatched MID dispute `4339` is assigned from original missing `war_num` to Africa's World War (`war_num = 905`)
+    after manual review.
+  - Unmatched MID dispute `4182` between Lebanon (`660`) and Israel (`666`) is assigned synthetic `war_num = 4182` and
+    named `Israeli–Hezbollah Conflict (South Lebanon)`. This fake war id uses the MID `disno` because the conflict
+    appears in the dyadic MID records with `war = 1`, but no corresponding `war_num` exists for it in the interstate
+    war data.
 - `INTRA-STATE_State_participants v5.1.csv`
   - War number is corrected from original value `977` to `979`.
   - War `976` has `StartYr1` corrected from original value `2001` to `2011`.
