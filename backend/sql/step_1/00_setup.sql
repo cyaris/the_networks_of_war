@@ -10,6 +10,26 @@ create or replace macro clean_text(value) as (
     if(nullif(trim(value::varchar), '') in ('-7', '-8', '-9'), null, nullif(trim(value::varchar), ''))
 );
 
+create or replace macro clean_date_month(value) as (
+    if(clean_int(value) between 1 and 12, clean_int(value), null)
+);
+
+create or replace macro clean_date_day(value) as (
+    if(clean_int(value) between 1 and 31, clean_int(value), null)
+);
+
+create or replace macro clean_date_year(value) as (
+    if(clean_int(value) > 0, clean_int(value), null)
+);
+
+create or replace macro clean_end_year(value) as (
+    case
+        when clean_int(value) = -7 then -7
+        when clean_int(value) > 0 then clean_int(value)
+        else null
+    end
+);
+
 create or replace macro clean_participant(value) as (
     case
         when clean_text(value) = 'United States' then 'United States of America'
@@ -41,7 +61,18 @@ create or replace macro clean_participant(value) as (
 );
 
 create or replace macro cow_date(year_value, month_value, day_value, default_month, default_day) as (
-    if(clean_int(year_value) > 0, make_date(clean_int(year_value), if(clean_int(month_value) between 1 and 12, clean_int(month_value), default_month), least(if(clean_int(day_value) between 1 and 31, clean_int(day_value), default_day), extract(day from last_day(make_date(clean_int(year_value), if(clean_int(month_value) between 1 and 12, clean_int(month_value), default_month), 1)))::integer)), null)
+    if(
+        clean_int(year_value) > 0,
+        make_date(
+            clean_int(year_value),
+            coalesce(clean_date_month(month_value), default_month),
+            least(
+                coalesce(clean_date_day(day_value), default_day),
+                extract(day from last_day(make_date(clean_int(year_value), coalesce(clean_date_month(month_value), default_month), 1)))::integer
+            )
+        ),
+        null
+    )
 );
 
 create or replace macro cow_end_date(year_value, month_value, day_value) as (
@@ -49,7 +80,7 @@ create or replace macro cow_end_date(year_value, month_value, day_value) as (
 );
 
 create or replace macro date_estimated(year_value, month_value, day_value) as (
-    if(clean_int(year_value) = -7 or (clean_int(year_value) > 0 and (clean_int(month_value) = -9 or clean_int(day_value) = -9)), 1, 0)
+    if(clean_int(year_value) = -7 or (clean_int(year_value) > 0 and (clean_date_month(month_value) is null or clean_date_day(day_value) is null)), 1, 0)
 );
 
 create or replace macro ongoing_war(year_value) as (

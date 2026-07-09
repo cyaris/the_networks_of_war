@@ -83,17 +83,17 @@ Step 1 also materializes compatibility tables:
   the last day of the year when only the end year is known.
 - Blank strings are loaded as null. Text values `-7`, `-8`, and `-9` are also treated as null because the COW codebooks
   use negative values for ongoing, not applicable, or unknown values.
-- Numeric date fields keep their negative sentinel values during load so date macros can distinguish ongoing wars from
-  unknown or not-applicable dates.
-- Unknown or not-applicable start months are interpreted as January, and unknown or not-applicable start days are
-  interpreted as day `1` of the resolved month.
-- Unknown or not-applicable end months are interpreted as December, and unknown or not-applicable end days are
-  interpreted as the last day of the resolved month.
+- Negative day, month, and start-year date fields are loaded as null. Negative end-year values are loaded as null except
+  for `-7`, which the COW codebooks document as the ongoing-war marker.
+- Missing, invalid, unknown, or not-applicable start months are interpreted as January, and start days are interpreted
+  as day `1` of the resolved month.
+- Missing, invalid, unknown, or not-applicable end months are interpreted as December, and end days are interpreted as
+  the last day of the resolved month.
 - Day values are capped to the last valid day of the resolved month, so an end date with year `2012`, month `10`, and
-  day `-7` resolves to `2012-10-31`.
+  missing day resolves to `2012-10-31`.
 - End year `-7` is treated as ongoing and resolved to December 31 of the current year at pipeline runtime.
-- A date is flagged as estimated when the year is ongoing (`-7`) or when a positive year has an unknown month or day
-  marker (`-9`).
+- A date is flagged as estimated when the year is an ongoing marker or when a positive year has a missing or invalid
+  month or day.
 - `COW country codes.csv` is deduplicated by `c_code`; the first row per code is retained.
 - `Extra-StateWarData_v4.0.csv` is read as `cp1252` and copied to UTF-8 in `backend/.work/` before DuckDB reads it.
 - `directed_dyadic_war.csv`, `dyadic_mid_4.02.csv`, `Inter-StateWarData_v4.0.csv`, and
@@ -163,4 +163,5 @@ Step 1 also materializes compatibility tables:
   - War number is corrected from original value `977` to `979`.
   - War `976` has `StartYr1` corrected from original value `2001` to `2011`.
   - Wars `942`, `990.4`, `991`, `991.4`, and `992.5` are treated as ongoing by setting `EndYr1` to `-7`; the original
-    source values include `-7`, `-8`, and `-9`.
+    source values include `-7`, `-8`, and `-9`, but only `-7` is treated as an ongoing end-year marker. Other negative
+    end-year values are loaded as null because the codebooks use them for not applicable or unknown values.
