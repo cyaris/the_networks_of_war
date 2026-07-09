@@ -9,6 +9,8 @@ select
     count(*) total_participants,
     min(start_date) start_date,
     max(end_date) end_date,
+    max(start_date_estimated) start_date_estimated,
+    max(end_date_estimated) end_date_estimated,
     max(ongoing_war) ongoing_war
 from initial_participants
 where war_type is not null

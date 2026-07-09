@@ -127,6 +127,8 @@ def test_calculated_and_transient_source_columns_are_not_materialized(conn):
         "end_day_1",
         "end_month_1",
         "end_year_1",
+        "source_file",
+        "battle_deaths",
     }
     for table_name in ["war_dyads", "war_participants", "dyads_after_mid", "initial_participants", "initial_dyads"]:
         assert transient_columns.isdisjoint(column_names(conn, table_name))
@@ -258,6 +260,25 @@ def test_mid_dyads_do_not_duplicate_source_dyad_overlaps(conn):
         )
         == 0
     )
+
+
+def test_dyad_battle_death_estimate_flags_are_binary(conn):
+    for table_name in ["dyads_after_mid", "initial_dyads"]:
+        assert (
+            scalar(
+                conn,
+                f"""
+                select count(*)
+                from {table_name}
+                where
+                    battle_deaths_est_a not in (0, 1)
+                    or battle_deaths_est_b not in (0, 1)
+                    or battle_deaths_est_a is null
+                    or battle_deaths_est_b is null
+                """,
+            )
+            == 0
+        )
 
 
 def test_mid_dyads_resolve_all_mid_war_numbers(conn):

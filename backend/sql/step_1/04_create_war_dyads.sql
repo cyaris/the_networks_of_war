@@ -12,7 +12,6 @@ from source_interstate_wars
 group by 1)
 
 select
-    'directed_dyadic_war.csv' source_file,
     a.war_num,
     b.war_name,
     b.war_type,
@@ -38,7 +37,6 @@ left join country_codes d on a.c_code_a = d.c_code
 left join country_codes e on a.c_code_b = e.c_code
 union all
 select
-    'Extra-StateWarData_v4.0.csv' source_file,
     a.war_num,
     a.war_name,
     a.war_type,
@@ -63,7 +61,6 @@ left join country_codes d on a.c_code_a = d.c_code
 left join country_codes e on a.c_code_b = e.c_code
 union all
 select
-    'INTRA-STATE_State_participants v5.1.csv' source_file,
     a.war_num,
     a.war_name,
     a.war_type,
@@ -106,12 +103,15 @@ select
     battle_deaths_a,
     battle_deaths_b,
     start_date,
-    end_date
+    end_date,
+    start_date_estimated,
+    end_date_estimated,
+    ongoing_war
 from war_dyads
 where
     participant_a is not null
     and participant_b is not null
-group by 1, 6, 7, 8, 9, 10, 11, 12, 13
+group by 1, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16
 union all
 select
     war_num,
@@ -126,12 +126,15 @@ select
     battle_deaths_b battle_deaths_a,
     battle_deaths_a battle_deaths_b,
     start_date,
-    end_date
+    end_date,
+    start_date_estimated,
+    end_date_estimated,
+    ongoing_war
 from war_dyads
 where
     participant_a is not null
     and participant_b is not null
-group by 1, 6, 7, 8, 9, 10, 11, 12, 13)
+group by 1, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)
 
 select
     war_num,
@@ -145,9 +148,10 @@ select
     participant_b,
     sum(if(battle_deaths_a >= 0, battle_deaths_a, null)) battle_deaths_a,
     sum(if(battle_deaths_b >= 0, battle_deaths_b, null)) battle_deaths_b,
-    0 battle_deaths_est_a,
-    0 battle_deaths_est_b,
     min(start_date) start_date,
-    max(end_date) end_date
+    max(end_date) end_date,
+    max(start_date_estimated) start_date_estimated,
+    max(end_date_estimated) end_date_estimated,
+    max(ongoing_war) ongoing_war
 from cleaned_war_dyads a
 group by 1, 6, 7, 8, 9;
