@@ -56,9 +56,8 @@ join dyads_after_mid b on a.war_num = b.war_num
                        and a.c_code = b.c_code_a
 join participant_union c on b.war_num = c.war_num
                          and b.c_code_b = c.c_code
-where
-    a.side is null
-    and c.side is not null
+                         and c.side is not null
+where a.side is null
 group by 1, 2)
 
 select

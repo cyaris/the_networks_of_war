@@ -35,41 +35,44 @@ select
     a.battle_deaths
 from initial_participants a
 join war_side_counts b on a.war_num = b.war_num
-where (
-        b.side_1_total = 1
-        and a.side = 1
-    )
-    or (
-        b.side_1_total <> 1
-        and b.side_2_total = 1
-        and a.side = 2
-    )
-    or (
-        b.side_1_total <> 1
-        and b.side_2_total <> 1
-        and b.side_1_non_state = 1
-        and a.side = 1
-        and a.c_code = -8
-    )
-    or (
-        b.side_1_total <> 1
-        and b.side_2_total <> 1
-        and b.side_1_non_state <> 1
-        and b.side_2_non_state = 1
-        and a.side = 2
-        and a.c_code = -8
-    )
-    or (
-        b.side_1_state = 1
-        and a.side = 1
-        and a.c_code > 0
-    )
-    or (
-        b.side_1_state <> 1
-        and b.side_2_state = 1
-        and a.side = 2
-        and a.c_code > 0
-    )),
+                       and (
+                           (
+                               b.side_1_total = 1
+                               and a.side = 1
+                           )
+                           or (
+                               b.side_1_total <> 1
+                               and b.side_2_total = 1
+                               and a.side = 2
+                           )
+                           or (
+                               b.side_1_total <> 1
+                               and b.side_2_total <> 1
+                               and b.side_1_non_state = 1
+                               and a.side = 1
+                               and a.c_code = -8
+                           )
+                           or (
+                               b.side_1_total <> 1
+                               and b.side_2_total <> 1
+                               and b.side_1_non_state <> 1
+                               and b.side_2_non_state = 1
+                               and a.side = 2
+                               and a.c_code = -8
+                           )
+                           or (
+                               b.side_1_state = 1
+                               and a.side = 1
+                               and a.c_code > 0
+                           )
+                           or (
+                               b.side_1_state <> 1
+                               and b.side_2_state = 1
+                               and a.side = 2
+                               and a.c_code > 0
+                           )
+                       )
+),
 
 inferred_dyads as (
 
@@ -95,7 +98,7 @@ join initial_participants b on a.war_num = b.war_num
                                 (a.side = 1 and b.side = 2)
                                 or (a.side = 2 and b.side = 1)
                             )
-where least(a.end_date, b.end_date) > greatest(a.start_date, b.start_date)
+                            and least(a.end_date, b.end_date) > greatest(a.start_date, b.start_date)
 group by 1, 6, 7, 8, 9, 14, 15),
 
 group_dyads as (
@@ -119,10 +122,9 @@ select
 from war_dyads a
 join initial_participants b on a.war_num = b.war_num
                             and a.side_a = b.side
-where
-    a.c_code_a = -8
-    and b.c_code <> -8
-    and least(a.end_date, b.end_date) > greatest(a.start_date, b.start_date)
+                            and b.c_code <> -8
+                            and least(a.end_date, b.end_date) > greatest(a.start_date, b.start_date)
+where a.c_code_a = -8
 group by 1, 6, 7, 8, 9, 14, 15
 union all
 select
@@ -144,10 +146,9 @@ select
 from war_dyads a
 join initial_participants b on a.war_num = b.war_num
                             and a.side_b = b.side
-where
-    a.c_code_b = -8
-    and b.c_code <> -8
-    and least(a.end_date, b.end_date) > greatest(a.start_date, b.start_date)
+                            and b.c_code <> -8
+                            and least(a.end_date, b.end_date) > greatest(a.start_date, b.start_date)
+where a.c_code_b = -8
 group by 1, 6, 7, 8, 9, 14, 15),
 
 dyads_after_inference as (
