@@ -177,6 +177,24 @@ select
     war_type,
     war_type_name,
     war_subtype,
+    c_code_b c_code_a,
+    c_code_a c_code_b,
+    participant_b participant_a,
+    participant_a participant_b,
+    battle_deaths_b battle_deaths_a,
+    battle_deaths_a battle_deaths_b,
+    battle_deaths_est_b battle_deaths_est_a,
+    battle_deaths_est_a battle_deaths_est_b,
+    start_date,
+    end_date
+from dyads_after_mid
+union all
+select
+    war_num,
+    war_name,
+    war_type,
+    war_type_name,
+    war_subtype,
     c_code_a,
     c_code_b,
     participant_a,
@@ -185,6 +203,24 @@ select
     battle_deaths_b,
     battle_deaths_est_a,
     battle_deaths_est_b,
+    start_date,
+    end_date
+from inferred_dyads
+union all
+select
+    war_num,
+    war_name,
+    war_type,
+    war_type_name,
+    war_subtype,
+    c_code_b c_code_a,
+    c_code_a c_code_b,
+    participant_b participant_a,
+    participant_a participant_b,
+    battle_deaths_b battle_deaths_a,
+    battle_deaths_a battle_deaths_b,
+    battle_deaths_est_b battle_deaths_est_a,
+    battle_deaths_est_a battle_deaths_est_b,
     start_date,
     end_date
 from inferred_dyads
@@ -206,42 +242,6 @@ select
     start_date,
     end_date
 from group_dyads
-union all
-select
-    war_num,
-    war_name,
-    war_type,
-    war_type_name,
-    war_subtype,
-    c_code_b c_code_a,
-    c_code_a c_code_b,
-    participant_b participant_a,
-    participant_a participant_b,
-    battle_deaths_b battle_deaths_a,
-    battle_deaths_a battle_deaths_b,
-    battle_deaths_est_b battle_deaths_est_a,
-    battle_deaths_est_a battle_deaths_est_b,
-    start_date,
-    end_date
-from dyads_after_mid
-union all
-select
-    war_num,
-    war_name,
-    war_type,
-    war_type_name,
-    war_subtype,
-    c_code_b c_code_a,
-    c_code_a c_code_b,
-    participant_b participant_a,
-    participant_a participant_b,
-    battle_deaths_b battle_deaths_a,
-    battle_deaths_a battle_deaths_b,
-    battle_deaths_est_b battle_deaths_est_a,
-    battle_deaths_est_a battle_deaths_est_b,
-    start_date,
-    end_date
-from inferred_dyads
 union all
 select
     war_num,
