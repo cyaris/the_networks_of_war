@@ -7,7 +7,7 @@ mid_war_numbers as (
 select
     disno,
     any_value(war_num) war_num
-from dyads_after_sources
+from source_interstate_war_dyads
 where disno is not null
 group by 1),
 
@@ -33,28 +33,10 @@ select
     a.war,
     a.c_code_a,
     a.c_code_b,
-    case a.battle_deaths_est_a
-        when 0 then 0
-        when 1 then 25
-        when 2 then 100
-        when 3 then 250
-        when 4 then 500
-        when 5 then 999
-        when 6 then 1000
-    end battle_deaths_est_a,
-    case a.battle_deaths_est_b
-        when 0 then 0
-        when 1 then 25
-        when 2 then 100
-        when 3 then 250
-        when 4 then 500
-        when 5 then 999
-        when 6 then 1000
-    end battle_deaths_est_b,
+    a.battle_deaths_estimated_a,
+    a.battle_deaths_estimated_b,
     cow_date(a.start_year_1, a.start_month_1, a.start_day_1, 1, 1) start_date,
-    extract(year from cow_date(a.start_year_1, a.start_month_1, a.start_day_1, 1, 1))::integer start_year,
-    cow_end_date(a.end_year_1, a.end_month_1, a.end_day_1) end_date,
-    extract(year from cow_end_date(a.end_year_1, a.end_month_1, a.end_day_1))::integer end_year
+    cow_end_date(a.end_year_1, a.end_month_1, a.end_day_1) end_date
 from source_interstate_mid_dyads a
 left join mid_war_numbers b on a.disno = b.disno
 where a.war = 1),
@@ -67,12 +49,10 @@ select
     war,
     c_code_a,
     c_code_b,
-    battle_deaths_est_a,
-    battle_deaths_est_b,
+    battle_deaths_estimated_a,
+    battle_deaths_estimated_b,
     start_date,
-    start_year,
-    end_date,
-    end_year
+    end_date
 from mid_wars_prepared
 union all
 select
@@ -81,12 +61,10 @@ select
     war,
     c_code_b c_code_a,
     c_code_a c_code_b,
-    battle_deaths_est_b battle_deaths_est_a,
-    battle_deaths_est_a battle_deaths_est_b,
+    battle_deaths_estimated_b battle_deaths_estimated_a,
+    battle_deaths_estimated_a battle_deaths_estimated_b,
     start_date,
-    start_year,
-    end_date,
-    end_year
+    end_date
 from mid_wars_prepared),
 
 war_names as (
@@ -105,19 +83,17 @@ select
     war_type,
     war_type_name,
     war_subtype,
-    disno,
+    null::double disno,
     c_code_a,
     c_code_b,
     participant_a,
     participant_b,
     battle_deaths_a,
     battle_deaths_b,
-    battle_deaths_est_a,
-    battle_deaths_est_b,
+    battle_deaths_est_a battle_deaths_estimated_a,
+    battle_deaths_est_b battle_deaths_estimated_b,
     start_date,
-    start_year,
-    end_date,
-    end_year
+    end_date
 from dyads_after_sources
 union all
 select
@@ -133,12 +109,10 @@ select
     clean_participant(d.state_name) participant_b,
     null::double battle_deaths_a,
     null::double battle_deaths_b,
-    sum(greatest(coalesce(a.battle_deaths_est_a, 0), 0)) battle_deaths_est_a,
-    sum(greatest(coalesce(a.battle_deaths_est_b, 0), 0)) battle_deaths_est_b,
+    sum(greatest(coalesce(a.battle_deaths_estimated_a, 0), 0)) battle_deaths_estimated_a,
+    sum(greatest(coalesce(a.battle_deaths_estimated_b, 0), 0)) battle_deaths_estimated_b,
     min(a.start_date) start_date,
-    min(a.start_year) start_year,
-    max(a.end_date) end_date,
-    max(a.end_year) end_year
+    max(a.end_date) end_date
 from mid_wars_directed a
 left join war_names b on a.war_num = b.war_num
 left join country_codes c on a.c_code_a = c.c_code
@@ -161,12 +135,10 @@ select
     participant_b,
     battle_deaths_a,
     battle_deaths_b,
-    battle_deaths_est_a,
-    battle_deaths_est_b,
+    battle_deaths_estimated_a,
+    battle_deaths_estimated_b,
     start_date,
-    start_year,
-    end_date,
-    end_year
+    end_date
 from merged_dyads
 union all
 select
@@ -183,12 +155,10 @@ select
     participant_b,
     battle_deaths_a,
     battle_deaths_b,
-    battle_deaths_est_a,
-    battle_deaths_est_b,
+    battle_deaths_estimated_a,
+    battle_deaths_estimated_b,
     start_date,
-    start_year,
-    end_date,
-    end_year
+    end_date
 from merged_dyads
 where
     war_num = 139
@@ -204,18 +174,15 @@ select
     any_value(war_type) war_type,
     any_value(war_type_name) war_type_name,
     any_value(war_subtype) war_subtype,
-    any_value(disno) disno,
     c_code_a,
     c_code_b,
     participant_a,
     participant_b,
-    coalesce(nullif(sum(coalesce(battle_deaths_a, 0)), 0), sum(coalesce(battle_deaths_est_a, 0)), 0) battle_deaths_a,
-    coalesce(nullif(sum(coalesce(battle_deaths_b, 0)), 0), sum(coalesce(battle_deaths_est_b, 0)), 0) battle_deaths_b,
-    if(nullif(sum(coalesce(battle_deaths_a, 0)), 0) is null and sum(coalesce(battle_deaths_est_a, 0)) > 0, 1, 0) battle_deaths_est_a,
-    if(nullif(sum(coalesce(battle_deaths_b, 0)), 0) is null and sum(coalesce(battle_deaths_est_b, 0)) > 0, 1, 0) battle_deaths_est_b,
+    coalesce(nullif(sum(coalesce(battle_deaths_a, 0)), 0), sum(coalesce(battle_deaths_estimated_a, 0)), 0) battle_deaths_a,
+    coalesce(nullif(sum(coalesce(battle_deaths_b, 0)), 0), sum(coalesce(battle_deaths_estimated_b, 0)), 0) battle_deaths_b,
+    if(nullif(sum(coalesce(battle_deaths_a, 0)), 0) is null and sum(coalesce(battle_deaths_estimated_a, 0)) > 0, 1, 0) battle_deaths_est_a,
+    if(nullif(sum(coalesce(battle_deaths_b, 0)), 0) is null and sum(coalesce(battle_deaths_estimated_b, 0)) > 0, 1, 0) battle_deaths_est_b,
     min(start_date) start_date,
-    min(start_year) start_year,
-    max(end_date) end_date,
-    max(end_year) end_year
+    max(end_date) end_date
 from assigned_dyads
-group by 1, dyad_copy, 7, 8, 9, 10;
+group by 1, dyad_copy, 6, 7, 8, 9;

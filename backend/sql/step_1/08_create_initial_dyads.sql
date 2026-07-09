@@ -28,9 +28,7 @@ select
     a.participant,
     a.side,
     a.start_date,
-    a.start_year,
     a.end_date,
-    a.end_year,
     a.start_date_estimated,
     a.end_date_estimated,
     a.ongoing_war,
@@ -81,7 +79,6 @@ select
     any_value(a.war_type) war_type,
     any_value(a.war_type_name) war_type_name,
     any_value(a.war_subtype) war_subtype,
-    null::double disno,
     a.c_code c_code_a,
     b.c_code c_code_b,
     a.participant participant_a,
@@ -91,9 +88,7 @@ select
     0 battle_deaths_est_a,
     0 battle_deaths_est_b,
     greatest(a.start_date, b.start_date) start_date,
-    extract(year from greatest(a.start_date, b.start_date))::integer start_year,
-    least(a.end_date, b.end_date) end_date,
-    extract(year from least(a.end_date, b.end_date))::integer end_year
+    least(a.end_date, b.end_date) end_date
 from anchors a
 join initial_participants b on a.war_num = b.war_num
                             and (
@@ -101,7 +96,7 @@ join initial_participants b on a.war_num = b.war_num
                                 or (a.side = 2 and b.side = 1)
                             )
 where least(a.end_date, b.end_date) > greatest(a.start_date, b.start_date)
-group by 1, 7, 8, 9, 10, 15, 16, 17, 18),
+group by 1, 6, 7, 8, 9, 14, 15),
 
 group_dyads as (
 
@@ -111,7 +106,6 @@ select
     any_value(a.war_type) war_type,
     any_value(a.war_type_name) war_type_name,
     any_value(a.war_subtype) war_subtype,
-    a.disno,
     b.c_code c_code_a,
     a.c_code_b,
     b.participant participant_a,
@@ -121,9 +115,7 @@ select
     0 battle_deaths_est_a,
     0 battle_deaths_est_b,
     greatest(a.start_date, b.start_date) start_date,
-    extract(year from greatest(a.start_date, b.start_date))::integer start_year,
-    least(a.end_date, b.end_date) end_date,
-    extract(year from least(a.end_date, b.end_date))::integer end_year
+    least(a.end_date, b.end_date) end_date
 from war_dyads a
 join initial_participants b on a.war_num = b.war_num
                             and a.side_a = b.side
@@ -131,7 +123,7 @@ where
     a.c_code_a = -8
     and b.c_code <> -8
     and least(a.end_date, b.end_date) > greatest(a.start_date, b.start_date)
-group by 1, 6, 7, 8, 9, 10, 15, 16, 17, 18
+group by 1, 6, 7, 8, 9, 14, 15
 union all
 select
     a.war_num,
@@ -139,7 +131,6 @@ select
     any_value(a.war_type) war_type,
     any_value(a.war_type_name) war_type_name,
     any_value(a.war_subtype) war_subtype,
-    a.disno,
     a.c_code_a,
     b.c_code c_code_b,
     a.participant_a,
@@ -149,9 +140,7 @@ select
     0 battle_deaths_est_a,
     0 battle_deaths_est_b,
     greatest(a.start_date, b.start_date) start_date,
-    extract(year from greatest(a.start_date, b.start_date))::integer start_year,
-    least(a.end_date, b.end_date) end_date,
-    extract(year from least(a.end_date, b.end_date))::integer end_year
+    least(a.end_date, b.end_date) end_date
 from war_dyads a
 join initial_participants b on a.war_num = b.war_num
                             and a.side_b = b.side
@@ -159,7 +148,7 @@ where
     a.c_code_b = -8
     and b.c_code <> -8
     and least(a.end_date, b.end_date) > greatest(a.start_date, b.start_date)
-group by 1, 6, 7, 8, 9, 10, 15, 16, 17, 18),
+group by 1, 6, 7, 8, 9, 14, 15),
 
 dyads_after_inference as (
 
@@ -169,7 +158,6 @@ select
     war_type,
     war_type_name,
     war_subtype,
-    disno,
     c_code_a,
     c_code_b,
     participant_a,
@@ -179,9 +167,7 @@ select
     battle_deaths_est_a,
     battle_deaths_est_b,
     start_date,
-    start_year,
-    end_date,
-    end_year
+    end_date
 from dyads_after_mid
 union all
 select
@@ -190,7 +176,6 @@ select
     war_type,
     war_type_name,
     war_subtype,
-    disno,
     c_code_a,
     c_code_b,
     participant_a,
@@ -200,9 +185,7 @@ select
     battle_deaths_est_a,
     battle_deaths_est_b,
     start_date,
-    start_year,
-    end_date,
-    end_year
+    end_date
 from inferred_dyads
 union all
 select
@@ -211,7 +194,6 @@ select
     war_type,
     war_type_name,
     war_subtype,
-    disno,
     c_code_a,
     c_code_b,
     participant_a,
@@ -221,9 +203,7 @@ select
     battle_deaths_est_a,
     battle_deaths_est_b,
     start_date,
-    start_year,
-    end_date,
-    end_year
+    end_date
 from group_dyads
 union all
 select
@@ -232,7 +212,6 @@ select
     war_type,
     war_type_name,
     war_subtype,
-    disno,
     c_code_b c_code_a,
     c_code_a c_code_b,
     participant_b participant_a,
@@ -242,9 +221,7 @@ select
     battle_deaths_est_b battle_deaths_est_a,
     battle_deaths_est_a battle_deaths_est_b,
     start_date,
-    start_year,
-    end_date,
-    end_year
+    end_date
 from dyads_after_mid
 union all
 select
@@ -253,7 +230,6 @@ select
     war_type,
     war_type_name,
     war_subtype,
-    disno,
     c_code_b c_code_a,
     c_code_a c_code_b,
     participant_b participant_a,
@@ -263,9 +239,7 @@ select
     battle_deaths_est_b battle_deaths_est_a,
     battle_deaths_est_a battle_deaths_est_b,
     start_date,
-    start_year,
-    end_date,
-    end_year
+    end_date
 from inferred_dyads
 union all
 select
@@ -274,7 +248,6 @@ select
     war_type,
     war_type_name,
     war_subtype,
-    disno,
     c_code_b c_code_a,
     c_code_a c_code_b,
     participant_b participant_a,
@@ -284,9 +257,7 @@ select
     battle_deaths_est_b battle_deaths_est_a,
     battle_deaths_est_a battle_deaths_est_b,
     start_date,
-    start_year,
-    end_date,
-    end_year
+    end_date
 from group_dyads)
 
 select
@@ -300,13 +271,11 @@ select
     a.battle_deaths_est_a,
     a.battle_deaths_est_b,
     a.start_date,
-    a.start_year,
     a.end_date,
-    a.end_year,
     b.range::integer "year"
 from dyads_after_inference a
-join range(1500, 2100) b on b.range between a.start_year and a.end_year
+join range(1500, 2100) b on b.range between extract(year from a.start_date)::integer and extract(year from a.end_date)::integer
 where
     a.c_code_a <> -8
     and a.c_code_b <> -8
-group by 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14;
+group by 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12;

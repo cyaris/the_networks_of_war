@@ -8,9 +8,7 @@ select
     any_value(war_subtype) war_subtype,
     count(*) total_participants,
     min(start_date) start_date,
-    min(start_year) start_year,
     max(end_date) end_date,
-    max(end_year) end_year,
     max(ongoing_war) ongoing_war
 from initial_participants
 where war_type is not null
