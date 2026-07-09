@@ -130,14 +130,22 @@ Step 1 also materializes compatibility tables:
 
 ## Ingestion Assumptions
 
+### Source Tables
+
 - Source table names beginning with `source_` mean the table comes directly from one CSV file, with only type coercion,
   column renaming, encoding normalization, and explicit data-entry fixes applied during load.
+
+### Excluded Calculated Columns
+
 - Source columns that are documented as simple calculations from other source columns are not ingested. Currently
   excluded calculated fields are `batdths` and `durindx` from `directed_dyadic_war.csv`; `durindx`, `duration`, and
   `cumdurat` from `dyadic_mid_4.02.csv`; and `WDuratDays`, `WDuratMo`, and `TotalBDeaths` from
   `INTRA-STATE_State_participants v5.1.csv`. Duration and day-count fields are excluded because they should be
   calculated from the pipeline's resolved start and end dates, after applying the date assumptions below, such as using
   the last day of the year when only the end year is known.
+
+### Date Values
+
 - Blank strings are loaded as null. Text values `-7`, `-8`, and `-9` are also treated as null because the COW codebooks
   use negative values for ongoing, not applicable, or unknown values.
 - Negative day, month, and start-year date fields are loaded as null. Negative end-year values are loaded as null except
@@ -151,10 +159,16 @@ Step 1 also materializes compatibility tables:
 - End year `-7` is treated as ongoing and resolved to December 31 of the current year at pipeline runtime.
 - A date is flagged as estimated when the year is an ongoing marker or when a positive year has a missing or invalid
   month or day.
+
+### Encoding And Deduplication
+
 - `COW country codes.csv` is deduplicated by `c_code`; the first row per code is retained.
 - `Extra-StateWarData_v4.0.csv` is read as `cp1252` and copied to UTF-8 in `backend/.work/` before DuckDB reads it.
 - `directed_dyadic_war.csv`, `dyadic_mid_4.02.csv`, `Inter-StateWarData_v4.0.csv`, and
   `INTRA-STATE_State_participants v5.1.csv` are read with `latin-1` encoding.
+
+### Field Normalization
+
 - `dyadic_mid_4.02.csv` side-specific fatality levels are converted during ingestion to representative battle-death
   estimates as follows: `0 -> 0`, `1 -> 25`, `2 -> 100`, `3 -> 250`, `4 -> 500`, `5 -> 999`, and `6 -> 1000`.
 - Participant names are normalized only for known display and matching issues: United States, Baron von
@@ -163,18 +177,29 @@ Step 1 also materializes compatibility tables:
 
 ## Transformation Assumptions
 
+### Table Shape
+
 - Directed dyadic interstate war records get war name and war type metadata from `source_interstate_wars` by `war_num`.
 - Transformed tables do not carry source-only identifiers and outcome fields (`disno`, `dyindex`, `outcome_a`,
   `outcome_b`, and `outcome`) after they are no longer needed as table outputs. MID matching still uses `disno`
   internally where needed.
 - After source date components are resolved, transformed tables carry `start_date`, `end_date`, and date-estimation
   flags instead of the original day/month/year component columns.
+
+### Source War Dyads And Participants
+
 - Extra-state and intra-state war dyads are treated as side A versus side B rows, with side A assigned side `1` and
   side B assigned side `2`.
 - Extra-state and intra-state participant rows are derived from both sides of the corresponding dyad rows.
+
+### Date Spans
+
 - For extra-state and intra-state rows with multiple date spans, the pipeline uses the earliest start date and latest
   end date as the war dyad/participant span.
 - Interstate participant dates use the earliest start date and latest end date across the two source date spans.
+
+### Directed Dyads And MID Records
+
 - Participants that appear on both side 1 and side 2 in dyadic data are assigned side `3` programmatically.
 - `dyads_after_sources` makes source war dyads directed by adding a reversed copy of each dyad.
 - `dyads_after_mid` adds dyadic MID records to source war dyads.
@@ -188,11 +213,17 @@ Step 1 also materializes compatibility tables:
   to war `905`.
 - World War II dispute `2581` between COW codes `220` and `255` is preserved as a duplicate merge stream before
   dyad aggregation.
+
+### Participant Inference
+
 - Participants found in dyadic data but missing from `war_participants` are added to `initial_participants` from the
   dyadic side A records.
 - Missing participant sides are inferred from the opposite participant in dyadic data when that inference is unambiguous.
 - Inferred dyads are created by choosing anchor participants for each war. The anchor selection prefers a single
   participant on a side, then a single non-state participant, then a single state participant.
+
+### Initial Dyads
+
 - Source dyads with COW code `-8` on one side are expanded against every actual participant on that side. For example,
   if `c_code_a = -8`, side B is treated as having fought each source participant on side A for that conflict.
 - Aggregate dyads with COW code `-8` on either side are excluded from `initial_dyads` after those rows are used for
