@@ -64,8 +64,7 @@ join war_side_counts b on a.war_num = b.war_num
                                and a.side = 2
                                and a.c_code > 0
                            )
-                       )
-),
+                       )),
 
 inferred_dyads as (
 
