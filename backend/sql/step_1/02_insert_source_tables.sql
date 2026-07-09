@@ -198,6 +198,7 @@ select
     clean_date_year(StartYr4) start_year_4,
     clean_date_day(EndDy1) end_day_1,
     clean_date_month(EndMo1) end_month_1,
+    -- todo: review the line below.
     -- Data-entry fix: these wars are ongoing despite non-ongoing source end-year sentinels.
     if(clean_number(WarNum) in (942, 990.4, 991, 991.4, 992.5), -7, clean_end_year(EndYr1)) end_year_1,
     clean_date_day(EndDy2) end_day_2,
