@@ -25,7 +25,7 @@ ignored `backend/.work/` before DuckDB reads it. The generated DuckDB database i
 - `the_networks_of_war/backend/.work/`
 - `the_networks_of_war/backend/the_networks_of_war.duckdb`
 
-## Run
+## Pipeline Commands
 
 From `the_networks_of_war/backend`:
 
@@ -33,13 +33,69 @@ From `the_networks_of_war/backend`:
 python src/pipeline.py
 ```
 
-Useful options:
+Run or rebuild Step 1:
 
 ```bash
 python src/pipeline.py --step 1
-python src/pipeline.py --inspect
-python src/pipeline.py --step none --query "select count(*) as row_count from initial_dyads"
+python src/pipeline.py --step all
 ```
+
+Print table row counts after running the selected step:
+
+```bash
+python src/pipeline.py --inspect
+python src/pipeline.py --step 1 --inspect
+```
+
+Query the existing DuckDB database without rebuilding it:
+
+```bash
+python src/pipeline.py --step none --query "select count(*) as row_count from initial_dyads"
+python src/pipeline.py --step none --query "select * from initial_wars limit 10"
+```
+
+Run Step 1, then query the freshly rebuilt tables:
+
+```bash
+python src/pipeline.py --step 1 --query "select war_num, war_name from initial_wars order by war_num limit 10"
+```
+
+Use non-default input or database paths:
+
+```bash
+python src/pipeline.py --csv-dir ../csvs --db-path the_networks_of_war.duckdb --step 1
+```
+
+## Test Commands
+
+From `the_networks_of_war/backend`:
+
+```bash
+pytest
+```
+
+Run the Step 1 expectation tests:
+
+```bash
+pytest tests/test_step_1_expectations.py
+pytest tests/test_step_1_expectations.py -q
+```
+
+Run a single test or matching group of tests:
+
+```bash
+pytest tests/test_step_1_expectations.py -k "negative_date_sentinels"
+pytest tests/test_step_1_expectations.py -k "date_macros or initial_dyads"
+```
+
+Show verbose test names and failures:
+
+```bash
+pytest tests/test_step_1_expectations.py -vv
+```
+
+The Step 1 expectation tests rebuild Step 1 into a temporary DuckDB database. They skip automatically if the ignored
+raw CSV files in `csvs/` are not available locally.
 
 ## Step 1 Sources And Tables
 
