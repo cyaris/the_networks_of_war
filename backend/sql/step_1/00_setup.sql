@@ -30,6 +30,8 @@ create or replace macro clean_end_year(value) as (
     end
 );
 
+-- TODO: fix nested replace with equals.
+-- TODO: add patterns to the tests directory.
 create or replace macro clean_participant(value) as (
     case
         when clean_text(value) = 'United States' then 'United States of America'
