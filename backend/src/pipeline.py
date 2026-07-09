@@ -56,6 +56,27 @@ def render_sql(name: str, context: dict[str, str]) -> str:
     return (SQL_ROOT / name).read_text().format(**context)
 
 
+def format_query_results(columns: list[str], rows: list[tuple]) -> str:
+    if not columns:
+        return "Query completed; no tabular result."
+
+    values = [[str(value) if value is not None else "" for value in row] for row in rows]
+    widths = [
+        max(len(column), *(len(row[index]) for row in values)) if values else len(column)
+        for index, column in enumerate(columns)
+    ]
+    header = " | ".join(column.ljust(widths[index]) for index, column in enumerate(columns))
+    divider = "-+-".join("-" * width for width in widths)
+
+    if not values:
+        return "\n".join([header, divider, "(no rows)"])
+
+    return "\n".join(
+        [header, divider]
+        + [" | ".join(value.ljust(widths[index]) for index, value in enumerate(row)) for row in values]
+    )
+
+
 class Pipeline:
     def __init__(
         self,
@@ -118,7 +139,13 @@ class Pipeline:
             ),
         )
 
-    def run(self, step: str = "all", inspect: bool = False) -> None:
+    def query(self, conn: duckdb.DuckDBPyConnection, sql: str) -> None:
+        result = conn.execute(sql)
+        columns = [column[0] for column in result.description] if result.description else []
+        rows = result.fetchall() if columns else []
+        logger.info("\n%s", format_query_results(columns, rows))
+
+    def run(self, step: str = "all", inspect: bool = False, query: str | None = None) -> None:
         with self.connect() as conn:
             if step in {"all", "1"}:
                 self.run_step_1(conn)
@@ -129,6 +156,9 @@ class Pipeline:
             if inspect:
                 self.inspect(conn)
 
+            if query:
+                self.query(conn, query)
+
         logger.info("DuckDB database: %s", self.db_path)
 
 
@@ -138,7 +168,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--csv-dir", default=DEFAULT_CSV_DIR, type=Path)
     parser.add_argument("--db-path", default=DEFAULT_DB_PATH, type=Path)
     parser.add_argument("--inspect", action="store_true")
-    parser.add_argument("--step", choices=["all", "1", "2", "3"], default="all")
+    parser.add_argument(
+        "--query", help="SQL query to execute against the DuckDB database after the selected step runs."
+    )
+    parser.add_argument("--step", choices=["none", "all", "1", "2", "3"], default="all")
 
     return parser.parse_args()
 
@@ -149,7 +182,7 @@ def main() -> None:
     Pipeline(
         csv_dir=args.csv_dir,
         db_path=args.db_path,
-    ).run(args.step, args.inspect)
+    ).run(args.step, args.inspect, args.query)
 
 
 if __name__ == "__main__":

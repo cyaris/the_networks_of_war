@@ -38,6 +38,7 @@ Useful options:
 ```bash
 python src/pipeline.py --step 1
 python src/pipeline.py --inspect
+python src/pipeline.py --step none --query "select count(*) as row_count from initial_dyads"
 ```
 
 ## Step 1 Sources And Tables
