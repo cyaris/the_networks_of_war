@@ -16,27 +16,80 @@ create or replace table source_interstate_war_dyads (
     end_month_1 integer,
     end_day_1 integer,
     end_year_1 integer,
+    source_year integer,
     side_a integer,
     side_b integer,
+    war_dyad_role_a integer,
+    war_dyad_role_b integer,
     outcome_a integer,
     battle_deaths_a double,
     battle_deaths_b double,
-    battle_deaths_total double
+    changes_1 integer,
+    changes_2 integer,
+    battle_deaths_total double,
+    durindx integer
 );
 
 create or replace table source_interstate_mid_dyads (
     disno double,
+    dyindex double,
     c_code_a integer,
+    name_a varchar,
     c_code_b integer,
+    name_b varchar,
     start_day_1 integer,
     start_month_1 integer,
     start_year_1 integer,
     end_day_1 integer,
     end_month_1 integer,
     end_year_1 integer,
+    outcome integer,
+    settlement integer,
+    fatality_level integer,
+    highest_action integer,
+    highest_hostility integer,
+    reciprocated integer,
+    no_initiator integer,
+    no_target integer,
+    side_a_a integer,
+    revisionist_state_a integer,
+    revisionist_type_a integer,
     battle_deaths_est_a double,
+    highest_action_a integer,
+    highest_hostility_a integer,
+    originator_a integer,
+    side_a_b integer,
+    revisionist_state_b integer,
+    revisionist_type_b integer,
     battle_deaths_est_b double,
-    war integer
+    highest_action_b integer,
+    highest_hostility_b integer,
+    originator_b integer,
+    role_a integer,
+    role_b integer,
+    dyad_role_a integer,
+    dyad_role_b integer,
+    war integer,
+    durindx integer,
+    duration integer,
+    cumulative_duration integer,
+    mid5_highest_action integer,
+    mid5_highest_action_a integer,
+    mid5_highest_action_b integer,
+    severity integer,
+    severity_a integer,
+    severity_b integer,
+    source_year integer,
+    ongoing_2014 integer,
+    new_record integer,
+    change_flag integer,
+    change_type_1 integer,
+    change_type_2 integer,
+    dyad varchar,
+    abbrev_a varchar,
+    abbrev_b varchar,
+    last_observation integer,
+    newar integer
 );
 
 create or replace table source_extrastate_wars (
@@ -59,9 +112,15 @@ create or replace table source_extrastate_wars (
     end_month_2 integer,
     end_day_2 integer,
     end_year_2 integer,
+    initiator integer,
+    intervention integer,
+    trans_from integer,
     outcome_a integer,
+    trans_to integer,
+    where_fought integer,
     battle_deaths_a double,
-    battle_deaths_b double
+    battle_deaths_b double,
+    version double
 );
 
 create or replace table source_interstate_wars (
@@ -83,17 +142,25 @@ create or replace table source_interstate_wars (
     end_month_2 integer,
     end_day_2 integer,
     end_year_2 integer,
-    battle_deaths double
+    trans_from integer,
+    where_fought integer,
+    initiator integer,
+    outcome integer,
+    trans_to integer,
+    battle_deaths double,
+    version double
 );
 
 create or replace table source_intrastate_wars (
     war_num double,
     war_name varchar,
+    v5_region integer,
     war_type integer,
     c_code_a integer,
     c_code_b integer,
     participant_a varchar,
     participant_b varchar,
+    internationalized integer,
     start_month_1 integer,
     start_day_1 integer,
     start_year_1 integer,
@@ -118,10 +185,20 @@ create or replace table source_intrastate_wars (
     end_month_4 integer,
     end_day_4 integer,
     end_year_4 integer,
+    duration_days integer,
+    duration_months double,
+    trans_from integer,
+    initiator integer,
     outcome_a integer,
+    trans_to integer,
     battle_deaths_a double,
     battle_deaths_b double,
-    battle_deaths_total double
+    battle_deaths_total double,
+    side_a_peak_total_forces double,
+    side_a_peak_theater_forces double,
+    side_b_peak_total_forces double,
+    side_b_peak_theater_forces double,
+    version double
 );
 
 create or replace table source_war_types (
