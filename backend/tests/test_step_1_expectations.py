@@ -191,23 +191,22 @@ def test_source_interstate_mid_fatality_levels_are_converted_to_estimates(conn):
             select count(*)
             from source_interstate_mid_dyads
             where
-                coalesce(battle_deaths_estimatedimated_a, -1) not in (-1, 0, 25, 100, 250, 500, 999, 1000)
-                or coalesce(battle_deaths_estimatedimated_b, -1) not in (-1, 0, 25, 100, 250, 500, 999, 1000)
+                coalesce(battle_deaths_estimated_a, -1) not in (-1, 0, 25, 100, 250, 500, 999, 1000)
+                or coalesce(battle_deaths_estimated_b, -1) not in (-1, 0, 25, 100, 250, 500, 999, 1000)
             """,
         )
         == 0
     )
     actual_estimates = {row[0] for row in conn.execute("""
-            select battle_deaths_estimatedimated_a battle_deaths_estimatedimated
+            select battle_deaths_estimated_a battle_deaths_estimated
             from source_interstate_mid_dyads
-            where battle_deaths_estimatedimated_a is not null
+            where battle_deaths_estimated_a is not null
             group by 1
             union
-            select battle_deaths_estimatedimated_b battle_deaths_estimatedimated
+            select battle_deaths_estimated_b battle_deaths_estimated
             from source_interstate_mid_dyads
-            where battle_deaths_estimatedimated_b is not null
+            where battle_deaths_estimated_b is not null
             group by 1
-            order by 1
         """).fetchall()}
 
     assert actual_estimates == {0, 25, 100, 250, 500, 999, 1000}
