@@ -128,9 +128,8 @@ def test_calculated_and_transient_source_columns_are_not_materialized(conn):
         "end_month_1",
         "end_year_1",
         "source_file",
-        "battle_deaths",
     }
-    for table_name in ["war_dyads", "war_participants", "dyads_after_mid", "initial_participants", "initial_dyads"]:
+    for table_name in ["war_participants", "dyads_after_mid", "initial_participants", "initial_dyads"]:
         assert transient_columns.isdisjoint(column_names(conn, table_name))
 
 
@@ -263,7 +262,7 @@ def test_mid_dyads_do_not_duplicate_source_dyad_overlaps(conn):
 
 
 def test_dyad_battle_death_estimate_flags_are_binary(conn):
-    for table_name in ["dyads_after_mid", "initial_dyads"]:
+    for table_name in ["dyads_after_mid"]:
         assert (
             scalar(
                 conn,
@@ -275,6 +274,23 @@ def test_dyad_battle_death_estimate_flags_are_binary(conn):
                     or battle_deaths_est_b not in (0, 1)
                     or battle_deaths_est_a is null
                     or battle_deaths_est_b is null
+                """,
+            )
+            == 0
+        )
+
+
+def test_participant_battle_death_estimate_flags_are_binary(conn):
+    for table_name in ["war_participants", "initial_participants"]:
+        assert (
+            scalar(
+                conn,
+                f"""
+                select count(*)
+                from {table_name}
+                where
+                    battle_deaths_est not in (0, 1)
+                    or battle_deaths_est is null
                 """,
             )
             == 0
@@ -376,7 +392,5 @@ def test_initial_dyads_retain_named_non_state_anchor_dyads(conn):
     }
 
     assert actual_dyads == {
-        (anchor, participant)
-        for anchor in {"ICU", "Eritrea"}
-        for participant in expected_side_1_participants
+        (anchor, participant) for anchor in {"ICU", "Eritrea"} for participant in expected_side_1_participants
     }

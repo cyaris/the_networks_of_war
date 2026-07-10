@@ -6,10 +6,6 @@ participant_union as (
 
 select
     war_num,
-    war_name,
-    war_type,
-    war_type_name,
-    war_subtype,
     c_code,
     participant,
     side,
@@ -17,15 +13,13 @@ select
     end_date,
     start_date_estimated,
     end_date_estimated,
+    battle_deaths,
+    battle_deaths_est,
     ongoing_war
 from war_participants
 union all
 select
     a.war_num,
-    coalesce(any_value(a.war_name), '') war_name,
-    any_value(a.war_type) war_type,
-    any_value(a.war_type_name) war_type_name,
-    any_value(a.war_subtype) war_subtype,
     a.c_code_a c_code,
     a.participant_a participant,
     null::integer side,
@@ -33,13 +27,15 @@ select
     min(a.end_date) end_date,
     max(a.start_date_estimated) start_date_estimated,
     max(a.end_date_estimated) end_date_estimated,
+    sum(a.battle_deaths_a) battle_deaths,
+    max(a.battle_deaths_est_a) battle_deaths_est,
     max(a.ongoing_war) ongoing_war
 from dyads_after_mid a
 left join war_participants c on a.war_num = c.war_num
                              and a.c_code_a = c.c_code
                              and a.participant_a = c.participant
 where c.c_code is null
-group by 1, 6, 7),
+group by 1, 2, 3),
 
 side_assignments as (
 
@@ -58,10 +54,6 @@ group by 1, 2)
 
 select
     a.war_num,
-    a.war_name,
-    a.war_type,
-    a.war_type_name,
-    a.war_subtype,
     a.c_code,
     a.participant,
     coalesce(a.side, b.side) side,
@@ -69,6 +61,8 @@ select
     a.end_date,
     a.start_date_estimated,
     a.end_date_estimated,
+    a.battle_deaths,
+    a.battle_deaths_est,
     a.ongoing_war
 from participant_union a
 left join side_assignments b on a.war_num = b.war_num

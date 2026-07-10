@@ -14,8 +14,6 @@ select 'source_war_types', count(*) from source_war_types
 union all
 select 'war_participants', count(*) from war_participants
 union all
-select 'war_dyads', count(*) from war_dyads
-union all
 select 'dyads_after_sources', count(*) from dyads_after_sources
 union all
 select 'initial_participants', count(*) from initial_participants
