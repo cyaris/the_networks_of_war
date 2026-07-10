@@ -99,6 +99,9 @@ def test_negative_date_sentinels_are_cleaned_except_ongoing_end_year(conn):
         ("ongoing_war(null)", 0),
         ("date_estimated(2012, null, 1)", 1),
         ("date_estimated(2012, 10, 1)", 0),
+        ("clean_war_reference(-8)", None),
+        ("clean_war_reference(-9)", None),
+        ("clean_war_reference(905)", 905),
     ],
 )
 def test_date_macros_capture_step_1_date_assumptions(conn, expression, expected):
@@ -108,6 +111,123 @@ def test_date_macros_capture_step_1_date_assumptions(conn, expression, expected)
         actual = str(actual)
 
     assert actual == expected
+
+
+def test_source_resolved_start_dates_do_not_exceed_end_dates(conn):
+    checks = [
+        (
+            "source_interstate_wars",
+            """
+            least(
+                cow_date(start_year_1, start_month_1, start_day_1, 1, 1),
+                cow_date(start_year_2, start_month_2, start_day_2, 1, 1)
+            )
+            """,
+            """
+            greatest(
+                cow_end_date(end_year_1, end_month_1, end_day_1),
+                cow_end_date(end_year_2, end_month_2, end_day_2)
+            )
+            """,
+        ),
+        (
+            "source_interstate_war_dyads",
+            """
+            cow_date(start_year_1, start_month_1, start_day_1, 1, 1)
+            """,
+            """
+            cow_end_date(end_year_1, end_month_1, end_day_1)
+            """,
+        ),
+        (
+            "source_interstate_mid_dyads",
+            """
+            cow_date(start_year_1, start_month_1, start_day_1, 1, 1)
+            """,
+            """
+            cow_end_date(end_year_1, end_month_1, end_day_1)
+            """,
+        ),
+        (
+            "source_extrastate_wars",
+            """
+            least(
+                cow_date(start_year_1, start_month_1, start_day_1, 1, 1),
+                cow_date(start_year_2, start_month_2, start_day_2, 1, 1)
+            )
+            """,
+            """
+            greatest(
+                cow_end_date(end_year_1, end_month_1, end_day_1),
+                cow_end_date(end_year_2, end_month_2, end_day_2)
+            )
+            """,
+        ),
+        (
+            "source_intrastate_wars",
+            """
+            least(
+                cow_date(start_year_1, start_month_1, start_day_1, 1, 1),
+                cow_date(start_year_2, start_month_2, start_day_2, 1, 1),
+                cow_date(start_year_3, start_month_3, start_day_3, 1, 1),
+                cow_date(start_year_4, start_month_4, start_day_4, 1, 1)
+            )
+            """,
+            """
+            greatest(
+                cow_end_date(end_year_1, end_month_1, end_day_1),
+                cow_end_date(end_year_2, end_month_2, end_day_2),
+                cow_end_date(end_year_3, end_month_3, end_day_3),
+                cow_end_date(end_year_4, end_month_4, end_day_4)
+            )
+            """,
+        ),
+    ]
+
+    unexpected = []
+    flagged_row_outputs = []
+
+    for table_name, start_date_expression, end_date_expression in checks:
+        flagged_rows_sql = f"""
+            select
+                {start_date_expression} start_date,
+                {end_date_expression} end_date,
+                *
+            from {table_name}
+            where start_date > end_date
+            """
+        flagged_count = scalar(
+            conn,
+            f"""
+            select count(*)
+            from ({flagged_rows_sql})
+            """,
+        )
+
+        if flagged_count == 0:
+            continue
+
+        unexpected.append((table_name, flagged_count))
+        result = conn.execute(f"""
+            select
+                '{table_name}' table_name,
+                *
+            from ({flagged_rows_sql})
+            order by all
+            limit 50
+            """)
+        rows = result.fetchall()
+        columns = [column[0] for column in result.description]
+        flagged_row_outputs.append(format_query_results(columns, rows))
+
+    assert unexpected == [], "\n".join(
+        [
+            "\nSource rows where resolved start_date exceeds end_date:",
+            format_query_results(["table_name", "row_count"], unexpected),
+            "\nFlagged rows:",
+            "\n\n".join(flagged_row_outputs),
+        ]
+    )
 
 
 def test_calculated_and_transient_source_columns_are_not_materialized(conn):
@@ -133,6 +253,57 @@ def test_calculated_and_transient_source_columns_are_not_materialized(conn):
     }
     for table_name in ["war_participants", "dyads_after_mid", "initial_participants", "initial_dyads"]:
         assert transient_columns.isdisjoint(column_names(conn, table_name))
+
+
+def test_source_transition_war_references_are_positive_or_null(conn):
+    checks = [
+        "source_interstate_wars",
+        "source_extrastate_wars",
+        "source_intrastate_wars",
+    ]
+
+    unexpected = []
+    flagged_row_outputs = []
+
+    for table_name in checks:
+        flagged_count = scalar(
+            conn,
+            f"""
+            select count(*)
+            from {table_name}
+            where
+                lagging_war < 0
+                or leading_war < 0
+            """,
+        )
+
+        if flagged_count == 0:
+            continue
+
+        unexpected.append((table_name, flagged_count))
+        result = conn.execute(f"""
+            select
+                '{table_name}' table_name,
+                *
+            from {table_name}
+            where
+                lagging_war < 0
+                or leading_war < 0
+            order by all
+            limit 50
+            """)
+        rows = result.fetchall()
+        columns = [column[0] for column in result.description]
+        flagged_row_outputs.append(format_query_results(columns, rows))
+
+    assert unexpected == [], "\n".join(
+        [
+            "\nSource transition war references should be positive war numbers or null:",
+            format_query_results(["table_name", "row_count"], unexpected),
+            "\nFlagged rows:",
+            "\n\n".join(flagged_row_outputs),
+        ]
+    )
 
 
 def test_source_interstate_war_dyad_data_entry_fixes_are_applied(conn):
@@ -212,6 +383,58 @@ def test_source_interstate_mid_fatality_levels_are_converted_to_estimates(conn):
         """).fetchall()}
 
     assert actual_estimates == {0, 25, 100, 250, 500, 999, 1000}
+
+
+def test_source_battle_death_fields_are_not_null(conn):
+    checks = [
+        ("source_interstate_wars", "battle_deaths"),
+        ("source_interstate_war_dyads", "battle_deaths_a"),
+        ("source_interstate_war_dyads", "battle_deaths_b"),
+        ("source_extrastate_wars", "battle_deaths_a"),
+        ("source_extrastate_wars", "battle_deaths_b"),
+        ("source_intrastate_wars", "battle_deaths_a"),
+        ("source_intrastate_wars", "battle_deaths_b"),
+    ]
+
+    unexpected = []
+    flagged_row_outputs = []
+
+    for table_name, column_name in checks:
+        null_count = scalar(
+            conn,
+            f"""
+            select count(*)
+            from {table_name}
+            where {column_name} is null
+            """,
+        )
+
+        if null_count == 0:
+            continue
+
+        unexpected.append((table_name, column_name, null_count))
+        result = conn.execute(f"""
+            select
+                '{table_name}' table_name,
+                '{column_name}' column_name,
+                *
+            from {table_name}
+            where {column_name} is null
+            order by all
+            limit 50
+            """)
+        rows = result.fetchall()
+        columns = [column[0] for column in result.description]
+        flagged_row_outputs.append(format_query_results(columns, rows))
+
+    assert unexpected == [], "\n".join(
+        [
+            "\nNull battle-death source fields:",
+            format_query_results(["table_name", "column_name", "null_count"], unexpected),
+            "\nFlagged rows:",
+            "\n\n".join(flagged_row_outputs),
+        ]
+    )
 
 
 def test_source_adjusted_mid_war_number_relationships_are_applied(conn):
