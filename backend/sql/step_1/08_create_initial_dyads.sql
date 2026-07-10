@@ -172,9 +172,7 @@ join initial_participants b on a.war_num = b.war_num
                             and b.c_code <> -8
                             and least(a.end_date, b.end_date) > greatest(a.start_date, b.start_date)
 where a.c_code_b = -8
-group by 1, 2, 3, 4, 5, 6, 7, 8, 9, 10),
-
-dyads_after_inference as (
+group by 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
 
 select
     war_num,
@@ -188,7 +186,7 @@ select
     end_date_estimated,
     ongoing_war
 from dyads_after_mid
-union all
+union distinct
 select
     war_num,
     c_code_b c_code_a,
@@ -201,7 +199,7 @@ select
     end_date_estimated,
     ongoing_war
 from dyads_after_mid
-union all
+union distinct
 select
     war_num,
     c_code_a,
@@ -214,7 +212,7 @@ select
     end_date_estimated,
     ongoing_war
 from inferred_dyads
-union all
+union distinct
 select
     war_num,
     c_code_b c_code_a,
@@ -227,7 +225,7 @@ select
     end_date_estimated,
     ongoing_war
 from inferred_dyads
-union all
+union distinct
 select
     war_num,
     c_code_a,
@@ -240,7 +238,7 @@ select
     end_date_estimated,
     ongoing_war
 from group_dyads
-union all
+union distinct
 select
     war_num,
     c_code_b c_code_a,
@@ -252,20 +250,4 @@ select
     start_date_estimated,
     end_date_estimated,
     ongoing_war
-from group_dyads)
-
-select
-    a.war_num,
-    a.c_code_a,
-    a.c_code_b,
-    a.participant_a,
-    a.participant_b,
-    a.start_date,
-    a.end_date,
-    a.start_date_estimated,
-    a.end_date_estimated,
-    a.ongoing_war,
-    b.range::integer "year"
-from dyads_after_inference a
-join range(1500, 2100) b on b.range between extract(year from a.start_date)::integer and extract(year from a.end_date)::integer
-group by 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11;
+from group_dyads;

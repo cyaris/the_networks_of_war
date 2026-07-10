@@ -44,7 +44,8 @@ STEP_1_SQL = [
     "step_1/06_create_dyads_after_mid.sql",
     "step_1/07_create_initial_participants.sql",
     "step_1/08_create_initial_dyads.sql",
-    "step_1/09_create_initial_wars.sql",
+    "step_1/09_create_initial_dyad_years.sql",
+    "step_1/10_create_initial_wars.sql",
 ]
 
 
@@ -75,6 +76,10 @@ def format_query_results(columns: list[str], rows: list[tuple]) -> str:
         [header, divider]
         + [" | ".join(value.ljust(widths[index]) for index, value in enumerate(row)) for row in values]
     )
+
+
+def sql_identifier(value: str) -> str:
+    return '"' + value.replace('"', '""') + '"'
 
 
 class Pipeline:
@@ -123,11 +128,31 @@ class Pipeline:
     def execute_sql(self, conn: duckdb.DuckDBPyConnection, name: str) -> None:
         conn.execute(render_sql(name, self.sql_context()))
 
+    def drop_relation_if_exists(self, conn: duckdb.DuckDBPyConnection, relation_name: str) -> None:
+        row = conn.execute(
+            """
+            select table_type
+            from information_schema.tables
+            where table_schema = current_schema()
+              and table_name = ?
+            """,
+            [relation_name],
+        ).fetchone()
+
+        if row is None:
+
+            return
+
+        relation_type = "view" if row[0] == "VIEW" else "table"
+        conn.execute(f"drop {relation_type} {sql_identifier(relation_name)}")
+
     def run_step_1(self, conn: duckdb.DuckDBPyConnection) -> None:
         self.require_inputs()
 
         for name in STEP_1_SQL:
             logger.info("Running %s", name)
+            if name == "step_1/04_create_war_dyads.sql":
+                self.drop_relation_if_exists(conn, "war_dyads")
             self.execute_sql(conn, name)
 
     def inspect(self, conn: duckdb.DuckDBPyConnection) -> None:

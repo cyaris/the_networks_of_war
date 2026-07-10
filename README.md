@@ -124,6 +124,7 @@ Step 1 also materializes transformed tables:
 Step 1 also materializes compatibility tables:
 
 - `initial_dyads`
+- `initial_dyad_years`
 - `initial_participants`
 - `initial_wars`
 
@@ -259,7 +260,7 @@ flowchart LR
   if `c_code_a = -8`, side B is treated as having fought each source participant on side A for that conflict.
 - Unnamed aggregate dyads are excluded from `initial_dyads` after those rows are used for named-participant expansion.
 - Inferred dyads are only created where the anchor and opposing participant date ranges overlap.
-- `initial_dyads` expands dyads into one row per year for years in the range `1500` through `2099`.
+- `initial_dyad_years` expands `initial_dyads` into one row per year for years in the range `1500` through `2099`.
 
 ## Data-Entry Fixes And Assignment Rules
 

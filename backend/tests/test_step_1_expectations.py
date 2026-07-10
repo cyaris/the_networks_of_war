@@ -11,7 +11,7 @@ SRC_ROOT = BACKEND_ROOT / "src"
 
 sys.path.insert(0, str(SRC_ROOT))
 
-from pipeline import DEFAULT_CSV_DIR, SOURCE_FILES, Pipeline  # noqa: E402
+from pipeline import DEFAULT_CSV_DIR, SOURCE_FILES, Pipeline, format_query_results  # noqa: E402
 
 
 @pytest.fixture(scope="session")
@@ -65,6 +65,7 @@ def test_negative_date_sentinels_are_cleaned_except_ongoing_end_year(conn):
         where
             table_name like 'source_%'
             and regexp_matches(column_name, '^(start|end)_(day|month|year)_[0-9]+$')
+        order by table_name, column_name
         """).fetchall()
     checks = [f"""
         select
@@ -77,7 +78,7 @@ def test_negative_date_sentinels_are_cleaned_except_ongoing_end_year(conn):
             and not ({column_name} = -7 and '{column_name}' like 'end_year_%')
         """ for table_name, column_name in date_columns]
 
-    unexpected = [row for row in conn.execute(" union all ".join(checks)).fetchall() if row[2] != 0]
+    unexpected = [row for row in conn.execute(" union all ".join(checks) + " order by 1, 2").fetchall() if row[2] != 0]
 
     assert unexpected == []
 
@@ -206,6 +207,7 @@ def test_source_interstate_mid_fatality_levels_are_converted_to_estimates(conn):
             from source_interstate_mid_dyads
             where battle_deaths_estimated_b is not null
             group by 1
+            order by 1
         """).fetchall()}
 
     assert actual_estimates == {0, 25, 100, 250, 500, 999, 1000}
@@ -297,6 +299,19 @@ def test_participant_battle_death_estimate_flags_are_binary(conn):
         )
 
 
+def test_initial_participants_have_side_assignments(conn):
+    result = conn.execute("""
+        select *
+        from initial_participants
+        where side is null
+        order by war_num, c_code, participant
+        """)
+    rows = result.fetchall()
+    columns = [column[0] for column in result.description]
+
+    assert rows == [], "\n" + format_query_results(columns, rows)
+
+
 def test_mid_dyads_resolve_all_mid_war_numbers(conn):
     assert (
         scalar(
@@ -319,6 +334,7 @@ def test_mid_dyads_resolve_all_mid_war_numbers(conn):
             participant_b
         from dyads_after_mid
         where war_num = 4182
+        order by 1, 2, 3, 4, 5, 6
         """).fetchall())
 
     assert actual_dyads == {
@@ -348,7 +364,7 @@ def test_initial_dyads_apply_final_transformation_assumptions(conn):
             conn,
             """
             select count(*)
-            from initial_dyads
+            from initial_dyad_years
             where
                 year < extract(year from start_date)::integer
                 or year > extract(year from end_date)::integer
@@ -380,6 +396,7 @@ def test_initial_dyads_retain_named_non_state_anchor_dyads(conn):
         where
             war_num = 940.8
             and participant_a in ('ICU', 'Eritrea')
+        order by 1, 2
         """).fetchall())
 
     expected_side_1_participants = {

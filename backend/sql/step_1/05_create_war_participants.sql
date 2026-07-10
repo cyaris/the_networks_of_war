@@ -17,9 +17,9 @@ select
     greatest(cow_end_date(a.end_year_1, a.end_month_1, a.end_day_1), cow_end_date(a.end_year_2, a.end_month_2, a.end_day_2)) end_date,
     greatest(date_estimated(a.start_year_1, a.start_month_1, a.start_day_1), date_estimated(a.start_year_2, a.start_month_2, a.start_day_2)) start_date_estimated,
     greatest(date_estimated(a.end_year_1, a.end_month_1, a.end_day_1), date_estimated(a.end_year_2, a.end_month_2, a.end_day_2)) end_date_estimated,
+    greatest(ongoing_war(a.end_year_1), ongoing_war(a.end_year_2)) ongoing_war,
     a.battle_deaths,
-    0 battle_deaths_est,
-    greatest(ongoing_war(a.end_year_1), ongoing_war(a.end_year_2)) ongoing_war
+    0 battle_deaths_est
 from source_interstate_wars a
 left join war_types c on a.war_type = c.war_type
 left join country_codes d on a.c_code = d.c_code
@@ -37,9 +37,9 @@ select
     end_date,
     start_date_estimated,
     end_date_estimated,
+    ongoing_war,
     battle_deaths_a battle_deaths,
-    0 battle_deaths_est,
-    ongoing_war
+    0 battle_deaths_estimated
 from war_dyads
 where
     war_type <> 1
@@ -58,9 +58,9 @@ select
     end_date,
     start_date_estimated,
     end_date_estimated,
+    ongoing_war,
     battle_deaths_b battle_deaths,
-    0 battle_deaths_est,
-    ongoing_war
+    0 battle_deaths_estimated
 from war_dyads
 where
     war_type <> 1
@@ -112,9 +112,9 @@ select
     max(a.end_date) end_date,
     max(a.start_date_estimated) start_date_estimated,
     max(a.end_date_estimated) end_date_estimated,
+    max(a.ongoing_war) ongoing_war,
     sum(if(a.battle_deaths >= 0, a.battle_deaths, null)) battle_deaths,
-    max(a.battle_deaths_est) battle_deaths_est,
-    max(a.ongoing_war) ongoing_war
+    max(a.battle_deaths_estimated) battle_deaths_estimated
 from cleaned_participant_rows a
 left join dyadic_side_assignments b on a.war_num = b.war_num
                                     and a.c_code = b.c_code

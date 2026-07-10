@@ -100,13 +100,13 @@ select
     c_code_b,
     clean_participant(participant_a) participant_a,
     clean_participant(participant_b) participant_b,
-    battle_deaths_a,
-    battle_deaths_b,
     start_date,
     end_date,
     start_date_estimated,
     end_date_estimated,
-    ongoing_war
+    ongoing_war,
+    battle_deaths_a,
+    battle_deaths_b
 from war_dyads
 where
     participant_a is not null
@@ -123,13 +123,13 @@ select
     c_code_a c_code_b,
     clean_participant(participant_b) participant_a,
     clean_participant(participant_a) participant_b,
-    battle_deaths_b battle_deaths_a,
-    battle_deaths_a battle_deaths_b,
     start_date,
     end_date,
     start_date_estimated,
     end_date_estimated,
-    ongoing_war
+    ongoing_war,
+    battle_deaths_b battle_deaths_a,
+    battle_deaths_a battle_deaths_b
 from war_dyads
 where
     participant_a is not null
@@ -146,12 +146,12 @@ select
     c_code_b,
     participant_a,
     participant_b,
-    sum(if(battle_deaths_a >= 0, battle_deaths_a, null)) battle_deaths_a,
-    sum(if(battle_deaths_b >= 0, battle_deaths_b, null)) battle_deaths_b,
     min(start_date) start_date,
     max(end_date) end_date,
     max(start_date_estimated) start_date_estimated,
     max(end_date_estimated) end_date_estimated,
-    max(ongoing_war) ongoing_war
+    max(ongoing_war) ongoing_war,
+    sum(if(battle_deaths_a >= 0, battle_deaths_a, null)) battle_deaths_a,
+    sum(if(battle_deaths_b >= 0, battle_deaths_b, null)) battle_deaths_b
 from cleaned_war_dyads a
 group by 1, 6, 7, 8, 9;
