@@ -67,6 +67,7 @@ def test_negative_date_sentinels_are_cleaned_except_ongoing_end_year(conn):
             and regexp_matches(column_name, '^(start|end)_(day|month|year)_[0-9]+$')
         order by table_name, column_name
         """).fetchall()
+
     checks = [f"""
         select
             '{table_name}' table_name,
@@ -197,6 +198,7 @@ def test_source_interstate_mid_fatality_levels_are_converted_to_estimates(conn):
         )
         == 0
     )
+
     actual_estimates = {row[0] for row in conn.execute("""
             select battle_deaths_estimated_a battle_deaths_estimated
             from source_interstate_mid_dyads
@@ -323,6 +325,7 @@ def test_mid_dyads_resolve_all_mid_war_numbers(conn):
         )
         == 0
     )
+
     actual_dyads = set(conn.execute("""
         select
             war_num,
@@ -388,24 +391,18 @@ def test_initial_dyads_apply_final_transformation_assumptions(conn):
 
 def test_initial_dyads_retain_named_non_state_anchor_dyads(conn):
     actual_dyads = set(conn.execute("""
-        select distinct
+        select
             participant_a,
             participant_b
         from initial_dyads
         where
             war_num = 940.8
             and participant_a in ('ICU', 'Eritrea')
+        group by 1, 2
         order by 1, 2
         """).fetchall())
 
-    expected_side_1_participants = {
-        "United States of America",
-        "Uganda",
-        "Kenya",
-        "Burundi",
-        "Somalia",
-        "Ethiopia",
-    }
+    expected_side_1_participants = {"United States of America", "Uganda", "Kenya", "Burundi", "Somalia", "Ethiopia"}
 
     assert actual_dyads == {
         (anchor, participant) for anchor in {"ICU", "Eritrea"} for participant in expected_side_1_participants
