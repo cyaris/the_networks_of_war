@@ -20,15 +20,45 @@ DEFAULT_CSV_DIR = PROJECT_ROOT / "csvs"
 DEFAULT_DB_PATH = BACKEND_ROOT / "the_networks_of_war.duckdb"
 INSPECT_SQL = SQL_ROOT / "inspect_tables.sql"
 
-SOURCE_FILES = {
-    "country_codes": "COW country codes.csv",
-    "extrastate_wars": "Extra-StateWarData_v4.0.csv",
-    "interstate_mid_dyads": "dyadic_mid_4.02.csv",
-    "interstate_war_dyads": "directed_dyadic_war.csv",
-    "interstate_wars": "Inter-StateWarData_v4.0.csv",
-    "intrastate_wars": "INTRA-STATE_State_participants v5.1.csv",
-    "war_types": "../war_types.csv",
+SOURCE_METADATA = {
+    "country_codes": {
+        "file": "COW country codes.csv",
+        "version": "COW country codes",
+        "documentation": "Entities.pdf",
+    },
+    "extrastate_wars": {
+        "file": "Extra-StateWarData_v4.0.csv",
+        "version": "4.0",
+        "documentation": "Extra-StateWars_Codebook.pdf",
+    },
+    "interstate_mid_dyads": {
+        "file": "dyadic_mid_4.02.csv",
+        "version": "4.02",
+        "documentation": "Dyadic MID Codebook V4.0.pdf",
+    },
+    "interstate_war_dyads": {
+        "file": "directed_dyadic_war.csv",
+        "version": "directed_dyadic_war.csv",
+        "documentation": "The Directed Dyadic Interstate War Dataset Codebook.pdf",
+    },
+    "interstate_wars": {
+        "file": "Inter-StateWarData_v4.0.csv",
+        "version": "4.0",
+        "documentation": "MII_v4.0_Codebook.pdf",
+    },
+    "intrastate_wars": {
+        "file": "INTRA-STATE_State_participants v5.1.csv",
+        "version": "5.1",
+        "documentation": "Codebook for Intra-state v5.1 2.9.20.pdf; Description of Intra-state v5.1.pdf",
+    },
+    "war_types": {
+        "file": "../war_types.csv",
+        "version": "local",
+        "documentation": "local helper file",
+    },
 }
+
+SOURCE_FILES = {key: metadata["file"] for key, metadata in SOURCE_METADATA.items()}
 
 SOURCE_ENCODINGS = {
     "extrastate_wars": "cp1252",
@@ -38,6 +68,7 @@ STEP_1_SQL = [
     "step_1/00_setup.sql",
     "step_1/01_create_source_tables.sql",
     "step_1/02_insert_source_tables.sql",
+    "step_1/02a_apply_source_adjustments.sql",
     "step_1/03_create_reference_tables.sql",
     "step_1/04_create_war_dyads.sql",
     "step_1/05_create_war_participants.sql",
@@ -112,7 +143,14 @@ class Pipeline:
         return path.resolve()
 
     def sql_context(self) -> dict[str, str]:
-        return {f"{key}_path": sql_literal(self.prepared_path_for(key)) for key in SOURCE_FILES}
+        context = {f"{key}_path": sql_literal(self.prepared_path_for(key)) for key in SOURCE_FILES}
+
+        for key, metadata in SOURCE_METADATA.items():
+            context[f"{key}_source_file"] = sql_literal(Path(metadata["file"]).name)
+            context[f"{key}_source_version"] = sql_literal(metadata["version"])
+            context[f"{key}_documentation"] = sql_literal(metadata["documentation"])
+
+        return context
 
     def require_inputs(self) -> None:
         missing = [str(self.path_for(key)) for key in SOURCE_FILES if not self.path_for(key).exists()]

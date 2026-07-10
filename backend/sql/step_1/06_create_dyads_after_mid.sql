@@ -15,13 +15,7 @@ mid_wars_prepared as (
 
 select
     a.disno,
-    case
-        when b.war_num is not null then b.war_num
-        when a.start_year_1 <= 1945 then 139
-        when a.disno = 4182 then 4182
-        when a.disno = 4339 then 905
-        else -1
-    end war_num,
+    coalesce(b.war_num, -1) war_num,
     a.c_code_a,
     a.c_code_b,
     cow_date(a.start_year_1, a.start_month_1, a.start_day_1, 1, 1) start_date,
@@ -65,7 +59,7 @@ select
     battle_deaths_estimated_a battle_deaths_estimated_b
 from mid_wars_prepared),
 
-war_names as (
+war_name_candidates as (
 
 select
     war_num,
@@ -74,8 +68,19 @@ from dyads_after_sources
 group by 1
 union all
 select
-    4182 war_num,
-    'Israeli–Hezbollah Conflict (South Lebanon)' war_name),
+    war_num,
+    any_value(war_name) war_name
+from source_interstate_wars
+where war_name is not null
+group by 1),
+
+war_names as (
+
+select
+    war_num,
+    any_value(war_name) war_name
+from war_name_candidates
+group by 1),
 
 mid_dyads as (
 

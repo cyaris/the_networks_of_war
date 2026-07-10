@@ -214,6 +214,55 @@ def test_source_interstate_mid_fatality_levels_are_converted_to_estimates(conn):
     assert actual_estimates == {0, 25, 100, 250, 500, 999, 1000}
 
 
+def test_source_adjusted_mid_war_number_relationships_are_applied(conn):
+    assert (
+        scalar(
+            conn,
+            """
+            select count(*)
+            from source_file_versions
+            where
+                source_key = 'interstate_mid_dyads'
+                and source_file = 'dyadic_mid_4.02.csv'
+                and source_version = '4.02'
+            """,
+        )
+        == 1
+    )
+
+    actual_assignments = set(conn.execute("""
+        select
+            disno,
+            war_num
+        from source_interstate_war_dyads
+        where disno in (3582, 3583, 3585, 4182, 4339)
+        group by 1, 2
+        order by 1, 2
+        """).fetchall())
+
+    assert actual_assignments == {
+        (3582, 139),
+        (3583, 139),
+        (3585, 139),
+        (4182, 4182),
+        (4339, 905),
+    }
+
+    assert (
+        scalar(
+            conn,
+            """
+            select count(*)
+            from source_interstate_wars
+            where
+                war_num = 4182
+                and war_name = 'Israeli–Hezbollah Conflict (South Lebanon)'
+            """,
+        )
+        == 1
+    )
+
+
 def test_source_intrastate_war_data_entry_fixes_are_applied(conn):
     assert scalar(conn, "select count(*) from source_intrastate_wars where war_num = 977") == 0
     assert (
