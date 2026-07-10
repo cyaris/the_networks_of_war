@@ -191,21 +191,21 @@ def test_source_interstate_mid_fatality_levels_are_converted_to_estimates(conn):
             select count(*)
             from source_interstate_mid_dyads
             where
-                coalesce(battle_deaths_estimated_a, -1) not in (-1, 0, 25, 100, 250, 500, 999, 1000)
-                or coalesce(battle_deaths_estimated_b, -1) not in (-1, 0, 25, 100, 250, 500, 999, 1000)
+                coalesce(battle_deaths_estimatedimated_a, -1) not in (-1, 0, 25, 100, 250, 500, 999, 1000)
+                or coalesce(battle_deaths_estimatedimated_b, -1) not in (-1, 0, 25, 100, 250, 500, 999, 1000)
             """,
         )
         == 0
     )
     actual_estimates = {row[0] for row in conn.execute("""
-            select battle_deaths_estimated_a battle_deaths_estimated
+            select battle_deaths_estimatedimated_a battle_deaths_estimatedimated
             from source_interstate_mid_dyads
-            where battle_deaths_estimated_a is not null
+            where battle_deaths_estimatedimated_a is not null
             group by 1
             union
-            select battle_deaths_estimated_b battle_deaths_estimated
+            select battle_deaths_estimatedimated_b battle_deaths_estimatedimated
             from source_interstate_mid_dyads
-            where battle_deaths_estimated_b is not null
+            where battle_deaths_estimatedimated_b is not null
             group by 1
             order by 1
         """).fetchall()}
@@ -255,8 +255,8 @@ def test_mid_dyads_do_not_duplicate_source_dyad_overlaps(conn):
                                       and a.c_code_b = b.c_code_b
                                       and least(a.end_date, b.end_date) >= greatest(a.start_date, b.start_date)
             where
-                a.battle_deaths_est_a = 1
-                or a.battle_deaths_est_b = 1
+                a.battle_deaths_estimated_a = 1
+                or a.battle_deaths_estimated_b = 1
             """,
         )
         == 0
@@ -272,10 +272,10 @@ def test_dyad_battle_death_estimate_flags_are_binary(conn):
                 select count(*)
                 from {table_name}
                 where
-                    battle_deaths_est_a not in (0, 1)
-                    or battle_deaths_est_b not in (0, 1)
-                    or battle_deaths_est_a is null
-                    or battle_deaths_est_b is null
+                    battle_deaths_estimated_a not in (0, 1)
+                    or battle_deaths_estimated_b not in (0, 1)
+                    or battle_deaths_estimated_a is null
+                    or battle_deaths_estimated_b is null
                 """,
             )
             == 0
@@ -291,8 +291,8 @@ def test_participant_battle_death_estimate_flags_are_binary(conn):
                 select count(*)
                 from {table_name}
                 where
-                    battle_deaths_est not in (0, 1)
-                    or battle_deaths_est is null
+                    battle_deaths_estimated not in (0, 1)
+                    or battle_deaths_estimated is null
                 """,
             )
             == 0
