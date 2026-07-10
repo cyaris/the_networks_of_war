@@ -19,7 +19,7 @@ select
     greatest(date_estimated(a.end_year_1, a.end_month_1, a.end_day_1), date_estimated(a.end_year_2, a.end_month_2, a.end_day_2)) end_date_estimated,
     greatest(ongoing_war(a.end_year_1), ongoing_war(a.end_year_2)) ongoing_war,
     a.battle_deaths,
-    0 battle_deaths_est
+    0 battle_deaths_estimated
 from source_interstate_wars a
 left join war_types c on a.war_type = c.war_type
 left join country_codes d on a.c_code = d.c_code
