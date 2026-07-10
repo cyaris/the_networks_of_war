@@ -102,15 +102,15 @@ raw CSV files in `csvs/` are not available locally.
 The current backend ingests the following source files and uses the matching documentation in `documentation/` where available.
 The online source column is a placeholder for links to the original data pages.
 
-| Table | Source CSV | Documentation | Online source |
-| --- | --- | --- | --- |
-| `source_country_codes` | `COW country codes.csv` | `Entities.pdf` | TODO |
-| `source_extrastate_wars` | `Extra-StateWarData_v4.0.csv` | `Extra-StateWars_Codebook.pdf` | TODO |
-| `source_interstate_mid_dyads` | `dyadic_mid_4.02.csv` | `Dyadic MID Codebook V4.0.pdf` | TODO |
-| `source_interstate_war_dyads` | `directed_dyadic_war.csv` | `The Directed Dyadic Interstate War Dataset Codebook.pdf` | TODO |
-| `source_interstate_wars` | `Inter-StateWarData_v4.0.csv` | `MII_v4.0_Codebook.pdf` | TODO |
-| `source_intrastate_wars` | `INTRA-STATE_State_participants v5.1.csv` | `Codebook for Intra-state v5.1 2.9.20.pdf`; `Description of Intra-state v5.1.pdf` | TODO |
-| `source_war_types` | `war_types.csv` | local helper file with no external codebook | TODO |
+| Table | Source CSV | Version | Documentation | Online source |
+| --- | --- | --- | --- | --- |
+| `source_country_codes` | `COW country codes.csv` | COW country codes | `Entities.pdf` | TODO |
+| `source_extrastate_wars` | `Extra-StateWarData_v4.0.csv` | 4.0 | `Extra-StateWars_Codebook.pdf` | TODO |
+| `source_interstate_mid_dyads` | `dyadic_mid_4.02.csv` | 4.02 | `Dyadic MID Codebook V4.0.pdf` | TODO |
+| `source_interstate_war_dyads` | `directed_dyadic_war.csv` | `directed_dyadic_war.csv` | `The Directed Dyadic Interstate War Dataset Codebook.pdf` | TODO |
+| `source_interstate_wars` | `Inter-StateWarData_v4.0.csv` | 4.0 | `MII_v4.0_Codebook.pdf` | TODO |
+| `source_intrastate_wars` | `INTRA-STATE_State_participants v5.1.csv` | 5.1 | `Codebook for Intra-state v5.1 2.9.20.pdf`; `Description of Intra-state v5.1.pdf` | TODO |
+| `source_war_types` | `war_types.csv` | local | local helper file with no external codebook | TODO |
 
 Other files in `documentation/` correspond to datasets that have not yet been incorporated and were not used for
 the current Step 1 assumptions.
@@ -132,8 +132,11 @@ Step 1 also materializes compatibility tables:
 
 ### Source Tables
 
-- Source table names beginning with `source_` mean the table comes directly from one CSV file, with only type coercion,
-  column renaming, encoding normalization, and explicit data-entry fixes applied during load.
+- The primary source tables listed above come directly from one CSV file, with only type coercion, column renaming,
+  encoding normalization, and explicit source adjustments applied during load.
+- Version-scoped source adjustments live in `backend/sql/step_1/02a_apply_source_adjustments.sql`. The file creates
+  `source_file_versions` and adjustment tables, then inserts missing source facts only when the expected CSV version is
+  active and the source table does not already contain the fact.
 
 ### Excluded Calculated Columns
 
@@ -207,12 +210,14 @@ Step 1 also materializes compatibility tables:
 - MID dyads are not incorporated when the same directed dyad in the same war overlaps an existing source war-dyad row.
 - Existing battle-death values take precedence over MID fatality estimates for remaining merged rows. MID estimates are
   used when summed source battle deaths are null or zero and summed estimates are positive.
-- MID dyads are assigned to known wars by `disno` when possible.
-- MID dyads that cannot be assigned by `disno` are assigned to World War II (`war_num = 139`) when their start year is
-  1945 or earlier.
-- Unmatched MID dispute `4339` is assigned to Africa's World War (`war_num = 905`).
-- The unmatched Lebanon-Israel MID conflict (`disno = 4182`) is assigned synthetic `war_num = 4182` and named
-  `Israeli–Hezbollah Conflict (South Lebanon)` because no matching war number exists in the interstate war data.
+- MID dyads are assigned to known wars by `disno` from `source_interstate_war_dyads`.
+- Missing MID `disno` to `war_num` relationships are added to `source_interstate_war_dyads` by
+  `02a_apply_source_adjustments.sql` when the current CSV version still needs them. If a future CSV version introduces
+  a new unmatched MID war, `test_mid_dyads_resolve_all_mid_war_numbers` should fail until the source adjustment file is
+  updated or the new source data is accepted as authoritative.
+- Synthetic war metadata, such as the Lebanon-Israel MID conflict (`disno = 4182`) named
+  `Israeli–Hezbollah Conflict (South Lebanon)`, is added to `source_interstate_wars` by the same adjustment step when
+  the source table does not already contain it.
 
 ### Participant Inference
 
@@ -274,7 +279,7 @@ flowchart LR
 - `dyadic_mid_4.02.csv`
   - The source does not include COW war numbers, so rows are assigned to known wars by matching `disno` to
     `directed_dyadic_war.csv` where possible.
-  - Unmatched MID rows with start years through `1945` are assigned from original missing `war_num` to World War II
+  - Unmatched MID disputes `3582`, `3583`, and `3585` are assigned from original missing `war_num` to World War II
     (`war_num = 139`) after manual review.
   - Unmatched MID dispute `4339` is assigned from original missing `war_num` to Africa's World War (`war_num = 905`)
     after manual review.
@@ -282,6 +287,7 @@ flowchart LR
     named `Israeli–Hezbollah Conflict (South Lebanon)`. This fake war id uses the MID `disno` because the conflict
     appears in the dyadic MID records with `war = 1`, but no corresponding `war_num` exists for it in the interstate
     war data.
+  - These assignments are implemented as version-scoped source adjustments, not as transformation-time fallback logic.
 - `INTRA-STATE_State_participants v5.1.csv`
   - War number is corrected from original value `977` to `979`.
   - War `976` has `StartYr1` corrected from original value `2001` to `2011`.

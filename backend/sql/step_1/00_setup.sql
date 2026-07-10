@@ -30,6 +30,10 @@ create or replace macro clean_end_year(value) as (
     end
 );
 
+create or replace macro clean_war_reference(value) as (
+    if(clean_int(value) > 0, clean_int(value), null)
+);
+
 -- TODO: fix nested replace with equals.
 -- TODO: add patterns to the tests directory.
 create or replace macro clean_participant(value) as (
@@ -68,10 +72,7 @@ create or replace macro cow_date(year_value, month_value, day_value, default_mon
         make_date(
             clean_int(year_value),
             coalesce(clean_date_month(month_value), default_month),
-            least(
-                coalesce(clean_date_day(day_value), default_day),
-                extract(day from last_day(make_date(clean_int(year_value), coalesce(clean_date_month(month_value), default_month), 1)))::integer
-            )
+            least(coalesce(clean_date_day(day_value), default_day), extract(day from last_day(make_date(clean_int(year_value), coalesce(clean_date_month(month_value), default_month), 1)))::integer)
         ),
         null
     )

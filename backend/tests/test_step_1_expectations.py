@@ -118,16 +118,10 @@ def test_source_resolved_start_dates_do_not_exceed_end_dates(conn):
         (
             "source_interstate_wars",
             """
-            least(
-                cow_date(start_year_1, start_month_1, start_day_1, 1, 1),
-                cow_date(start_year_2, start_month_2, start_day_2, 1, 1)
-            )
+            least(cow_date(start_year_1, start_month_1, start_day_1, 1, 1), cow_date(start_year_2, start_month_2, start_day_2, 1, 1))
             """,
             """
-            greatest(
-                cow_end_date(end_year_1, end_month_1, end_day_1),
-                cow_end_date(end_year_2, end_month_2, end_day_2)
-            )
+            greatest(cow_end_date(end_year_1, end_month_1, end_day_1), cow_end_date(end_year_2, end_month_2, end_day_2))
             """,
         ),
         (
@@ -151,35 +145,19 @@ def test_source_resolved_start_dates_do_not_exceed_end_dates(conn):
         (
             "source_extrastate_wars",
             """
-            least(
-                cow_date(start_year_1, start_month_1, start_day_1, 1, 1),
-                cow_date(start_year_2, start_month_2, start_day_2, 1, 1)
-            )
+            least(cow_date(start_year_1, start_month_1, start_day_1, 1, 1), cow_date(start_year_2, start_month_2, start_day_2, 1, 1))
             """,
             """
-            greatest(
-                cow_end_date(end_year_1, end_month_1, end_day_1),
-                cow_end_date(end_year_2, end_month_2, end_day_2)
-            )
+            greatest(cow_end_date(end_year_1, end_month_1, end_day_1), cow_end_date(end_year_2, end_month_2, end_day_2))
             """,
         ),
         (
             "source_intrastate_wars",
             """
-            least(
-                cow_date(start_year_1, start_month_1, start_day_1, 1, 1),
-                cow_date(start_year_2, start_month_2, start_day_2, 1, 1),
-                cow_date(start_year_3, start_month_3, start_day_3, 1, 1),
-                cow_date(start_year_4, start_month_4, start_day_4, 1, 1)
-            )
+            least(cow_date(start_year_1, start_month_1, start_day_1, 1, 1), cow_date(start_year_2, start_month_2, start_day_2, 1, 1), cow_date(start_year_3, start_month_3, start_day_3, 1, 1), cow_date(start_year_4, start_month_4, start_day_4, 1, 1))
             """,
             """
-            greatest(
-                cow_end_date(end_year_1, end_month_1, end_day_1),
-                cow_end_date(end_year_2, end_month_2, end_day_2),
-                cow_end_date(end_year_3, end_month_3, end_day_3),
-                cow_end_date(end_year_4, end_month_4, end_day_4)
-            )
+            greatest(cow_end_date(end_year_1, end_month_1, end_day_1), cow_end_date(end_year_2, end_month_2, end_day_2), cow_end_date(end_year_3, end_month_3, end_day_3), cow_end_date(end_year_4, end_month_4, end_day_4))
             """,
         ),
     ]

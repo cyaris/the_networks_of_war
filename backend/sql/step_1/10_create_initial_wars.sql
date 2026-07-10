@@ -15,6 +15,35 @@ select
 from initial_participants
 group by 1),
 
+source_transition_rows as (
+
+select
+    war_num,
+    lagging_war,
+    leading_war
+from source_interstate_wars
+union all
+select
+    war_num,
+    lagging_war,
+    leading_war
+from source_extrastate_wars
+union all
+select
+    war_num,
+    lagging_war,
+    leading_war
+from source_intrastate_wars),
+
+source_transitions as (
+
+select
+    war_num,
+    coalesce(max(lagging_war), -8) lagging_war,
+    coalesce(max(leading_war), -8) leading_war
+from source_transition_rows
+group by 1),
+
 war_metadata as (
 
 select
@@ -38,6 +67,9 @@ select
     a.end_date,
     a.start_date_estimated,
     a.end_date_estimated,
-    a.ongoing_war
+    a.ongoing_war,
+    coalesce(c.lagging_war, -8) lagging_war,
+    coalesce(c.leading_war, -8) leading_war
 from participant_counts a
-join war_metadata b on a.war_num = b.war_num;
+join war_metadata b on a.war_num = b.war_num
+left join source_transitions c on a.war_num = c.war_num;
