@@ -11,7 +11,7 @@ SRC_ROOT = BACKEND_ROOT / "src"
 
 sys.path.insert(0, str(SRC_ROOT))
 
-from pipeline import DEFAULT_CSV_DIR, SOURCE_FILES, Pipeline  # noqa: E402
+from pipeline import DEFAULT_CSV_DIR, SOURCE_FILES, Pipeline, format_query_results  # noqa: E402
 
 
 @pytest.fixture(scope="session")
@@ -65,7 +65,9 @@ def test_negative_date_sentinels_are_cleaned_except_ongoing_end_year(conn):
         where
             table_name like 'source_%'
             and regexp_matches(column_name, '^(start|end)_(day|month|year)_[0-9]+$')
+        order by table_name, column_name
         """).fetchall()
+
     checks = [f"""
         select
             '{table_name}' table_name,
@@ -77,7 +79,7 @@ def test_negative_date_sentinels_are_cleaned_except_ongoing_end_year(conn):
             and not ({column_name} = -7 and '{column_name}' like 'end_year_%')
         """ for table_name, column_name in date_columns]
 
-    unexpected = [row for row in conn.execute(" union all ".join(checks)).fetchall() if row[2] != 0]
+    unexpected = [row for row in conn.execute(" union all ".join(checks) + " order by 1, 2").fetchall() if row[2] != 0]
 
     assert unexpected == []
 
@@ -127,8 +129,9 @@ def test_calculated_and_transient_source_columns_are_not_materialized(conn):
         "end_day_1",
         "end_month_1",
         "end_year_1",
+        "source_file",
     }
-    for table_name in ["war_dyads", "war_participants", "dyads_after_mid", "initial_participants", "initial_dyads"]:
+    for table_name in ["war_participants", "dyads_after_mid", "initial_participants", "initial_dyads"]:
         assert transient_columns.isdisjoint(column_names(conn, table_name))
 
 
@@ -195,6 +198,7 @@ def test_source_interstate_mid_fatality_levels_are_converted_to_estimates(conn):
         )
         == 0
     )
+
     actual_estimates = {row[0] for row in conn.execute("""
             select battle_deaths_estimated_a battle_deaths_estimated
             from source_interstate_mid_dyads
@@ -252,12 +256,61 @@ def test_mid_dyads_do_not_duplicate_source_dyad_overlaps(conn):
                                       and a.c_code_b = b.c_code_b
                                       and least(a.end_date, b.end_date) >= greatest(a.start_date, b.start_date)
             where
-                a.battle_deaths_est_a = 1
-                or a.battle_deaths_est_b = 1
+                a.battle_deaths_estimated_a = 1
+                or a.battle_deaths_estimated_b = 1
             """,
         )
         == 0
     )
+
+
+def test_dyad_battle_death_estimate_flags_are_binary(conn):
+    for table_name in ["dyads_after_mid"]:
+        assert (
+            scalar(
+                conn,
+                f"""
+                select count(*)
+                from {table_name}
+                where
+                    battle_deaths_estimated_a not in (0, 1)
+                    or battle_deaths_estimated_b not in (0, 1)
+                    or battle_deaths_estimated_a is null
+                    or battle_deaths_estimated_b is null
+                """,
+            )
+            == 0
+        )
+
+
+def test_participant_battle_death_estimate_flags_are_binary(conn):
+    for table_name in ["war_participants", "initial_participants"]:
+        assert (
+            scalar(
+                conn,
+                f"""
+                select count(*)
+                from {table_name}
+                where
+                    battle_deaths_estimated not in (0, 1)
+                    or battle_deaths_estimated is null
+                """,
+            )
+            == 0
+        )
+
+
+def test_initial_participants_have_side_assignments(conn):
+    result = conn.execute("""
+        select *
+        from initial_participants
+        where side is null
+        order by war_num, c_code, participant
+        """)
+    rows = result.fetchall()
+    columns = [column[0] for column in result.description]
+
+    assert rows == [], "\n" + format_query_results(columns, rows)
 
 
 def test_mid_dyads_resolve_all_mid_war_numbers(conn):
@@ -272,6 +325,7 @@ def test_mid_dyads_resolve_all_mid_war_numbers(conn):
         )
         == 0
     )
+
     actual_dyads = set(conn.execute("""
         select
             war_num,
@@ -282,6 +336,7 @@ def test_mid_dyads_resolve_all_mid_war_numbers(conn):
             participant_b
         from dyads_after_mid
         where war_num = 4182
+        order by 1, 2, 3, 4, 5, 6
         """).fetchall())
 
     assert actual_dyads == {
@@ -311,7 +366,7 @@ def test_initial_dyads_apply_final_transformation_assumptions(conn):
             conn,
             """
             select count(*)
-            from initial_dyads
+            from initial_dyad_years
             where
                 year < extract(year from start_date)::integer
                 or year > extract(year from end_date)::integer
@@ -336,26 +391,19 @@ def test_initial_dyads_apply_final_transformation_assumptions(conn):
 
 def test_initial_dyads_retain_named_non_state_anchor_dyads(conn):
     actual_dyads = set(conn.execute("""
-        select distinct
+        select
             participant_a,
             participant_b
         from initial_dyads
         where
             war_num = 940.8
             and participant_a in ('ICU', 'Eritrea')
+        group by 1, 2
+        order by 1, 2
         """).fetchall())
 
-    expected_side_1_participants = {
-        "United States of America",
-        "Uganda",
-        "Kenya",
-        "Burundi",
-        "Somalia",
-        "Ethiopia",
-    }
+    expected_side_1_participants = {"United States of America", "Uganda", "Kenya", "Burundi", "Somalia", "Ethiopia"}
 
     assert actual_dyads == {
-        (anchor, participant)
-        for anchor in {"ICU", "Eritrea"}
-        for participant in expected_side_1_participants
+        (anchor, participant) for anchor in {"ICU", "Eritrea"} for participant in expected_side_1_participants
     }

@@ -119,12 +119,12 @@ Step 1 also materializes transformed tables:
 
 - `dyads_after_mid`
 - `dyads_after_sources`
-- `war_dyads`
 - `war_participants`
 
 Step 1 also materializes compatibility tables:
 
 - `initial_dyads`
+- `initial_dyad_years`
 - `initial_participants`
 - `initial_wars`
 
@@ -239,19 +239,19 @@ one state participant, Eritrea (`c_code = 531`), so both become anchors.
 Those anchors are then linked to every overlapping participant on the opposite side:
 
 ```mermaid
-graph LR
-    Burundi --- ICU
-    Burundi --- Eritrea
-    Ethiopia --- ICU
-    Ethiopia --- Eritrea
-    Kenya --- ICU
-    Kenya --- Eritrea
-    Somalia --- ICU
-    Somalia --- Eritrea
-    Uganda --- ICU
-    Uganda --- Eritrea
-    USA["United States of America"] --- ICU
-    USA --- Eritrea
+flowchart LR
+    burundi["Burundi"] --- icu["ICU"]
+    burundi --- eritrea["Eritrea"]
+    ethiopia["Ethiopia"] --- icu
+    ethiopia --- eritrea
+    kenya["Kenya"] --- icu
+    kenya --- eritrea
+    somalia["Somalia"] --- icu
+    somalia --- eritrea
+    uganda["Uganda"] --- icu
+    uganda --- eritrea
+    usa["United States of America"] --- icu
+    usa --- eritrea
 ```
 
 ### Initial Dyads
@@ -260,7 +260,7 @@ graph LR
   if `c_code_a = -8`, side B is treated as having fought each source participant on side A for that conflict.
 - Unnamed aggregate dyads are excluded from `initial_dyads` after those rows are used for named-participant expansion.
 - Inferred dyads are only created where the anchor and opposing participant date ranges overlap.
-- `initial_dyads` expands dyads into one row per year for years in the range `1500` through `2099`.
+- `initial_dyad_years` expands `initial_dyads` into one row per year for years in the range `1500` through `2099`.
 
 ## Data-Entry Fixes And Assignment Rules
 
