@@ -1,4 +1,4 @@
-create or replace table dyads_after_sources as
+create or replace view war_dyads as
 
 with
 
@@ -9,9 +9,7 @@ select
     any_value(war_name) war_name,
     any_value(war_type) war_type
 from source_interstate_wars
-group by 1),
-
-war_dyads as (
+group by 1)
 
 select
     a.war_num,
@@ -84,7 +82,11 @@ select
 from source_intrastate_wars a
 left join war_types c on a.war_type = c.war_type
 left join country_codes d on a.c_code_a = d.c_code
-left join country_codes e on a.c_code_b = e.c_code),
+left join country_codes e on a.c_code_b = e.c_code;
+
+create or replace table dyads_after_sources as
+
+with
 
 cleaned_war_dyads as (
 
