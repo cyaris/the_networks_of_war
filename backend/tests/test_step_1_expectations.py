@@ -618,16 +618,22 @@ def test_participant_battle_death_estimate_flags_are_binary(conn):
 
 
 def test_participants_have_side_assignments(conn):
-    result = conn.execute("""
+    detected_rows_sql = """
         select *
         from participants
         where side is null
         order by war_num, c_code, participant
-        """)
+        """
+    result = conn.execute(detected_rows_sql)
     rows = result.fetchall()
     columns = [column[0] for column in result.description]
 
-    assert rows == [], "\n" + format_query_results(columns, rows)
+    if rows:
+        fail_sql_check(
+            "Participants should have side assignments.",
+            sql_queries=[("participants with missing sides", detected_rows_sql)],
+            detected_rows=[format_query_results(columns, rows)],
+        )
 
 
 def test_mid_dyads_resolve_all_mid_war_numbers(conn):
