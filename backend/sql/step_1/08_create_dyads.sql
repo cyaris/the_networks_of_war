@@ -30,7 +30,7 @@ from participants a
 join war_side_counts b on a.war_num = b.war_num
                        and b.side_1_total = 1
 where a.side = 1
-union distinct
+union
 select
     a.war_num,
     a.c_code,
@@ -44,7 +44,7 @@ from participants a
 join war_side_counts b on a.war_num = b.war_num
                        and b.side_2_total = 1
 where a.side = 2
-union distinct
+union
 select
     a.war_num,
     a.c_code,
@@ -60,7 +60,7 @@ join war_side_counts b on a.war_num = b.war_num
 where
     a.side = 1
     and a.c_code = -8
-union distinct
+union
 select
     a.war_num,
     a.c_code,
@@ -76,7 +76,7 @@ join war_side_counts b on a.war_num = b.war_num
 where
     a.side = 2
     and a.c_code = -8
-union distinct
+union
 select
     a.war_num,
     a.c_code,
@@ -92,7 +92,7 @@ join war_side_counts b on a.war_num = b.war_num
 where
     a.side = 1
     and a.c_code > 0
-union distinct
+union
 select
     a.war_num,
     a.c_code,
@@ -178,7 +178,7 @@ select
     start_date_estimated,
     end_date_estimated
 from dyads_after_mid
-union distinct
+union all
 select
     war_num,
     c_code_a,
@@ -190,7 +190,7 @@ select
     start_date_estimated,
     end_date_estimated
 from inferred_dyads
-union distinct
+union all
 select
     war_num,
     c_code_a,
