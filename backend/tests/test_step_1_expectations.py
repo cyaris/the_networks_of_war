@@ -94,17 +94,16 @@ def indent_sql(sql: str, spaces: int = 16) -> str:
 
 
 def fail_sql_check(title: str, *, sql_queries: list[tuple[str, str]], detected_rows: list[str]) -> None:
-    sections = [f"\n{title}"]
+    sections = [title]
 
     if sql_queries:
-        sections.append("\nSQL queries:")
-        sections.extend(f"\n{label}:\n{clean_sql(sql)}" for label, sql in sql_queries)
+        query_logs = [f"{label}:\n\n{clean_sql(sql)}" for label, sql in sql_queries]
+        sections.append("SQL queries:\n\n" + "\n\n".join(query_logs))
 
     if detected_rows:
-        sections.append("\nDetected rows:")
-        sections.append("\n\n".join(detected_rows))
+        sections.append("Detected rows:\n\n" + "\n\n".join(row_log.strip() for row_log in detected_rows))
 
-    pytest.fail("\n".join(sections), pytrace=False)
+    pytest.fail("\n\n".join(["", *sections]), pytrace=False)
 
 
 def test_negative_date_sentinels_are_cleaned_except_ongoing_end_year(conn):
@@ -228,8 +227,12 @@ def test_source_resolved_start_dates_do_not_exceed_end_dates(conn):
             where start_date > end_date
             """
         count_sql = f"""
+            with flagged_rows as (
+                {indent_sql(flagged_rows_sql)}
+            )
+
             select count(*)
-            from ({flagged_rows_sql})
+            from flagged_rows
             """
         flagged_count = scalar(
             conn,
@@ -241,13 +244,17 @@ def test_source_resolved_start_dates_do_not_exceed_end_dates(conn):
 
         unexpected.append((table_name, flagged_count))
         detected_rows_sql = f"""
-            select
-                '{table_name}' table_name,
-                *
-            from ({flagged_rows_sql})
-            order by all
-            limit 50
-            """
+        with flagged_rows as (
+            {indent_sql(flagged_rows_sql, 12)}
+        )
+
+        select
+            '{table_name}' table_name,
+            *
+        from flagged_rows
+        order by all
+        limit 50
+        """
         result = conn.execute(detected_rows_sql)
         rows = result.fetchall()
         columns = [column[0] for column in result.description]
@@ -321,16 +328,16 @@ def test_source_transition_war_references_are_positive_or_null(conn):
 
         unexpected.append((table_name, flagged_count))
         detected_rows_sql = f"""
-            select
-                '{table_name}' table_name,
-                *
-            from {table_name}
-            where
-                lagging_war < 0
-                or leading_war < 0
-            order by all
-            limit 50
-            """
+        select
+            '{table_name}' table_name,
+            *
+        from {table_name}
+        where
+            lagging_war < 0
+            or leading_war < 0
+        order by all
+        limit 50
+        """
         result = conn.execute(detected_rows_sql)
         rows = result.fetchall()
         columns = [column[0] for column in result.description]
@@ -649,6 +656,87 @@ def test_participants_have_side_assignments(conn):
         )
 
 
+def test_source_side_assignments_are_valid(conn):
+    unexpected = []
+    sql_queries = []
+    detected_row_outputs = []
+    checks = [
+        ("source_interstate_wars", "side", "(1, 2)"),
+        ("source_interstate_war_dyads", "side_a", "(1, 2)"),
+        ("source_interstate_war_dyads", "side_b", "(1, 2)"),
+    ]
+
+    for table_name, column_name, valid_values in checks:
+        count_sql = f"""
+        select count(*)
+        from {table_name}
+        where {column_name} not in {valid_values}
+        """
+        invalid_count = scalar(conn, count_sql)
+
+        if invalid_count == 0:
+            continue
+
+        output_columns = non_date_column_csv(conn, table_name)
+        detected_rows_sql = f"""
+        select
+            {output_columns}
+        from {table_name}
+        where {column_name} not in {valid_values}
+        order by all
+        limit 50
+        """
+        result = conn.execute(detected_rows_sql)
+        rows = result.fetchall()
+        columns = [column[0] for column in result.description]
+
+        unexpected.append((table_name, column_name, valid_values, invalid_count))
+        sql_queries.append((f"{table_name}.{column_name} invalid side count", count_sql))
+        sql_queries.append((f"{table_name}.{column_name} invalid side rows", detected_rows_sql))
+        detected_row_outputs.append(format_query_results(columns, rows))
+
+    if unexpected:
+        fail_sql_check(
+            "Source side assignments should stay within their valid value domains:\n"
+            + format_query_results(["table_name", "column_name", "valid_values", "row_count"], unexpected),
+            sql_queries=sql_queries,
+            detected_rows=detected_row_outputs,
+        )
+
+
+def test_final_participant_side_assignments_are_valid(conn):
+    count_sql = """
+    select count(*)
+    from participants
+    where side not in (1, 2, 3)
+    """
+    invalid_count = scalar(conn, count_sql)
+
+    if invalid_count == 0:
+        return
+
+    detected_rows_sql = """
+    select *
+    from participants
+    where side not in (1, 2, 3)
+    order by war_num, c_code, participant
+    limit 50
+    """
+    result = conn.execute(detected_rows_sql)
+    rows = result.fetchall()
+    columns = [column[0] for column in result.description]
+
+    fail_sql_check(
+        "Final participant side assignments should be in (1, 2, 3):\n"
+        + format_query_results(["table_name", "row_count"], [("participants", invalid_count)]),
+        sql_queries=[
+            ("participants invalid side count", count_sql),
+            ("participants invalid side rows", detected_rows_sql),
+        ],
+        detected_rows=[format_query_results(columns, rows)],
+    )
+
+
 def test_mid_dyads_resolve_all_mid_war_numbers(conn):
     assert (
         scalar(
@@ -727,8 +815,7 @@ def test_dyads_apply_final_transformation_assumptions(conn):
         scalar(
             conn,
             """
-            select count(*)
-            from (
+            with duplicate_dyads as (
                 select
                     war_num,
                     c_code_a,
@@ -739,6 +826,9 @@ def test_dyads_apply_final_transformation_assumptions(conn):
                 group by 1, 2, 3, 4, 5
                 having count(*) > 1
             )
+
+            select count(*)
+            from duplicate_dyads
             """,
         )
         == 0
