@@ -181,18 +181,6 @@ from dyads_after_mid
 union distinct
 select
     war_num,
-    c_code_b c_code_a,
-    c_code_a c_code_b,
-    participant_b participant_a,
-    participant_a participant_b,
-    start_date,
-    end_date,
-    start_date_estimated,
-    end_date_estimated
-from dyads_after_mid
-union distinct
-select
-    war_num,
     c_code_a,
     c_code_b,
     participant_a,
@@ -205,63 +193,31 @@ from inferred_dyads
 union distinct
 select
     war_num,
-    c_code_b c_code_a,
-    c_code_a c_code_b,
-    participant_b participant_a,
-    participant_a participant_b,
-    start_date,
-    end_date,
-    start_date_estimated,
-    end_date_estimated
-from inferred_dyads
-union distinct
-select
-    war_num,
     c_code_a,
     c_code_b,
     participant_a,
     participant_b,
-    start_date,
-    end_date,
-    start_date_estimated,
-    end_date_estimated
-from group_dyads
-union distinct
-select
-    war_num,
-    c_code_b c_code_a,
-    c_code_a c_code_b,
-    participant_b participant_a,
-    participant_a participant_b,
     start_date,
     end_date,
     start_date_estimated,
     end_date_estimated
 from group_dyads),
 
-keyed_dyads as (
-
-select
-    *,
-    c_code_a::varchar || '/' || participant_a side_a_key,
-    c_code_b::varchar || '/' || participant_b side_b_key
-from all_dyads),
-
 canonical_dyads as (
 
 select
     war_num,
-    if(side_a_key <= side_b_key, c_code_a, c_code_b) c_code_a,
-    if(side_a_key <= side_b_key, c_code_b, c_code_a) c_code_b,
-    if(side_a_key <= side_b_key, participant_a, participant_b) participant_a,
-    if(side_a_key <= side_b_key, participant_b, participant_a) participant_b,
+    if(c_code_a::varchar || '/' || participant_a <= c_code_b::varchar || '/' || participant_b, c_code_a, c_code_b) c_code_a,
+    if(c_code_a::varchar || '/' || participant_a <= c_code_b::varchar || '/' || participant_b, c_code_b, c_code_a) c_code_b,
+    if(c_code_a::varchar || '/' || participant_a <= c_code_b::varchar || '/' || participant_b, participant_a, participant_b) participant_a,
+    if(c_code_a::varchar || '/' || participant_a <= c_code_b::varchar || '/' || participant_b, participant_b, participant_a) participant_b,
     start_date,
     end_date,
     start_date_estimated,
     end_date_estimated,
-    least(side_a_key, side_b_key) dyad_key_a,
-    greatest(side_a_key, side_b_key) dyad_key_b
-from keyed_dyads)
+    least(c_code_a::varchar || '/' || participant_a, c_code_b::varchar || '/' || participant_b) dyad_key_a,
+    greatest(c_code_a::varchar || '/' || participant_a, c_code_b::varchar || '/' || participant_b) dyad_key_b
+from all_dyads)
 
 select
     war_num,
@@ -274,7 +230,4 @@ select
     max(start_date_estimated) over (partition by war_num, dyad_key_a, dyad_key_b) start_date_estimated,
     max(end_date_estimated) over (partition by war_num, dyad_key_a, dyad_key_b) end_date_estimated
 from canonical_dyads
-qualify row_number() over (
-    partition by war_num, dyad_key_a, dyad_key_b
-    order by start_date, end_date desc, start_date_estimated desc, end_date_estimated desc
-) = 1;
+qualify row_number() over (partition by war_num, dyad_key_a, dyad_key_b order by start_date, end_date desc, start_date_estimated desc, end_date_estimated desc) = 1;

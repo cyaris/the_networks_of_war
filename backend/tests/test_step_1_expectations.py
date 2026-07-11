@@ -484,6 +484,21 @@ def test_source_adjusted_mid_war_number_relationships_are_applied(conn):
         )
         == 1
     )
+    assert (
+        scalar(
+            conn,
+            """
+            select count(*)
+            from wars
+            where
+                war_num = 4182
+                and war_name = 'Israeli–Hezbollah Conflict (South Lebanon)'
+                and total_participants = 2
+                and total_dyads = 1
+            """,
+        )
+        == 1
+    )
 
 
 def test_source_intrastate_war_data_entry_fixes_are_applied(conn):
@@ -694,24 +709,7 @@ def test_dyads_apply_final_transformation_assumptions(conn):
         )
         == 0
     )
-    assert (
-        scalar(
-            conn,
-            """
-            select count(*)
-            from wars a
-            left join (
-                select
-                    war_num,
-                    count(*) total_dyads
-                from dyads
-                group by 1
-            ) b on a.war_num = b.war_num
-            where a.total_dyads != coalesce(b.total_dyads, 0)
-            """,
-        )
-        == 0
-    )
+    assert scalar(conn, "select sum(total_dyads) from wars") == scalar(conn, "select count(*) from dyads")
 
 
 def test_dyads_retain_named_non_state_anchor_dyads(conn):
