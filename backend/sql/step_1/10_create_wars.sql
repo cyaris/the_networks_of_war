@@ -1,4 +1,4 @@
-create or replace table initial_wars as
+create or replace table wars as
 
 with
 
@@ -12,7 +12,15 @@ select
     max(start_date_estimated) start_date_estimated,
     max(end_date_estimated) end_date_estimated,
     max(ongoing_war) ongoing_war
-from initial_participants
+from participants
+group by 1),
+
+dyad_counts as (
+
+select
+    war_num,
+    (count(*) / 2)::integer total_dyads
+from dyads
 group by 1),
 
 source_transition_rows as (
@@ -39,8 +47,8 @@ source_transitions as (
 
 select
     war_num,
-    coalesce(max(lagging_war), -8) lagging_war,
-    coalesce(max(leading_war), -8) leading_war
+    max(lagging_war) lagging_war,
+    max(leading_war) leading_war
 from source_transition_rows
 group by 1),
 
@@ -63,13 +71,15 @@ select
     b.war_type_name,
     b.war_subtype,
     a.total_participants,
+    coalesce(d.total_dyads, 0) total_dyads,
     a.start_date,
     a.end_date,
     a.start_date_estimated,
     a.end_date_estimated,
     a.ongoing_war,
-    coalesce(c.lagging_war, -8) lagging_war,
-    coalesce(c.leading_war, -8) leading_war
+    c.lagging_war,
+    c.leading_war
 from participant_counts a
 join war_metadata b on a.war_num = b.war_num
-left join source_transitions c on a.war_num = c.war_num;
+left join source_transitions c on a.war_num = c.war_num
+left join dyad_counts d on a.war_num = d.war_num;

@@ -1,4 +1,4 @@
-create or replace table initial_dyads as
+create or replace table dyads as
 
 with
 
@@ -12,7 +12,7 @@ select
     count(distinct participant) filter (where side = 2 and c_code = -8) side_2_non_state,
     count(distinct c_code) filter (where side = 1 and c_code > 0) side_1_state,
     count(distinct c_code) filter (where side = 2 and c_code > 0) side_2_state
-from initial_participants
+from participants
 group by 1),
 
 anchors as (
@@ -27,7 +27,7 @@ select
     a.start_date_estimated,
     a.end_date_estimated,
     a.ongoing_war
-from initial_participants a
+from participants a
 join war_side_counts b on a.war_num = b.war_num
                        and b.side_1_total = 1
 where a.side = 1
@@ -42,7 +42,7 @@ select
     a.start_date_estimated,
     a.end_date_estimated,
     a.ongoing_war
-from initial_participants a
+from participants a
 join war_side_counts b on a.war_num = b.war_num
                        and b.side_2_total = 1
 where a.side = 2
@@ -57,7 +57,7 @@ select
     a.start_date_estimated,
     a.end_date_estimated,
     a.ongoing_war
-from initial_participants a
+from participants a
 join war_side_counts b on a.war_num = b.war_num
                        and b.side_1_non_state = 1
 where
@@ -74,7 +74,7 @@ select
     a.start_date_estimated,
     a.end_date_estimated,
     a.ongoing_war
-from initial_participants a
+from participants a
 join war_side_counts b on a.war_num = b.war_num
                        and b.side_2_non_state = 1
 where
@@ -91,7 +91,7 @@ select
     a.start_date_estimated,
     a.end_date_estimated,
     a.ongoing_war
-from initial_participants a
+from participants a
 join war_side_counts b on a.war_num = b.war_num
                        and b.side_1_state = 1
 where
@@ -108,7 +108,7 @@ select
     a.start_date_estimated,
     a.end_date_estimated,
     a.ongoing_war
-from initial_participants a
+from participants a
 join war_side_counts b on a.war_num = b.war_num
                        and b.side_2_state = 1
 where
@@ -128,7 +128,7 @@ select
     greatest(if(a.start_date >= b.start_date, coalesce(a.start_date_estimated, 0), 0), if(b.start_date >= a.start_date, coalesce(b.start_date_estimated, 0), 0)) start_date_estimated,
     greatest(if(a.end_date <= b.end_date, coalesce(a.end_date_estimated, 0), 0), if(b.end_date <= a.end_date, coalesce(b.end_date_estimated, 0), 0)) end_date_estimated,
     greatest(if(a.end_date <= b.end_date, coalesce(a.ongoing_war, 0), 0), if(b.end_date <= a.end_date, coalesce(b.ongoing_war, 0), 0)) ongoing_war
-from initial_participants a
+from participants a
 join anchors b on a.war_num = b.war_num
                and a.side != b.side
                and least(a.end_date, b.end_date) > greatest(a.start_date, b.start_date)
@@ -148,7 +148,7 @@ select
     greatest(if(a.end_date <= b.end_date, coalesce(a.end_date_estimated, 0), 0), if(b.end_date <= a.end_date, coalesce(b.end_date_estimated, 0), 0)) end_date_estimated,
     greatest(if(a.end_date <= b.end_date, coalesce(a.ongoing_war, 0), 0), if(b.end_date <= a.end_date, coalesce(b.ongoing_war, 0), 0)) ongoing_war
 from war_dyads a
-join initial_participants b on a.war_num = b.war_num
+join participants b on a.war_num = b.war_num
                             and a.side_a = b.side
                             and b.c_code <> -8
                             and least(a.end_date, b.end_date) > greatest(a.start_date, b.start_date)
@@ -167,7 +167,7 @@ select
     greatest(if(a.end_date <= b.end_date, coalesce(a.end_date_estimated, 0), 0), if(b.end_date <= a.end_date, coalesce(b.end_date_estimated, 0), 0)) end_date_estimated,
     greatest(if(a.end_date <= b.end_date, coalesce(a.ongoing_war, 0), 0), if(b.end_date <= a.end_date, coalesce(b.ongoing_war, 0), 0)) ongoing_war
 from war_dyads a
-join initial_participants b on a.war_num = b.war_num
+join participants b on a.war_num = b.war_num
                             and a.side_b = b.side
                             and b.c_code <> -8
                             and least(a.end_date, b.end_date) > greatest(a.start_date, b.start_date)

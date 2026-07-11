@@ -1,4 +1,4 @@
-create or replace table initial_participants as
+create or replace table participants as
 
 with
 

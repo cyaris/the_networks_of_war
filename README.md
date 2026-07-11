@@ -50,14 +50,14 @@ python src/pipeline.py --step 1 --inspect
 Query the existing DuckDB database without rebuilding it:
 
 ```bash
-python src/pipeline.py --step none --query "select count(*) as row_count from initial_dyads"
-python src/pipeline.py --step none --query "select * from initial_wars limit 10"
+python src/pipeline.py --step none --query "select count(*) as row_count from dyads"
+python src/pipeline.py --step none --query "select * from wars limit 10"
 ```
 
 Run Step 1, then query the freshly rebuilt tables:
 
 ```bash
-python src/pipeline.py --step 1 --query "select war_num, war_name from initial_wars limit 10"
+python src/pipeline.py --step 1 --query "select war_num, war_name from wars limit 10"
 ```
 
 Use non-default input or database paths:
@@ -85,7 +85,7 @@ Run a single test or matching group of tests:
 
 ```bash
 pytest tests/test_step_1_expectations.py -k "negative_date_sentinels"
-pytest tests/test_step_1_expectations.py -k "date_macros or initial_dyads"
+pytest tests/test_step_1_expectations.py -k "date_macros or dyads"
 ```
 
 Show verbose test names and failures:
@@ -123,10 +123,10 @@ Step 1 also materializes transformed tables:
 
 Step 1 also materializes compatibility tables:
 
-- `initial_dyads`
-- `initial_dyad_years`
-- `initial_participants`
-- `initial_wars`
+- `dyads`
+- `dyad_years`
+- `participants`
+- `wars`
 
 ## Ingestion Assumptions
 
@@ -221,7 +221,7 @@ Step 1 also materializes compatibility tables:
 
 ### Participant Inference
 
-- Participants found in dyadic data but missing from `war_participants` are added to `initial_participants` from the
+- Participants found in dyadic data but missing from `war_participants` are added to `participants` from the
   dyadic side A records.
 - Missing participant sides are inferred from the opposite participant in dyadic data when that inference is unambiguous.
 - Inferred dyads are created by choosing anchor participants for each war. An anchor is a participant that is treated as
@@ -229,7 +229,7 @@ Step 1 also materializes compatibility tables:
 - Anchor selection is independent by side and participant type. A participant is selected as an anchor when its side has
   exactly one total participant, exactly one named non-state participant, or exactly one state participant. More than one
   anchor can be selected for the same war, including anchors on both sides.
-- Named non-state participants with COW code `-8` are retained in `initial_dyads`. Unnamed or literal aggregate
+- Named non-state participants with COW code `-8` are retained in `dyads`. Unnamed or literal aggregate
   placeholders are excluded.
 
 For example, in the Third Somalia War (`war_num = 940.8`), the source intra-state participant file lists six side 1
@@ -263,9 +263,9 @@ flowchart LR
 
 - Source dyads with COW code `-8` on one side are expanded against every actual participant on that side. For example,
   if `c_code_a = -8`, side B is treated as having fought each source participant on side A for that conflict.
-- Unnamed aggregate dyads are excluded from `initial_dyads` after those rows are used for named-participant expansion.
+- Unnamed aggregate dyads are excluded from `dyads` after those rows are used for named-participant expansion.
 - Inferred dyads are only created where the anchor and opposing participant date ranges overlap.
-- `initial_dyad_years` expands `initial_dyads` into one row per year for years in the range `1500` through `2099`.
+- `dyad_years` expands `dyads` into one row per year for years in the range `1500` through `2099`.
 
 ## Data-Entry Fixes And Assignment Rules
 

@@ -229,7 +229,7 @@ def test_calculated_and_transient_source_columns_are_not_materialized(conn):
         "end_year_1",
         "source_file",
     }
-    for table_name in ["war_participants", "dyads_after_mid", "initial_participants", "initial_dyads"]:
+    for table_name in ["war_participants", "dyads_after_mid", "participants", "dyads"]:
         assert transient_columns.isdisjoint(column_names(conn, table_name))
 
 
@@ -534,7 +534,7 @@ def test_dyad_battle_death_estimate_flags_are_binary(conn):
 
 
 def test_participant_battle_death_estimate_flags_are_binary(conn):
-    for table_name in ["war_participants", "initial_participants"]:
+    for table_name in ["war_participants", "participants"]:
         assert (
             scalar(
                 conn,
@@ -550,10 +550,10 @@ def test_participant_battle_death_estimate_flags_are_binary(conn):
         )
 
 
-def test_initial_participants_have_side_assignments(conn):
+def test_participants_have_side_assignments(conn):
     result = conn.execute("""
         select *
-        from initial_participants
+        from participants
         where side is null
         order by war_num, c_code, participant
         """)
@@ -595,13 +595,13 @@ def test_mid_dyads_resolve_all_mid_war_numbers(conn):
     }
 
 
-def test_initial_dyads_apply_final_transformation_assumptions(conn):
+def test_dyads_apply_final_transformation_assumptions(conn):
     assert (
         scalar(
             conn,
             """
             select count(*)
-            from initial_dyads
+            from dyads
             where
                 participant_a is null
                 or participant_b is null
@@ -616,7 +616,7 @@ def test_initial_dyads_apply_final_transformation_assumptions(conn):
             conn,
             """
             select count(*)
-            from initial_dyad_years
+            from dyad_years
             where
                 year < extract(year from start_date)::integer
                 or year > extract(year from end_date)::integer
@@ -629,7 +629,7 @@ def test_initial_dyads_apply_final_transformation_assumptions(conn):
             conn,
             """
             select count(*)
-            from initial_dyads
+            from dyads
             where
                 c_code_a = c_code_b
                 and participant_a = participant_b
@@ -639,12 +639,12 @@ def test_initial_dyads_apply_final_transformation_assumptions(conn):
     )
 
 
-def test_initial_dyads_retain_named_non_state_anchor_dyads(conn):
+def test_dyads_retain_named_non_state_anchor_dyads(conn):
     actual_dyads = set(conn.execute("""
         select
             participant_a,
             participant_b
-        from initial_dyads
+        from dyads
         where
             war_num = 940.8
             and participant_a in ('ICU', 'Eritrea')
