@@ -56,6 +56,23 @@ def column_names(conn, table_name: str) -> set[str]:
     }
 
 
+def non_date_column_csv(conn, table_name: str) -> str:
+    return ", ".join(
+        column_name
+        for (column_name,) in conn.execute(
+            """
+            select column_name
+            from information_schema.columns
+            where
+                table_name = ?
+                and not regexp_matches(column_name, '^(start|end)_(day|month|year)_[0-9]+$')
+            order by ordinal_position
+            """,
+            [table_name],
+        ).fetchall()
+    )
+
+
 def test_negative_date_sentinels_are_cleaned_except_ongoing_end_year(conn):
     date_columns = conn.execute("""
         select
@@ -391,11 +408,12 @@ def test_source_battle_death_fields_are_not_null(conn):
             continue
 
         unexpected.append((table_name, column_name, null_count))
+        output_columns = non_date_column_csv(conn, table_name)
         result = conn.execute(f"""
             select
                 '{table_name}' table_name,
                 '{column_name}' column_name,
-                *
+                {output_columns}
             from {table_name}
             where {column_name} is null
             order by all
