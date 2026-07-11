@@ -13,7 +13,6 @@ select
     end_date,
     start_date_estimated,
     end_date_estimated,
-    ongoing_war,
     battle_deaths,
     battle_deaths_estimated
 from war_participants
@@ -27,7 +26,6 @@ select
     min(a.end_date) end_date,
     max(a.start_date_estimated) start_date_estimated,
     max(a.end_date_estimated) end_date_estimated,
-    max(a.ongoing_war) ongoing_war,
     sum(a.battle_deaths_a) battle_deaths,
     max(a.battle_deaths_estimated_a) battle_deaths_estimated
 from dyads_after_mid a
@@ -61,7 +59,6 @@ select
     a.end_date,
     a.start_date_estimated,
     a.end_date_estimated,
-    a.ongoing_war,
     a.battle_deaths,
     a.battle_deaths_estimated
 from participant_union a

@@ -17,7 +17,6 @@ select
     greatest(cow_end_date(a.end_year_1, a.end_month_1, a.end_day_1), cow_end_date(a.end_year_2, a.end_month_2, a.end_day_2)) end_date,
     greatest(date_estimated(a.start_year_1, a.start_month_1, a.start_day_1), date_estimated(a.start_year_2, a.start_month_2, a.start_day_2)) start_date_estimated,
     greatest(date_estimated(a.end_year_1, a.end_month_1, a.end_day_1), date_estimated(a.end_year_2, a.end_month_2, a.end_day_2)) end_date_estimated,
-    greatest(ongoing_war(a.end_year_1), ongoing_war(a.end_year_2)) ongoing_war,
     a.battle_deaths,
     0 battle_deaths_estimated
 from source_interstate_wars a
@@ -37,7 +36,6 @@ select
     end_date,
     start_date_estimated,
     end_date_estimated,
-    ongoing_war,
     battle_deaths_a battle_deaths,
     0 battle_deaths_estimated
 from war_dyads
@@ -58,7 +56,6 @@ select
     end_date,
     start_date_estimated,
     end_date_estimated,
-    ongoing_war,
     battle_deaths_b battle_deaths,
     0 battle_deaths_estimated
 from war_dyads
@@ -112,7 +109,6 @@ select
     max(a.end_date) end_date,
     max(a.start_date_estimated) start_date_estimated,
     max(a.end_date_estimated) end_date_estimated,
-    max(a.ongoing_war) ongoing_war,
     sum(if(a.battle_deaths >= 0, a.battle_deaths, null)) battle_deaths,
     max(a.battle_deaths_estimated) battle_deaths_estimated
 from cleaned_participant_rows a

@@ -27,7 +27,6 @@ select
     cow_end_date(a.end_year_1, a.end_month_1, a.end_day_1) end_date,
     date_estimated(a.start_year_1, a.start_month_1, a.start_day_1) start_date_estimated,
     date_estimated(a.end_year_1, a.end_month_1, a.end_day_1) end_date_estimated,
-    ongoing_war(a.end_year_1) ongoing_war,
     a.battle_deaths_a,
     a.battle_deaths_b
 from source_interstate_war_dyads a
@@ -52,7 +51,6 @@ select
     greatest(cow_end_date(a.end_year_1, a.end_month_1, a.end_day_1), cow_end_date(a.end_year_2, a.end_month_2, a.end_day_2)) end_date,
     greatest(date_estimated(a.start_year_1, a.start_month_1, a.start_day_1), date_estimated(a.start_year_2, a.start_month_2, a.start_day_2)) start_date_estimated,
     greatest(date_estimated(a.end_year_1, a.end_month_1, a.end_day_1), date_estimated(a.end_year_2, a.end_month_2, a.end_day_2)) end_date_estimated,
-    greatest(ongoing_war(a.end_year_1), ongoing_war(a.end_year_2)) ongoing_war,
     a.battle_deaths_a,
     a.battle_deaths_b
 from source_extrastate_wars a
@@ -76,7 +74,6 @@ select
     greatest(cow_end_date(a.end_year_1, a.end_month_1, a.end_day_1), cow_end_date(a.end_year_2, a.end_month_2, a.end_day_2), cow_end_date(a.end_year_3, a.end_month_3, a.end_day_3), cow_end_date(a.end_year_4, a.end_month_4, a.end_day_4)) end_date,
     greatest(date_estimated(a.start_year_1, a.start_month_1, a.start_day_1), date_estimated(a.start_year_2, a.start_month_2, a.start_day_2), date_estimated(a.start_year_3, a.start_month_3, a.start_day_3), date_estimated(a.start_year_4, a.start_month_4, a.start_day_4)) start_date_estimated,
     greatest(date_estimated(a.end_year_1, a.end_month_1, a.end_day_1), date_estimated(a.end_year_2, a.end_month_2, a.end_day_2), date_estimated(a.end_year_3, a.end_month_3, a.end_day_3), date_estimated(a.end_year_4, a.end_month_4, a.end_day_4)) end_date_estimated,
-    greatest(ongoing_war(a.end_year_1), ongoing_war(a.end_year_2), ongoing_war(a.end_year_3), ongoing_war(a.end_year_4)) ongoing_war,
     a.battle_deaths_a,
     a.battle_deaths_b
 from source_intrastate_wars a
@@ -104,14 +101,13 @@ select
     end_date,
     start_date_estimated,
     end_date_estimated,
-    ongoing_war,
     battle_deaths_a,
     battle_deaths_b
 from war_dyads
 where
     participant_a is not null
     and participant_b is not null
-group by 1, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16
+group by 1, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
 union all
 select
     war_num,
@@ -127,14 +123,13 @@ select
     end_date,
     start_date_estimated,
     end_date_estimated,
-    ongoing_war,
     battle_deaths_b battle_deaths_a,
     battle_deaths_a battle_deaths_b
 from war_dyads
 where
     participant_a is not null
     and participant_b is not null
-group by 1, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)
+group by 1, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)
 
 select
     war_num,
@@ -150,7 +145,6 @@ select
     max(end_date) end_date,
     max(start_date_estimated) start_date_estimated,
     max(end_date_estimated) end_date_estimated,
-    max(ongoing_war) ongoing_war,
     sum(if(battle_deaths_a >= 0, battle_deaths_a, null)) battle_deaths_a,
     sum(if(battle_deaths_b >= 0, battle_deaths_b, null)) battle_deaths_b
 from cleaned_war_dyads a

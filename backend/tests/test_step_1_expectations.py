@@ -249,6 +249,9 @@ def test_calculated_and_transient_source_columns_are_not_materialized(conn):
     }
     for table_name in ["war_participants", "dyads_after_mid", "participants", "dyads"]:
         assert transient_columns.isdisjoint(column_names(conn, table_name))
+    for table_name in ["war_participants", "dyads_after_mid", "participants", "dyads", "dyad_years"]:
+        assert "ongoing_war" not in column_names(conn, table_name)
+    assert "ongoing_war" in column_names(conn, "wars")
 
 
 def test_source_transition_war_references_are_positive_or_null(conn):
@@ -656,17 +659,70 @@ def test_dyads_apply_final_transformation_assumptions(conn):
         )
         == 0
     )
+    assert (
+        scalar(
+            conn,
+            """
+            select count(*)
+            from (
+                select
+                    war_num,
+                    c_code_a,
+                    participant_a,
+                    c_code_b,
+                    participant_b
+                from dyads
+                group by 1, 2, 3, 4, 5
+                having count(*) > 1
+            )
+            """,
+        )
+        == 0
+    )
+    assert (
+        scalar(
+            conn,
+            """
+            select count(*)
+            from dyads a
+            join dyads b on a.war_num = b.war_num
+                         and a.c_code_a = b.c_code_b
+                         and a.participant_a = b.participant_b
+                         and a.c_code_b = b.c_code_a
+                         and a.participant_b = b.participant_a
+            """,
+        )
+        == 0
+    )
+    assert (
+        scalar(
+            conn,
+            """
+            select count(*)
+            from wars a
+            left join (
+                select
+                    war_num,
+                    count(*) total_dyads
+                from dyads
+                group by 1
+            ) b on a.war_num = b.war_num
+            where a.total_dyads != coalesce(b.total_dyads, 0)
+            """,
+        )
+        == 0
+    )
 
 
 def test_dyads_retain_named_non_state_anchor_dyads(conn):
     actual_dyads = set(conn.execute("""
         select
-            participant_a,
-            participant_b
+            least(participant_a, participant_b),
+            greatest(participant_a, participant_b)
         from dyads
         where
             war_num = 940.8
-            and participant_a in ('ICU', 'Eritrea')
+            and (participant_a in ('ICU', 'Eritrea') or participant_b in ('ICU', 'Eritrea'))
         group by 1, 2
         order by 1, 2
         """).fetchall())
@@ -674,5 +730,5 @@ def test_dyads_retain_named_non_state_anchor_dyads(conn):
     expected_side_1_participants = {"United States of America", "Uganda", "Kenya", "Burundi", "Somalia", "Ethiopia"}
 
     assert actual_dyads == {
-        (anchor, participant) for anchor in {"ICU", "Eritrea"} for participant in expected_side_1_participants
+        tuple(sorted((anchor, participant))) for anchor in {"ICU", "Eritrea"} for participant in expected_side_1_participants
     }
