@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from textwrap import dedent
 
 import duckdb
 import pytest
@@ -74,7 +75,22 @@ def non_date_column_csv(conn, table_name: str) -> str:
 
 
 def clean_sql(sql: str) -> str:
-    return "\n".join(line.rstrip() for line in sql.strip().splitlines())
+    lines = [line.rstrip() for line in dedent(sql).strip().splitlines()]
+    cleaned_lines = []
+    previous_blank = False
+
+    for line in lines:
+        is_blank = line == ""
+        if is_blank and previous_blank:
+            continue
+        cleaned_lines.append(line)
+        previous_blank = is_blank
+
+    return "\n".join(cleaned_lines)
+
+
+def indent_sql(sql: str, spaces: int = 16) -> str:
+    return ("\n" + " " * spaces).join(clean_sql(sql).splitlines())
 
 
 def fail_sql_check(title: str, *, sql_queries: list[tuple[str, str]], detected_rows: list[str]) -> None:
@@ -205,8 +221,8 @@ def test_source_resolved_start_dates_do_not_exceed_end_dates(conn):
         output_columns = non_date_column_csv(conn, table_name)
         flagged_rows_sql = f"""
             select
-                {start_date_expression} start_date,
-                {end_date_expression} end_date,
+                {indent_sql(start_date_expression)} start_date,
+                {indent_sql(end_date_expression)} end_date,
                 {output_columns}
             from {table_name}
             where start_date > end_date
@@ -396,16 +412,16 @@ def test_source_interstate_mid_fatality_levels_are_converted_to_estimates(conn):
     )
 
     actual_estimates = {row[0] for row in conn.execute("""
-            select battle_deaths_estimated_a battle_deaths_estimated
-            from source_interstate_mid_dyads
-            where battle_deaths_estimated_a is not null
-            group by 1
-            union
-            select battle_deaths_estimated_b battle_deaths_estimated
-            from source_interstate_mid_dyads
-            where battle_deaths_estimated_b is not null
-            group by 1
-        """).fetchall()}
+    select battle_deaths_estimated_a battle_deaths_estimated
+    from source_interstate_mid_dyads
+    where battle_deaths_estimated_a is not null
+    group by 1
+    union
+    select battle_deaths_estimated_b battle_deaths_estimated
+    from source_interstate_mid_dyads
+    where battle_deaths_estimated_b is not null
+    group by 1
+    """).fetchall()}
 
     assert actual_estimates == {0, 25, 100, 250, 500, 999, 1000}
 
@@ -427,14 +443,11 @@ def test_source_battle_death_fields_are_not_null(conn):
 
     for table_name, column_name in checks:
         count_sql = f"""
-            select count(*)
-            from {table_name}
-            where {column_name} is null
-            """
-        null_count = scalar(
-            conn,
-            count_sql,
-        )
+        select count(*)
+        from {table_name}
+        where {column_name} is null
+        """
+        null_count = scalar(conn, count_sql)
 
         if null_count == 0:
             continue
@@ -442,15 +455,15 @@ def test_source_battle_death_fields_are_not_null(conn):
         unexpected.append((table_name, column_name, null_count))
         output_columns = non_date_column_csv(conn, table_name)
         detected_rows_sql = f"""
-            select
-                '{table_name}' table_name,
-                '{column_name}' column_name,
-                {output_columns}
-            from {table_name}
-            where {column_name} is null
-            order by all
-            limit 50
-            """
+        select
+            '{table_name}' table_name,
+            '{column_name}' column_name,
+            {output_columns}
+        from {table_name}
+        where {column_name} is null
+        order by all
+        limit 50
+        """
         result = conn.execute(detected_rows_sql)
         rows = result.fetchall()
         columns = [column[0] for column in result.description]
@@ -484,14 +497,14 @@ def test_source_adjusted_mid_war_number_relationships_are_applied(conn):
     )
 
     actual_assignments = set(conn.execute("""
-        select
-            disno,
-            war_num
-        from source_interstate_war_dyads
-        where disno in (3582, 3583, 3585, 4182, 4339)
-        group by 1, 2
-        order by 1, 2
-        """).fetchall())
+    select
+        disno,
+        war_num
+    from source_interstate_war_dyads
+    where disno in (3582, 3583, 3585, 4182, 4339)
+    group by 1, 2
+    order by 1, 2
+    """).fetchall())
 
     assert actual_assignments == {
         (3582, 139),
@@ -619,11 +632,11 @@ def test_participant_battle_death_estimate_flags_are_binary(conn):
 
 def test_participants_have_side_assignments(conn):
     detected_rows_sql = """
-        select *
-        from participants
-        where side is null
-        order by war_num, c_code, participant
-        """
+    select *
+    from participants
+    where side is null
+    order by war_num, c_code, participant
+    """
     result = conn.execute(detected_rows_sql)
     rows = result.fetchall()
     columns = [column[0] for column in result.description]
@@ -650,17 +663,17 @@ def test_mid_dyads_resolve_all_mid_war_numbers(conn):
     )
 
     actual_dyads = set(conn.execute("""
-        select
-            war_num,
-            war_name,
-            c_code_a,
-            c_code_b,
-            participant_a,
-            participant_b
-        from dyads_after_mid
-        where war_num = 4182
-        order by 1, 2, 3, 4, 5, 6
-        """).fetchall())
+    select
+        war_num,
+        war_name,
+        c_code_a,
+        c_code_b,
+        participant_a,
+        participant_b
+    from dyads_after_mid
+    where war_num = 4182
+    order by 1, 2, 3, 4, 5, 6
+    """).fetchall())
 
     assert actual_dyads == {
         (4182, "Israeli–Hezbollah Conflict (South Lebanon)", 660, 666, "Lebanon", "Israel"),
@@ -750,19 +763,21 @@ def test_dyads_apply_final_transformation_assumptions(conn):
 
 def test_dyads_retain_named_non_state_anchor_dyads(conn):
     actual_dyads = set(conn.execute("""
-        select
-            least(participant_a, participant_b),
-            greatest(participant_a, participant_b)
-        from dyads
-        where
-            war_num = 940.8
-            and (participant_a in ('ICU', 'Eritrea') or participant_b in ('ICU', 'Eritrea'))
-        group by 1, 2
-        order by 1, 2
-        """).fetchall())
+    select
+        least(participant_a, participant_b),
+        greatest(participant_a, participant_b)
+    from dyads
+    where
+        war_num = 940.8
+        and (participant_a in ('ICU', 'Eritrea') or participant_b in ('ICU', 'Eritrea'))
+    group by 1, 2
+    order by 1, 2
+    """).fetchall())
 
     expected_side_1_participants = {"United States of America", "Uganda", "Kenya", "Burundi", "Somalia", "Ethiopia"}
 
     assert actual_dyads == {
-        tuple(sorted((anchor, participant))) for anchor in {"ICU", "Eritrea"} for participant in expected_side_1_participants
+        tuple(sorted((anchor, participant)))
+        for anchor in {"ICU", "Eritrea"}
+        for participant in expected_side_1_participants
     }
