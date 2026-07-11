@@ -134,9 +134,10 @@ Step 1 also materializes compatibility tables:
 
 - The primary source tables listed above come directly from one CSV file, with only type coercion, column renaming,
   encoding normalization, and explicit source adjustments applied during load.
-- Version-scoped source adjustments live in `backend/sql/step_1/02a_apply_source_adjustments.sql`. The file creates
-  `source_file_versions` and adjustment tables, then inserts missing source facts only when the expected CSV version is
-  active and the source table does not already contain the fact.
+- Version-scoped source adjustments live in `backend/sql/step_1/02a_apply_source_adjustments.sql` and
+  `backend/sql/step_1/02b_insert_source_adjustments.sql`. The first file creates `source_file_versions` and adjustment
+  tables; the second inserts missing source facts only when the expected CSV version is active and the source table does
+  not already contain the fact.
 
 ### Excluded Calculated Columns
 
@@ -211,10 +212,10 @@ Step 1 also materializes compatibility tables:
 - Existing battle-death values take precedence over MID fatality estimates for remaining merged rows. MID estimates are
   used when summed source battle deaths are null or zero and summed estimates are positive.
 - MID dyads are assigned to known wars by `disno` from `source_interstate_war_dyads`.
-- Missing MID `disno` to `war_num` relationships are added to `source_interstate_war_dyads` by
-  `02a_apply_source_adjustments.sql` when the current CSV version still needs them. If a future CSV version introduces
-  a new unmatched MID war, `test_mid_dyads_resolve_all_mid_war_numbers` should fail until the source adjustment file is
-  updated or the new source data is accepted as authoritative.
+- Missing MID `disno` to `war_num` relationships are added to `source_interstate_war_dyads` by the Step 1 source
+  adjustment files when the current CSV version still needs them. If a future CSV version introduces a new unmatched
+  MID war, `test_mid_dyads_resolve_all_mid_war_numbers` should fail until the source adjustment file is updated or the
+  new source data is accepted as authoritative.
 - Synthetic war metadata, such as the Lebanon-Israel MID conflict (`disno = 4182`) named
   `Israeli–Hezbollah Conflict (South Lebanon)`, is added to `source_interstate_wars` by the same adjustment step when
   the source table does not already contain it.
