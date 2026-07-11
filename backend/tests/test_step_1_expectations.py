@@ -183,11 +183,12 @@ def test_source_resolved_start_dates_do_not_exceed_end_dates(conn):
     flagged_row_outputs = []
 
     for table_name, start_date_expression, end_date_expression in checks:
+        output_columns = non_date_column_csv(conn, table_name)
         flagged_rows_sql = f"""
             select
                 {start_date_expression} start_date,
                 {end_date_expression} end_date,
-                *
+                {output_columns}
             from {table_name}
             where start_date > end_date
             """
