@@ -27,7 +27,6 @@ from source_interstate_mid_war_num_adjustments a
 join source_file_versions b on a.source_key = b.source_key
                             and a.source_version = b.source_version
 left join source_interstate_war_dyads c on a.disno = c.disno
-                                        and c.war_num is not null
 where c.disno is null;
 
 insert into source_interstate_war_metadata_adjustments
