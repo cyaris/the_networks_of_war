@@ -73,6 +73,24 @@ def non_date_column_csv(conn, table_name: str) -> str:
     )
 
 
+def clean_sql(sql: str) -> str:
+    return "\n".join(line.rstrip() for line in sql.strip().splitlines())
+
+
+def fail_sql_check(title: str, *, sql_queries: list[tuple[str, str]], detected_rows: list[str]) -> None:
+    sections = [f"\n{title}"]
+
+    if sql_queries:
+        sections.append("\nSQL queries:")
+        sections.extend(f"\n{label}:\n{clean_sql(sql)}" for label, sql in sql_queries)
+
+    if detected_rows:
+        sections.append("\nDetected rows:")
+        sections.append("\n\n".join(detected_rows))
+
+    pytest.fail("\n".join(sections), pytrace=False)
+
+
 def test_negative_date_sentinels_are_cleaned_except_ongoing_end_year(conn):
     date_columns = conn.execute("""
         select
@@ -181,6 +199,7 @@ def test_source_resolved_start_dates_do_not_exceed_end_dates(conn):
 
     unexpected = []
     flagged_row_outputs = []
+    sql_queries = []
 
     for table_name, start_date_expression, end_date_expression in checks:
         output_columns = non_date_column_csv(conn, table_name)
@@ -192,38 +211,41 @@ def test_source_resolved_start_dates_do_not_exceed_end_dates(conn):
             from {table_name}
             where start_date > end_date
             """
-        flagged_count = scalar(
-            conn,
-            f"""
+        count_sql = f"""
             select count(*)
             from ({flagged_rows_sql})
-            """,
+            """
+        flagged_count = scalar(
+            conn,
+            count_sql,
         )
 
         if flagged_count == 0:
             continue
 
         unexpected.append((table_name, flagged_count))
-        result = conn.execute(f"""
+        detected_rows_sql = f"""
             select
                 '{table_name}' table_name,
                 *
             from ({flagged_rows_sql})
             order by all
             limit 50
-            """)
+            """
+        result = conn.execute(detected_rows_sql)
         rows = result.fetchall()
         columns = [column[0] for column in result.description]
+        sql_queries.append((f"{table_name} count", count_sql))
+        sql_queries.append((f"{table_name} detected rows", detected_rows_sql))
         flagged_row_outputs.append(format_query_results(columns, rows))
 
-    assert unexpected == [], "\n".join(
-        [
-            "\nSource rows where resolved start_date exceeds end_date:",
-            format_query_results(["table_name", "row_count"], unexpected),
-            "\nFlagged rows:",
-            "\n\n".join(flagged_row_outputs),
-        ]
-    )
+    if unexpected:
+        fail_sql_check(
+            "Source rows where resolved start_date exceeds end_date:\n"
+            + format_query_results(["table_name", "row_count"], unexpected),
+            sql_queries=sql_queries,
+            detected_rows=flagged_row_outputs,
+        )
 
 
 def test_calculated_and_transient_source_columns_are_not_materialized(conn):
@@ -263,24 +285,26 @@ def test_source_transition_war_references_are_positive_or_null(conn):
 
     unexpected = []
     flagged_row_outputs = []
+    sql_queries = []
 
     for table_name in checks:
-        flagged_count = scalar(
-            conn,
-            f"""
+        count_sql = f"""
             select count(*)
             from {table_name}
             where
                 lagging_war < 0
                 or leading_war < 0
-            """,
+            """
+        flagged_count = scalar(
+            conn,
+            count_sql,
         )
 
         if flagged_count == 0:
             continue
 
         unexpected.append((table_name, flagged_count))
-        result = conn.execute(f"""
+        detected_rows_sql = f"""
             select
                 '{table_name}' table_name,
                 *
@@ -290,19 +314,21 @@ def test_source_transition_war_references_are_positive_or_null(conn):
                 or leading_war < 0
             order by all
             limit 50
-            """)
+            """
+        result = conn.execute(detected_rows_sql)
         rows = result.fetchall()
         columns = [column[0] for column in result.description]
+        sql_queries.append((f"{table_name} count", count_sql))
+        sql_queries.append((f"{table_name} detected rows", detected_rows_sql))
         flagged_row_outputs.append(format_query_results(columns, rows))
 
-    assert unexpected == [], "\n".join(
-        [
-            "\nSource transition war references should be positive war numbers or null:",
-            format_query_results(["table_name", "row_count"], unexpected),
-            "\nFlagged rows:",
-            "\n\n".join(flagged_row_outputs),
-        ]
-    )
+    if unexpected:
+        fail_sql_check(
+            "Source transition war references should be positive war numbers or null:\n"
+            + format_query_results(["table_name", "row_count"], unexpected),
+            sql_queries=sql_queries,
+            detected_rows=flagged_row_outputs,
+        )
 
 
 def test_source_interstate_war_dyad_data_entry_fixes_are_applied(conn):
@@ -397,15 +423,17 @@ def test_source_battle_death_fields_are_not_null(conn):
 
     unexpected = []
     flagged_row_outputs = []
+    sql_queries = []
 
     for table_name, column_name in checks:
-        null_count = scalar(
-            conn,
-            f"""
+        count_sql = f"""
             select count(*)
             from {table_name}
             where {column_name} is null
-            """,
+            """
+        null_count = scalar(
+            conn,
+            count_sql,
         )
 
         if null_count == 0:
@@ -413,7 +441,7 @@ def test_source_battle_death_fields_are_not_null(conn):
 
         unexpected.append((table_name, column_name, null_count))
         output_columns = non_date_column_csv(conn, table_name)
-        result = conn.execute(f"""
+        detected_rows_sql = f"""
             select
                 '{table_name}' table_name,
                 '{column_name}' column_name,
@@ -422,19 +450,21 @@ def test_source_battle_death_fields_are_not_null(conn):
             where {column_name} is null
             order by all
             limit 50
-            """)
+            """
+        result = conn.execute(detected_rows_sql)
         rows = result.fetchall()
         columns = [column[0] for column in result.description]
+        sql_queries.append((f"{table_name}.{column_name} count", count_sql))
+        sql_queries.append((f"{table_name}.{column_name} detected rows", detected_rows_sql))
         flagged_row_outputs.append(format_query_results(columns, rows))
 
-    assert unexpected == [], "\n".join(
-        [
-            "\nNull battle-death source fields:",
-            format_query_results(["table_name", "column_name", "null_count"], unexpected),
-            "\nFlagged rows:",
-            "\n\n".join(flagged_row_outputs),
-        ]
-    )
+    if unexpected:
+        fail_sql_check(
+            "Null battle-death source fields:\n"
+            + format_query_results(["table_name", "column_name", "null_count"], unexpected),
+            sql_queries=sql_queries,
+            detected_rows=flagged_row_outputs,
+        )
 
 
 def test_source_adjusted_mid_war_number_relationships_are_applied(conn):

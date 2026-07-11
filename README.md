@@ -260,12 +260,14 @@ flowchart LR
     usa --- eritrea
 ```
 
-### Initial Dyads
+### Dyads
 
 - Source dyads with COW code `-8` on one side are expanded against every actual participant on that side. For example,
   if `c_code_a = -8`, side B is treated as having fought each source participant on side A for that conflict.
 - Unnamed aggregate dyads are excluded from `dyads` after those rows are used for named-participant expansion.
 - Inferred dyads are only created where the anchor and opposing participant date ranges overlap.
+- Final dyads are deduplicated to one row per `war_num` and unordered participant pair. When duplicate spans exist, the
+  final row keeps the earliest start date and latest end date from the unordered dyad pair.
 - `dyad_years` expands `dyads` into one row per year for years in the range `1500` through `2099`.
 
 ## Data-Entry Fixes And Assignment Rules
