@@ -180,13 +180,8 @@ class Pipeline:
             self.execute_sql(conn, name)
 
     def inspect(self, conn: duckdb.DuckDBPyConnection) -> None:
-        logger.info(
-            "\n%s",
-            "\n".join(
-                f"{table_name}: {row_count:,d}"
-                for table_name, row_count in conn.execute(INSPECT_SQL.read_text()).fetchall()
-            ),
-        )
+        for table_name, row_count in conn.execute(INSPECT_SQL.read_text()).fetchall():
+            logger.info(f"{table_name}: {row_count:,d}")
 
     def query(self, conn: duckdb.DuckDBPyConnection, sql: str) -> None:
         result = conn.execute(sql)
