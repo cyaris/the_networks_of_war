@@ -21,11 +21,7 @@ DEFAULT_DB_PATH = BACKEND_ROOT / "the_networks_of_war.duckdb"
 INSPECT_SQL = SQL_ROOT / "inspect_tables.sql"
 
 SOURCE_METADATA = {
-    "country_codes": {
-        "file": "COW country codes.csv",
-        "version": "COW country codes",
-        "documentation": "Entities.pdf",
-    },
+    "country_codes": {"file": "COW country codes.csv", "version": "COW country codes", "documentation": "Entities.pdf"},
     "extrastate_wars": {
         "file": "Extra-StateWarData_v4.0.csv",
         "version": "4.0",
@@ -51,18 +47,12 @@ SOURCE_METADATA = {
         "version": "5.1",
         "documentation": "Codebook for Intra-state v5.1 2.9.20.pdf; Description of Intra-state v5.1.pdf",
     },
-    "war_types": {
-        "file": "../war_types.csv",
-        "version": "local",
-        "documentation": "local helper file",
-    },
+    "war_types": {"file": "../war_types.csv", "version": "local", "documentation": "local helper file"},
 }
 
 SOURCE_FILES = {key: metadata["file"] for key, metadata in SOURCE_METADATA.items()}
 
-SOURCE_ENCODINGS = {
-    "extrastate_wars": "cp1252",
-}
+SOURCE_ENCODINGS = {"extrastate_wars": "cp1252"}
 
 STEP_1_SQL = [
     "step_1/00_setup.sql",
@@ -115,11 +105,7 @@ def sql_identifier(value: str) -> str:
 
 
 class Pipeline:
-    def __init__(
-        self,
-        db_path: Path = DEFAULT_DB_PATH,
-        csv_dir: Path = DEFAULT_CSV_DIR,
-    ) -> None:
+    def __init__(self, db_path: Path = DEFAULT_DB_PATH, csv_dir: Path = DEFAULT_CSV_DIR) -> None:
         self.csv_dir = csv_dir
         self.db_path = db_path
 
@@ -168,15 +154,14 @@ class Pipeline:
         conn.execute(render_sql(name, self.sql_context()))
 
     def drop_relation_if_exists(self, conn: duckdb.DuckDBPyConnection, relation_name: str) -> None:
-        row = conn.execute(
-            """
-            select table_type
-            from information_schema.tables
-            where table_schema = current_schema()
-              and table_name = ?
-            """,
-            [relation_name],
-        ).fetchone()
+        query = """
+        select table_type
+        from information_schema.tables
+        where
+            table_schema = current_schema()
+            and table_name = ?
+        """
+        row = conn.execute(query, [relation_name]).fetchone()
 
         if row is None:
 
@@ -243,10 +228,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
 
-    Pipeline(
-        csv_dir=args.csv_dir,
-        db_path=args.db_path,
-    ).run(args.step, args.inspect, args.query)
+    Pipeline(csv_dir=args.csv_dir, db_path=args.db_path).run(args.step, args.inspect, args.query)
 
 
 if __name__ == "__main__":
