@@ -195,6 +195,12 @@ Step 1 also materializes compatibility tables:
 - Extra-state and intra-state war dyads are treated as side A versus side B rows, with side A assigned side `1` and
   side B assigned side `2`.
 - Extra-state and intra-state participant rows are derived from both sides of the corresponding dyad rows.
+- Directed dyadic interstate source rows do not materialize `side_a` or `side_b`; row position is already represented
+  by `c_code_a` and `c_code_b`. The original directed dyadic role fields are retained as `role_a`, `role_b`,
+  `dyad_role_a`, and `dyad_role_b`.
+- In the transformed `war_dyads` view, interstate `side_a` and `side_b` are resolved back to substantive participant
+  sides from `source_interstate_wars`; extra-state and intra-state dyads keep their source side A versus side B
+  convention.
 
 ### Date Spans
 
@@ -225,6 +231,9 @@ Step 1 also materializes compatibility tables:
 - Participants found in dyadic data but missing from `war_participants` are added to `participants` from the
   dyadic side A records.
 - Missing participant sides are inferred from the opposite participant in dyadic data when that inference is unambiguous.
+- Interstate war participant sides are taken from `source_interstate_wars`, either directly in `war_participants` or
+  through semantic side values on `war_dyads`, because the directed dyadic source can include reciprocal rows where the
+  same state appears as both `c_code_a` and `c_code_b` for the same war or dispute.
 - Inferred dyads are created by choosing anchor participants for each war. An anchor is a participant that is treated as
   a known adversary for all overlapping participants on the opposite side when source dyadic records are incomplete.
 - Anchor selection is independent by side and participant type. A participant is selected as an anchor when its side has
