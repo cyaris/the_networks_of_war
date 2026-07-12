@@ -48,35 +48,24 @@ def scalar(conn, sql: str):
 
 
 def column_names(conn, table_name: str) -> set[str]:
-    return {
-        column_name
-        for (column_name,) in conn.execute(
-            """
-            select column_name
-            from information_schema.columns
-            where table_name = ?
-            """,
-            [table_name],
-        ).fetchall()
-    }
+    query = """
+    select column_name
+    from information_schema.columns
+    where table_name = ?
+    """
+    return {column_name for (column_name,) in conn.execute(query, [table_name]).fetchall()}
 
 
 def non_date_column_csv(conn, table_name: str) -> str:
-
-    return ", ".join(
-        column_name
-        for (column_name,) in conn.execute(
-            """
-            select column_name
-            from information_schema.columns
-            where
-                table_name = ?
-                and not regexp_matches(column_name, '^(start|end)_(day|month|year)_[0-9]+$')
-            order by ordinal_position
-            """,
-            [table_name],
-        ).fetchall()
-    )
+    query = """
+    select column_name
+    from information_schema.columns
+    where
+        table_name = ?
+        and not regexp_matches(column_name, '^(start|end)_(day|month|year)_[0-9]+$')
+    order by ordinal_position
+    """
+    return ", ".join(column_name for (column_name,) in conn.execute(query, [table_name]).fetchall())
 
 
 def clean_sql(sql: str) -> str:
@@ -165,16 +154,17 @@ def test_fail_sql_check_groups_each_failure_by_query_summary_and_detected_rows()
 
 
 def test_negative_date_sentinels_are_cleaned_except_ongoing_end_year(conn):
-    date_columns = conn.execute("""
-        select
-            table_name,
-            column_name
-        from information_schema.columns
-        where
-            table_name like 'source_%'
-            and regexp_matches(column_name, '^(start|end)_(day|month|year)_[0-9]+$')
-        order by table_name, column_name
-        """).fetchall()
+    query = """
+    select
+        table_name,
+        column_name
+    from information_schema.columns
+    where
+        table_name like 'source_%'
+        and regexp_matches(column_name, '^(start|end)_(day|month|year)_[0-9]+$')
+    order by table_name, column_name
+    """
+    date_columns = conn.execute(query).fetchall()
 
     checks = [f"""
         select
