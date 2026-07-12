@@ -150,9 +150,9 @@ Step 1 also materializes compatibility tables:
 
 ### Date Values
 
-- Blank strings are loaded as null. Text values `-7`, `-8`, and `-9` are also treated as null because the COW codebooks
+- Blank strings are loaded as `null`. Text values `-7`, `-8`, and `-9` are also treated as `null` because the COW codebooks
   use negative values for ongoing, not applicable, or unknown values.
-- Negative day, month, and start-year date fields are loaded as null. Negative end-year values are loaded as null except
+- Negative day, month, and start-year date fields are loaded as `null`. Negative end-year values are loaded as `null` except
   for `-7`, which the COW codebooks document as the ongoing-war marker.
 - Missing, invalid, unknown, or not-applicable start months are interpreted as January, and start days are interpreted
   as day `1` of the resolved month.
@@ -216,7 +216,7 @@ Step 1 also materializes compatibility tables:
 - Only dyadic MID records with `war = 1` are incorporated.
 - MID dyads are not incorporated when the same directed dyad in the same war overlaps an existing source war-dyad row.
 - Existing battle-death values take precedence over MID fatality estimates for remaining merged rows. MID estimates are
-  used when summed source battle deaths are null or zero and summed estimates are positive.
+  used when summed source battle deaths are `null` or zero and summed estimates are positive.
 - MID dyads are assigned to known wars by `disno` from `source_interstate_war_dyads`.
 - Missing MID `disno` to `war_num` relationships are added to `source_interstate_war_dyads` by the Step 1 source
   adjustment files when the current CSV version still needs them. If a future CSV version introduces a new unmatched
@@ -305,4 +305,4 @@ flowchart LR
   - War `976` has `StartYr1` corrected from original value `2001` to `2011`.
   - Wars `942`, `990.4`, `991`, `991.4`, and `992.5` are treated as ongoing by setting `EndYr1` to `-7`; the original
     source values include `-7`, `-8`, and `-9`, but only `-7` is treated as an ongoing end-year marker. Other negative
-    end-year values are loaded as null because the codebooks use them for not applicable or unknown values.
+    end-year values are loaded as `null` because the codebooks use them for not applicable or unknown values.
