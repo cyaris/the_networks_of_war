@@ -45,9 +45,9 @@ left join war_types c on b.war_type = c.war_type
 left join country_codes d on a.c_code_a = d.c_code
 left join country_codes e on a.c_code_b = e.c_code
 left join interstate_participant_sides f on a.war_num = f.war_num
-                                        and a.c_code_a = f.c_code
+                                         and a.c_code_a = f.c_code
 left join interstate_participant_sides g on a.war_num = g.war_num
-                                        and a.c_code_b = g.c_code
+                                         and a.c_code_b = g.c_code
 union all
 select
     a.war_num,
