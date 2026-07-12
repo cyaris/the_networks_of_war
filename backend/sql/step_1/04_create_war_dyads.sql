@@ -9,7 +9,20 @@ select
     any_value(war_name) war_name,
     any_value(war_type) war_type
 from source_interstate_wars
-group by 1)
+group by 1),
+
+interstate_participant_sides as (
+
+select
+    war_num,
+    c_code,
+    case
+        when min(side) = 1 and max(side) = 2 then 3
+        else max(side)
+    end side
+from source_interstate_wars
+where c_code is not null
+group by 1, 2)
 
 select
     a.war_num,
@@ -21,8 +34,8 @@ select
     a.c_code_b,
     d.state_name participant_a,
     e.state_name participant_b,
-    a.side_a,
-    a.side_b,
+    f.side side_a,
+    g.side side_b,
     cow_date(a.start_year_1, a.start_month_1, a.start_day_1, 1, 1) start_date,
     cow_end_date(a.end_year_1, a.end_month_1, a.end_day_1) end_date,
     date_estimated(a.start_year_1, a.start_month_1, a.start_day_1) start_date_estimated,
@@ -34,6 +47,10 @@ left join interstate_wars b on a.war_num = b.war_num
 left join war_types c on b.war_type = c.war_type
 left join country_codes d on a.c_code_a = d.c_code
 left join country_codes e on a.c_code_b = e.c_code
+left join interstate_participant_sides f on a.war_num = f.war_num
+                                        and a.c_code_a = f.c_code
+left join interstate_participant_sides g on a.war_num = g.war_num
+                                        and a.c_code_b = g.c_code
 union all
 select
     a.war_num,
