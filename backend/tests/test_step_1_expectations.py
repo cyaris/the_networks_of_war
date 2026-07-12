@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 import sys
 from pathlib import Path
-from textwrap import dedent
 
 import duckdb
 import pytest
@@ -68,25 +67,6 @@ def non_date_column_csv(conn, table_name: str) -> str:
     return ", ".join(column_name for (column_name,) in conn.execute(query, [table_name]).fetchall())
 
 
-def clean_sql(sql: str) -> str:
-    lines = [line.rstrip() for line in dedent(sql).strip().splitlines()]
-    cleaned_lines = []
-    previous_blank = False
-
-    for line in lines:
-        is_blank = line == ""
-        if is_blank and previous_blank:
-            continue
-        cleaned_lines.append(line)
-        previous_blank = is_blank
-
-    return "\n".join(cleaned_lines)
-
-
-def indent_sql(sql: str, spaces: int = 16) -> str:
-    return ("\n" + " " * spaces).join(clean_sql(sql).splitlines())
-
-
 @dataclass(frozen=True)
 class SqlCheckFailure:
     label: str
@@ -118,7 +98,7 @@ def fail_sql_check(title: str, *, failures: list[SqlCheckFailure]) -> None:
             "\n\n".join(
                 [
                     f"{label_color}{failure.label}:{reset}",
-                    f"{section_color}SQL query:{reset}\n\n{data_color}{clean_sql(failure.sql)}{reset}",
+                    f"{section_color}SQL query:{reset}\n\n{data_color}{failure.sql}{reset}",
                     f"{section_color}Failure summary:{reset}\n\n{data_color}{failure.summary.strip()}{reset}",
                     f"{section_color}Detected rows:{reset}\n\n{data_color}{failure.detected_rows.strip()}{reset}",
                 ]
@@ -215,48 +195,28 @@ def test_source_resolved_start_dates_do_not_exceed_end_dates(conn):
     checks = [
         (
             "source_interstate_wars",
-            """
-            least(cow_date(start_year_1, start_month_1, start_day_1, 1, 1), cow_date(start_year_2, start_month_2, start_day_2, 1, 1))
-            """,
-            """
-            greatest(cow_end_date(end_year_1, end_month_1, end_day_1), cow_end_date(end_year_2, end_month_2, end_day_2))
-            """,
+            "least(cow_date(start_year_1, start_month_1, start_day_1, 1, 1), cow_date(start_year_2, start_month_2, start_day_2, 1, 1))",
+            "greatest(cow_end_date(end_year_1, end_month_1, end_day_1), cow_end_date(end_year_2, end_month_2, end_day_2))",
         ),
         (
             "source_interstate_war_dyads",
-            """
-            cow_date(start_year_1, start_month_1, start_day_1, 1, 1)
-            """,
-            """
-            cow_end_date(end_year_1, end_month_1, end_day_1)
-            """,
+            "cow_date(start_year_1, start_month_1, start_day_1, 1, 1)",
+            "cow_end_date(end_year_1, end_month_1, end_day_1)",
         ),
         (
             "source_interstate_mid_dyads",
-            """
-            cow_date(start_year_1, start_month_1, start_day_1, 1, 1)
-            """,
-            """
-            cow_end_date(end_year_1, end_month_1, end_day_1)
-            """,
+            "cow_date(start_year_1, start_month_1, start_day_1, 1, 1)",
+            "cow_end_date(end_year_1, end_month_1, end_day_1)",
         ),
         (
             "source_extrastate_wars",
-            """
-            least(cow_date(start_year_1, start_month_1, start_day_1, 1, 1), cow_date(start_year_2, start_month_2, start_day_2, 1, 1))
-            """,
-            """
-            greatest(cow_end_date(end_year_1, end_month_1, end_day_1), cow_end_date(end_year_2, end_month_2, end_day_2))
-            """,
+            "least(cow_date(start_year_1, start_month_1, start_day_1, 1, 1), cow_date(start_year_2, start_month_2, start_day_2, 1, 1))",
+            "greatest(cow_end_date(end_year_1, end_month_1, end_day_1), cow_end_date(end_year_2, end_month_2, end_day_2))",
         ),
         (
             "source_intrastate_wars",
-            """
-            least(cow_date(start_year_1, start_month_1, start_day_1, 1, 1), cow_date(start_year_2, start_month_2, start_day_2, 1, 1), cow_date(start_year_3, start_month_3, start_day_3, 1, 1), cow_date(start_year_4, start_month_4, start_day_4, 1, 1))
-            """,
-            """
-            greatest(cow_end_date(end_year_1, end_month_1, end_day_1), cow_end_date(end_year_2, end_month_2, end_day_2), cow_end_date(end_year_3, end_month_3, end_day_3), cow_end_date(end_year_4, end_month_4, end_day_4))
-            """,
+            "least(cow_date(start_year_1, start_month_1, start_day_1, 1, 1), cow_date(start_year_2, start_month_2, start_day_2, 1, 1), cow_date(start_year_3, start_month_3, start_day_3, 1, 1), cow_date(start_year_4, start_month_4, start_day_4, 1, 1))",
+            "greatest(cow_end_date(end_year_1, end_month_1, end_day_1), cow_end_date(end_year_2, end_month_2, end_day_2), cow_end_date(end_year_3, end_month_3, end_day_3), cow_end_date(end_year_4, end_month_4, end_day_4))",
         ),
     ]
 
@@ -266,8 +226,8 @@ def test_source_resolved_start_dates_do_not_exceed_end_dates(conn):
         output_columns = non_date_column_csv(conn, table_name)
         flagged_rows_sql = f"""
         select
-            {indent_sql(start_date_expression)} start_date,
-            {indent_sql(end_date_expression)} end_date,
+            {start_date_expression} start_date,
+            {end_date_expression} end_date,
             {output_columns}
         from {table_name}
         where start_date > end_date
@@ -275,7 +235,9 @@ def test_source_resolved_start_dates_do_not_exceed_end_dates(conn):
         count_sql = f"""
         with
 
-        flagged_rows as ({indent_sql(flagged_rows_sql)})
+        flagged_rows as (
+        {flagged_rows_sql}
+        )
 
         select count(*)
         from flagged_rows
@@ -285,21 +247,18 @@ def test_source_resolved_start_dates_do_not_exceed_end_dates(conn):
         if flagged_count == 0:
             continue
 
-        detected_rows_sql = "\n".join(
-            [
-                "with",
-                "",
-                "flagged_rows as (",
-                "",
-                clean_sql(flagged_rows_sql) + ")",
-                "",
-                "select",
-                "    *",
-                "from flagged_rows",
-                "order by all",
-                "limit 50",
-            ]
+        detected_rows_sql = f"""
+        with
+
+        flagged_rows as (
+        {flagged_rows_sql}
         )
+
+        select *
+        from flagged_rows
+        order by all
+        limit 50
+        """
         result = conn.execute(detected_rows_sql)
         rows = result.fetchall()
         columns = [column[0] for column in result.description]

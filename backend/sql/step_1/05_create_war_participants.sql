@@ -23,6 +23,7 @@ from source_interstate_wars a
 left join war_types c on a.war_type = c.war_type
 left join country_codes d on a.c_code = d.c_code
 union all
+-- Interstate participants are sourced above; directed dyad rows carry dyad-level dates and deaths.
 select
     war_num,
     war_name,
