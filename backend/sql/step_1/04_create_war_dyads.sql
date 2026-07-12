@@ -16,10 +16,7 @@ interstate_participant_sides as (
 select
     war_num,
     c_code,
-    case
-        when min(side) = 1 and max(side) = 2 then 3
-        else max(side)
-    end side
+    if(min(side) = 1 and max(side) = 2, 3, max(side)) side
 from source_interstate_wars
 where c_code is not null
 group by 1, 2)
