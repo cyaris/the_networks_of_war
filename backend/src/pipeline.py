@@ -113,14 +113,12 @@ class Pipeline:
         relative = SOURCE_FILES[source_key]
 
         if relative.startswith("../"):
-
             return (PROJECT_ROOT / relative.removeprefix("../")).resolve()
 
         return (self.csv_dir / relative).resolve()
 
     def prepared_path_for(self, source_key: str) -> Path:
         if source_key not in SOURCE_ENCODINGS:
-
             return self.path_for(source_key)
 
         WORK_CSV_DIR.mkdir(parents=True, exist_ok=True)
@@ -164,7 +162,6 @@ class Pipeline:
         row = conn.execute(query, [relation_name]).fetchone()
 
         if row is None:
-
             return
 
         relation_type = "view" if row[0] == "VIEW" else "table"
