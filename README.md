@@ -120,12 +120,12 @@ supporting files from each source bundle when available.
 
 | Table | Source CSV | Version | Download source |
 | --- | --- | --- | --- |
-| `source_country_codes` | `COW-country-codes.csv` | unversioned | `https://correlatesofwar.org/wp-content/uploads/COW-country-codes.csv` |
-| `source_extrastate_wars` | `Extra-StateWarData_v4.0.csv` | 4.0 | `https://correlatesofwar.org/wp-content/uploads/Extra-StateWarData_v4.0.csv`; `https://correlatesofwar.org/wp-content/uploads/Extra-StateWars_Codebook.pdf` |
-| `source_interstate_mid_dyads` | `dyadic_mid_4.03.csv` | 4.03 | `https://correlatesofwar.org/wp-content/uploads/dyadic_mid_4.03_update.zip` |
-| `source_interstate_war_dyads` | `directed_dyadic_war.csv` | unversioned | `https://correlatesofwar.org/wp-content/uploads/Dyadic-Interstate-War-Dataset.zip` |
-| `source_interstate_wars` | `Inter-StateWarData_v4.0.csv` | 4.0 | `https://correlatesofwar.org/wp-content/uploads/Inter-StateWarData_v4.0.csv`; `https://correlatesofwar.org/wp-content/uploads/Inter-StateWarsList.pdf`; `https://correlatesofwar.org/wp-content/uploads/Inter-StateWars_Codebook.pdf` |
-| `source_intrastate_wars` | `INTRA-STATE_State_participants v5.1 CSV.csv` | 5.1 | `https://correlatesofwar.org/wp-content/uploads/Intra-State-Wars-v5.1.zip` |
+| `source_country_codes` | `COW-country-codes.csv` | unversioned | <a href="https://correlatesofwar.org/wp-content/uploads/COW-country-codes.csv" target="_blank" rel="noopener noreferrer">COW country codes CSV</a> |
+| `source_extrastate_wars` | `Extra-StateWarData_v4.0.csv` | 4.0 | <a href="https://correlatesofwar.org/wp-content/uploads/Extra-StateWarData_v4.0.csv" target="_blank" rel="noopener noreferrer">Extra-state wars CSV</a>; <a href="https://correlatesofwar.org/wp-content/uploads/Extra-StateWars_Codebook.pdf" target="_blank" rel="noopener noreferrer">extra-state wars codebook</a> |
+| `source_interstate_mid_dyads` | `dyadic_mid_4.03.csv` | 4.03 | <a href="https://correlatesofwar.org/wp-content/uploads/dyadic_mid_4.03_update.zip" target="_blank" rel="noopener noreferrer">dyadic MID 4.03 update ZIP</a> |
+| `source_interstate_war_dyads` | `directed_dyadic_war.csv` | unversioned | <a href="https://correlatesofwar.org/wp-content/uploads/Dyadic-Interstate-War-Dataset.zip" target="_blank" rel="noopener noreferrer">dyadic interstate war dataset ZIP</a> |
+| `source_interstate_wars` | `Inter-StateWarData_v4.0.csv` | 4.0 | <a href="https://correlatesofwar.org/wp-content/uploads/Inter-StateWarData_v4.0.csv" target="_blank" rel="noopener noreferrer">inter-state wars CSV</a>; <a href="https://correlatesofwar.org/wp-content/uploads/Inter-StateWarsList.pdf" target="_blank" rel="noopener noreferrer">inter-state wars list</a>; <a href="https://correlatesofwar.org/wp-content/uploads/Inter-StateWars_Codebook.pdf" target="_blank" rel="noopener noreferrer">inter-state wars codebook</a> |
+| `source_intrastate_wars` | `INTRA-STATE_State_participants v5.1 CSV.csv` | 5.1 | <a href="https://correlatesofwar.org/wp-content/uploads/Intra-State-Wars-v5.1.zip" target="_blank" rel="noopener noreferrer">intra-state wars 5.1 ZIP</a> |
 | `source_war_types` | `backend/manual/war_types.csv` | local | local helper file with no external codebook |
 
 Other files in the legacy ignored `documentation/` directory correspond to datasets that have not yet been incorporated
@@ -317,7 +317,7 @@ flowchart LR
   - The World War II Thailand dyad (`war_num = 139`, `statea = 800`, `stateb = 710`) is loaded with Thailand battle
     deaths corrected from original blank `batdtha` to `5,569`. The Thailand death count comes from Wikipedia's summary
     of Thailand in World War II:
-    <https://en.wikipedia.org/wiki/Thailand_in_World_War_II>.
+    <a href="https://en.wikipedia.org/wiki/Thailand_in_World_War_II" target="_blank" rel="noopener noreferrer">Thailand in World War II</a>.
 - `dyadic_mid_4.03.csv`
   - The source does not include COW war numbers, so rows are assigned to known wars by matching `disno` to
     `directed_dyadic_war.csv` where possible.
