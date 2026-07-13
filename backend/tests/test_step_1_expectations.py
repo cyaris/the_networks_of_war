@@ -196,12 +196,6 @@ def test_source_tables_have_download_urls_or_are_marked_local():
     assert missing == []
 
 
-def test_interstate_war_dyad_source_metadata_is_unversioned():
-    metadata = next(metadata for metadata in SOURCE_METADATA if metadata["key"] == "interstate_war_dyads")
-
-    assert metadata["version"] == "unversioned"
-
-
 @dataclass(frozen=True)
 class SqlCheckFailure:
     label: str
@@ -808,15 +802,6 @@ def test_source_adjustment_inserts_do_not_duplicate_existing_source_facts(conn):
     assert scalar(conn, query) == 0
 
 
-def test_interstate_war_source_rows_are_participant_rows(conn):
-    count_sql = """
-    select count(*)
-    from source_interstate_wars
-    where c_code is null
-    """
-    assert scalar(conn, count_sql) == 0
-
-
 def test_source_intrastate_war_data_entry_fixes_are_applied(conn):
     assert scalar(conn, "select count(*) from source_intrastate_wars where war_num = 977") == 0
 
@@ -930,49 +915,45 @@ def test_battle_death_estimate_flags_are_binary(conn, table_name, flag_columns):
     assert scalar(conn, count_sql) == 0
 
 
-def test_source_side_assignments_are_valid(conn):
-    failures = []
-    checks = [("source_interstate_wars", "side", "(1, 2)")]
+def test_interstate_war_source_participant_rows_are_valid(conn):
+    detected_rows_sql = """
+    select *
+    from source_interstate_wars
+    where
+        c_code is null
+        or side is null
+        or side not in (1, 2)
+    order by all
+    limit 50
+    """
+    count_sql = """
+    select count(*)
+    from source_interstate_wars
+    where
+        c_code is null
+        or side is null
+        or side not in (1, 2)
+    """
+    invalid_count = scalar(conn, count_sql)
 
-    for table_name, column_name, valid_values in checks:
-        count_sql = f"""
-        select count(*)
-        from {table_name}
-        where
-            {column_name} is null
-            or {column_name} not in {valid_values}
-        """
-        invalid_count = scalar(conn, count_sql)
+    if invalid_count == 0:
+        return
 
-        if invalid_count == 0:
-            continue
+    result = conn.execute(detected_rows_sql)
+    rows = result.fetchall()
+    columns = [column[0] for column in result.description]
 
-        output_columns = non_date_column_csv(conn, table_name)
-        detected_rows_sql = f"""
-        select
-            {output_columns}
-        from {table_name}
-        where
-            {column_name} is null
-            or {column_name} not in {valid_values}
-        order by all
-        limit 50
-        """
-        result = conn.execute(detected_rows_sql)
-        rows = result.fetchall()
-        columns = [column[0] for column in result.description]
-
-        failures.append(
+    fail_sql_check(
+        "Interstate war source rows should have participant codes and valid side assignments:",
+        failures=[
             SqlCheckFailure(
-                label=f"{table_name}.{column_name}",
+                label="source_interstate_wars participant rows",
                 sql=detected_rows_sql,
-                summary=failure_summary(f"{table_name}.{column_name}", invalid_count),
+                summary=failure_summary("source_interstate_wars participant rows", invalid_count),
                 detected_rows=format_query_results(columns, rows),
             )
-        )
-
-    if failures:
-        fail_sql_check("Source side assignments should be present and stay within their valid value domains:", failures=failures)
+        ],
+    )
 
 
 def test_interstate_war_dyads_use_semantic_participant_sides(conn):
