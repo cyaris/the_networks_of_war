@@ -1009,9 +1009,9 @@ def test_mid_dyads_do_not_duplicate_source_dyad_overlaps(conn):
     select count(*)
     from dyads_after_mid a
     join dyads_after_sources b on a.war_num = b.war_num
-                              and a.c_code_a = b.c_code_a
-                              and a.c_code_b = b.c_code_b
-                              and least(a.end_date, b.end_date) >= greatest(a.start_date, b.start_date)
+                               and a.c_code_a = b.c_code_a
+                               and a.c_code_b = b.c_code_b
+                               and least(a.end_date, b.end_date) >= greatest(a.start_date, b.start_date)
     where
         a.battle_deaths_estimated_a = 1
         or a.battle_deaths_estimated_b = 1
