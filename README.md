@@ -169,9 +169,9 @@ Step 1 also materializes compatibility tables:
 
 ### Date Values
 
-- Blank strings are loaded as null. Text values `-7`, `-8`, and `-9` are also treated as `null` because the COW codebooks
+- Blank strings are loaded as `null`. Text values `-7`, `-8`, and `-9` are also treated as `null` because the COW codebooks
   use negative values for ongoing, not applicable, or unknown values.
-- Negative day, month, and start-year date fields are loaded as null. Negative end-year values are loaded as `null` except
+- Negative day, month, and start-year date fields are loaded as `null`. Negative end-year values are loaded as `null` except
   for `-7`, which the COW codebooks document as the ongoing-war marker.
 - Missing, invalid, unknown, or not-applicable start months are interpreted as January, and start days are interpreted
   as day `1` of the resolved month.
