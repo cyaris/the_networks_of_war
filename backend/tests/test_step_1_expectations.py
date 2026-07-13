@@ -938,7 +938,9 @@ def test_source_side_assignments_are_valid(conn):
         count_sql = f"""
         select count(*)
         from {table_name}
-        where {column_name} not in {valid_values}
+        where
+            {column_name} is null
+            or {column_name} not in {valid_values}
         """
         invalid_count = scalar(conn, count_sql)
 
@@ -950,7 +952,9 @@ def test_source_side_assignments_are_valid(conn):
         select
             {output_columns}
         from {table_name}
-        where {column_name} not in {valid_values}
+        where
+            {column_name} is null
+            or {column_name} not in {valid_values}
         order by all
         limit 50
         """
@@ -968,7 +972,7 @@ def test_source_side_assignments_are_valid(conn):
         )
 
     if failures:
-        fail_sql_check("Source side assignments should stay within their valid value domains:", failures=failures)
+        fail_sql_check("Source side assignments should be present and stay within their valid value domains:", failures=failures)
 
 
 def test_interstate_war_dyads_use_semantic_participant_sides(conn):
