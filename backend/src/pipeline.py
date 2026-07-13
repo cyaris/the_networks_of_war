@@ -152,6 +152,10 @@ def render_sql(name: str, context: dict[str, str]) -> str:
     return (SQL_ROOT / name).read_text().format(**context)
 
 
+def read_query_file(path: Path) -> str:
+    return path.expanduser().read_text()
+
+
 def created_relation_names(sql: str) -> list[str]:
     return list(dict.fromkeys(match.group(1) for match in CREATE_RELATION_PATTERN.finditer(sql)))
 
@@ -404,7 +408,11 @@ class Pipeline:
         query: str | None = None,
         prepare_data: bool = False,
         recreate_data: bool = False,
+        query_file: Path | None = None,
     ) -> None:
+        if query is not None and query_file is not None:
+            raise ValueError("Use either query or query_file, not both.")
+
         if prepare_data or recreate_data:
             self.prepare_data(recreate=recreate_data)
 
@@ -421,6 +429,9 @@ class Pipeline:
             if query:
                 self.query(conn, query)
 
+            if query_file:
+                self.query(conn, read_query_file(query_file))
+
         logger.info("DuckDB database: %s", self.db_path)
 
 
@@ -435,8 +446,14 @@ def parse_args() -> argparse.Namespace:
         "--prepare-data", action="store_true", help="Download and validate missing source data folders."
     )
     parser.add_argument("--recreate-data", action="store_true", help="Delete and recreate the entire data directory.")
-    parser.add_argument(
+    query_group = parser.add_mutually_exclusive_group()
+    query_group.add_argument(
         "--query", help="SQL query to execute against the DuckDB database after the selected step runs."
+    )
+    query_group.add_argument(
+        "--query-file",
+        type=Path,
+        help="Path to a local .sql file to execute against the DuckDB database after the selected step runs.",
     )
     parser.add_argument("--step", choices=["none", "all", "1", "2", "3"], default="all")
 
@@ -447,7 +464,12 @@ def main() -> None:
     args = parse_args()
 
     Pipeline(csv_dir=args.data_dir, db_path=args.db_path).run(
-        args.step, args.inspect, args.query, prepare_data=args.prepare_data, recreate_data=args.recreate_data
+        step=args.step,
+        inspect=args.inspect,
+        query=args.query,
+        query_file=args.query_file,
+        prepare_data=args.prepare_data,
+        recreate_data=args.recreate_data,
     )
 
 

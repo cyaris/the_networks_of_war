@@ -201,7 +201,8 @@ Step 1 also materializes compatibility tables:
 
 ### Table Shape
 
-- Directed dyadic interstate war records get war name and war type metadata from `source_interstate_wars` by `war_num`.
+- Directed dyadic interstate war records get war name and war type metadata from `source_interstate_wars` by `war_num`;
+  synthetic MID-only wars get metadata from active source adjustment tables.
 - Transformed tables do not carry source-only identifiers and outcome fields (`disno`, `dyindex`, `outcome_a`,
   `outcome_b`, and `outcome`) after they are no longer needed as table outputs. MID matching still uses `disno`
   internally where needed.
@@ -235,20 +236,23 @@ Step 1 also materializes compatibility tables:
 - MID dyads are not incorporated when the same directed dyad in the same war overlaps an existing source war-dyad row.
 - Existing battle-death values take precedence over MID fatality estimates for remaining merged rows. MID estimates are
   used when summed source battle deaths are `null` or zero and summed estimates are positive.
-- MID dyads are assigned to known wars by `disno` from `source_interstate_war_dyads`.
-- Missing MID `disno` to `war_num` relationships are added to `source_interstate_war_dyads` by the Step 1 source
-  adjustment files when the current CSV version still needs them. If a future CSV version introduces a new unmatched
-  MID war, `test_mid_dyads_resolve_all_mid_war_numbers` should fail until the source adjustment file is updated or the
-  new source data is accepted as authoritative.
+- MID dyads are assigned to known wars by `disno` from `source_interstate_war_dyads` and active
+  `source_interstate_mid_war_num_adjustments`.
+- Missing MID `disno` to `war_num` relationships are stored in the Step 1 source adjustment tables when the current CSV
+  version still needs them. If a future CSV version introduces a new unmatched MID war,
+  `test_mid_dyads_resolve_all_mid_war_numbers` should fail until the source adjustment file is updated or the new source
+  data is accepted as authoritative.
 - Synthetic war metadata, such as the Lebanon-Israel MID conflict (`disno = 4182`) named
-  `Israeli–Hezbollah Conflict (South Lebanon)`, is added to `source_interstate_wars` by the same adjustment step when
-  the source table does not already contain it.
+  `Israeli–Hezbollah Conflict (South Lebanon)`, is stored in `source_interstate_war_metadata_adjustments` and joined
+  during transformation without adding partial rows to `source_interstate_wars`.
 
 ### Participant Inference
 
 - Participants found in dyadic data but missing from `war_participants` are added to `participants` from the
   dyadic side A records.
 - Missing participant sides are inferred from the opposite participant in dyadic data when that inference is unambiguous.
+- Remaining version-specific participant side assignments are stored in `source_participant_side_adjustments` and joined
+  during participant creation.
 - Interstate war participant sides are taken from `source_interstate_wars`, either directly in `war_participants` or
   through semantic side values on `war_dyads`, because the directed dyadic source can include reciprocal rows where the
   same state appears as both `c_code_a` and `c_code_b` for the same war or dispute.
@@ -316,7 +320,7 @@ flowchart LR
   - Unmatched MID dispute `4182` between Lebanon (`660`) and Israel (`666`) is assigned synthetic `war_num = 4182` and
     named `Israeli–Hezbollah Conflict (South Lebanon)`. This fake war id uses the MID `disno` because the conflict
     appears in the dyadic MID records with `war = 1`, but no corresponding `war_num` exists for it in the interstate
-    war data.
+    war data. Lebanon is assigned participant side `1`, and Israel is assigned participant side `2`.
   - These assignments are implemented as version-scoped source adjustments, not as transformation-time fallback logic.
 - `INTRA-STATE_State_participants v5.1.csv`
   - War number is corrected from original value `977` to `979`.

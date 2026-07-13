@@ -48,13 +48,24 @@ join participant_union c on b.war_num = c.war_num
                          and b.c_code_b = c.c_code
                          and c.side is not null
 where a.side is null
-group by 1, 2)
+group by 1, 2),
+
+source_side_adjustments as (
+
+select
+    a.war_num,
+    a.c_code,
+    clean_participant(a.participant) participant,
+    a.side
+from source_participant_side_adjustments a
+join source_file_versions b on a.source_key = b.source_key
+                            and a.source_version = b.source_version)
 
 select
     a.war_num,
     a.c_code,
     a.participant,
-    coalesce(a.side, b.side) side,
+    coalesce(a.side, b.side, c.side) side,
     a.start_date,
     a.end_date,
     a.start_date_estimated,
@@ -63,4 +74,7 @@ select
     a.battle_deaths_estimated
 from participant_union a
 left join side_assignments b on a.war_num = b.war_num
-                             and a.c_code = b.c_code;
+                             and a.c_code = b.c_code
+left join source_side_adjustments c on a.war_num = c.war_num
+                                   and a.c_code = c.c_code
+                                   and a.participant = c.participant;

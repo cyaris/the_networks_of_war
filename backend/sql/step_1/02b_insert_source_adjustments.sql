@@ -18,30 +18,13 @@ values
     ('interstate_mid_dyads', '4.03', 4182::double, 4182::double),
     ('interstate_mid_dyads', '4.03', 4339::double, 905::double);
 
-insert into source_interstate_war_dyads (war_num, disno)
-
-select
-    a.war_num,
-    a.disno
-from source_interstate_mid_war_num_adjustments a
-join source_file_versions b on a.source_key = b.source_key
-                            and a.source_version = b.source_version
-left join source_interstate_war_dyads c on a.disno = c.disno
-where c.disno is null;
-
 insert into source_interstate_war_metadata_adjustments
 
 values
     ('interstate_mid_dyads', '4.03', 4182::double, 'Israeli–Hezbollah Conflict (South Lebanon)', 1::integer);
 
-insert into source_interstate_wars (war_num, war_name, war_type)
+insert into source_participant_side_adjustments
 
-select
-    a.war_num,
-    a.war_name,
-    a.war_type
-from source_interstate_war_metadata_adjustments a
-join source_file_versions b on a.source_key = b.source_key
-                            and a.source_version = b.source_version
-left join source_interstate_wars c on a.war_num = c.war_num
-where c.war_num is null;
+values
+    ('interstate_mid_dyads', '4.03', 4182::double, 660::integer, 'Lebanon', 1::integer),
+    ('interstate_mid_dyads', '4.03', 4182::double, 666::integer, 'Israel', 2::integer);

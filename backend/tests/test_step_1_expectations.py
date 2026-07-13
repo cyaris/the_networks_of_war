@@ -250,8 +250,7 @@ def test_source_resolved_start_dates_do_not_exceed_end_dates(conn):
         with
 
         flagged_rows as (
-        {flagged_rows_sql}
-        )
+        {flagged_rows_sql})
 
         select count(*)
         from flagged_rows
@@ -265,8 +264,7 @@ def test_source_resolved_start_dates_do_not_exceed_end_dates(conn):
         with
 
         flagged_rows as (
-        {flagged_rows_sql}
-        )
+        {flagged_rows_sql})
 
         select *
         from flagged_rows
@@ -490,11 +488,11 @@ def test_source_adjusted_mid_war_number_relationships_are_applied(conn):
 
     query = """
     select
-        disno,
-        war_num
-    from source_interstate_war_dyads
-    where disno in (3582, 3583, 3585, 4182, 4339)
-    group by 1, 2
+        a.disno,
+        a.war_num
+    from source_interstate_mid_war_num_adjustments a
+    join source_file_versions b on a.source_key = b.source_key
+                                and a.source_version = b.source_version
     order by 1, 2
     """
     actual_assignments = set(conn.execute(query).fetchall())
@@ -503,12 +501,26 @@ def test_source_adjusted_mid_war_number_relationships_are_applied(conn):
 
     count_sql = """
     select count(*)
-    from source_interstate_wars
+    from source_interstate_war_metadata_adjustments a
+    join source_file_versions b on a.source_key = b.source_key
+                                and a.source_version = b.source_version
     where
-        war_num = 4182
-        and war_name = 'Israeli–Hezbollah Conflict (South Lebanon)'
+        a.war_num = 4182
+        and a.war_name = 'Israeli–Hezbollah Conflict (South Lebanon)'
     """
     assert scalar(conn, count_sql) == 1
+
+    assert scalar(conn, "select count(*) from source_interstate_wars where war_num = 4182") == 0
+
+    count_sql = """
+    select count(*)
+    from source_interstate_war_dyads
+    where
+        disno in (3582, 3583, 3585, 4182, 4339)
+        and c_code_a is null
+        and c_code_b is null
+    """
+    assert scalar(conn, count_sql) == 0
 
     count_sql = """
     select count(*)
@@ -520,6 +532,30 @@ def test_source_adjusted_mid_war_number_relationships_are_applied(conn):
         and total_dyads = 1
     """
     assert scalar(conn, count_sql) == 1
+
+
+def test_source_adjusted_mid_participant_side_assignments_are_applied(conn):
+    query = """
+    select
+        c_code,
+        participant,
+        side
+    from participants
+    where war_num = 4182
+    order by 1, 2
+    """
+    actual_sides = set(conn.execute(query).fetchall())
+
+    assert actual_sides == {(660, "Lebanon", 1), (666, "Israel", 2)}
+
+
+def test_interstate_war_source_rows_are_participant_rows(conn):
+    count_sql = """
+    select count(*)
+    from source_interstate_wars
+    where c_code is null
+    """
+    assert scalar(conn, count_sql) == 0
 
 
 def test_source_intrastate_war_data_entry_fixes_are_applied(conn):

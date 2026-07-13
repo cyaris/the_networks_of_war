@@ -88,6 +88,18 @@ select
 from source_interstate_wars a
 left join war_types b on a.war_type = b.war_type
 where a.war_type is not null
+group by 1
+union all
+select
+    a.war_num,
+    any_value(a.war_name) war_name,
+    any_value(a.war_type) war_type,
+    any_value(b.war_type_name) war_type_name,
+    any_value(b.war_subtype) war_subtype
+from source_interstate_war_metadata_adjustments a
+join source_file_versions c on a.source_key = c.source_key
+                            and a.source_version = c.source_version
+left join war_types b on a.war_type = b.war_type
 group by 1),
 
 war_metadata as (

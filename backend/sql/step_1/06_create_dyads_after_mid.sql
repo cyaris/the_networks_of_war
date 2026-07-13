@@ -2,7 +2,7 @@ create or replace table dyads_after_mid as
 
 with
 
-mid_war_numbers as (
+source_mid_war_numbers as (
 
 select
     disno,
@@ -10,6 +10,29 @@ select
 from source_interstate_war_dyads
 where disno is not null
 group by 1),
+
+adjusted_mid_war_numbers as (
+
+select
+    a.disno,
+    a.war_num
+from source_interstate_mid_war_num_adjustments a
+join source_file_versions b on a.source_key = b.source_key
+                            and a.source_version = b.source_version
+left join source_mid_war_numbers c on a.disno = c.disno
+where c.disno is null),
+
+mid_war_numbers as (
+
+select
+    disno,
+    war_num
+from source_mid_war_numbers
+union all
+select
+    disno,
+    war_num
+from adjusted_mid_war_numbers),
 
 mid_wars_prepared as (
 
@@ -69,6 +92,14 @@ select
     any_value(war_name) war_name
 from source_interstate_wars
 where war_name is not null
+group by 1
+union all
+select
+    a.war_num,
+    any_value(a.war_name) war_name
+from source_interstate_war_metadata_adjustments a
+join source_file_versions b on a.source_key = b.source_key
+                            and a.source_version = b.source_version
 group by 1),
 
 war_names as (
