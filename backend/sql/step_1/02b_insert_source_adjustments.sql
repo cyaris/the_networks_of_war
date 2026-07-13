@@ -12,11 +12,11 @@ values
 insert into source_interstate_mid_war_num_adjustments
 
 values
-    ('interstate_mid_dyads', '4.02', 3582::double, 139::double),
-    ('interstate_mid_dyads', '4.02', 3583::double, 139::double),
-    ('interstate_mid_dyads', '4.02', 3585::double, 139::double),
-    ('interstate_mid_dyads', '4.02', 4182::double, 4182::double),
-    ('interstate_mid_dyads', '4.02', 4339::double, 905::double);
+    ('interstate_mid_dyads', '4.03', 3582::double, 139::double),
+    ('interstate_mid_dyads', '4.03', 3583::double, 139::double),
+    ('interstate_mid_dyads', '4.03', 3585::double, 139::double),
+    ('interstate_mid_dyads', '4.03', 4182::double, 4182::double),
+    ('interstate_mid_dyads', '4.03', 4339::double, 905::double);
 
 insert into source_interstate_war_dyads (war_num, disno)
 
@@ -32,7 +32,7 @@ where c.disno is null;
 insert into source_interstate_war_metadata_adjustments
 
 values
-    ('interstate_mid_dyads', '4.02', 4182::double, 'Israeli–Hezbollah Conflict (South Lebanon)', 1::integer);
+    ('interstate_mid_dyads', '4.03', 4182::double, 'Israeli–Hezbollah Conflict (South Lebanon)', 1::integer);
 
 insert into source_interstate_wars (war_num, war_name, war_type)
 

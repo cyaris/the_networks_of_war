@@ -19,9 +19,13 @@ pip install -e ".[dev]"
 
 ## Data Layout
 
-Raw CSV files are read from `csvs/`, which is ignored by git. The extra-state CSV is copied to UTF-8 under
-ignored `backend/.work/` before DuckDB reads it. The generated DuckDB database is also ignored:
+Source data is downloaded into `backend/data/`, which is ignored by git. Each external source table gets its own
+subdirectory named after the source key, such as `backend/data/interstate_mid_dyads/`. The manual
+`war_types.csv` helper lives at `backend/manual/war_types.csv` because it is not tied to an external data version.
+The extra-state CSV is copied to UTF-8 under ignored `backend/.work/` before DuckDB reads it. The generated DuckDB
+database is also ignored:
 
+- `the_networks_of_war/backend/data/`
 - `the_networks_of_war/backend/.work/`
 - `the_networks_of_war/backend/the_networks_of_war.duckdb`
 
@@ -63,7 +67,19 @@ python src/pipeline.py --step 1 --query "select war_num, war_name from wars limi
 Use non-default input or database paths:
 
 ```bash
-python src/pipeline.py --csv-dir ../csvs --db-path the_networks_of_war.duckdb --step 1
+python src/pipeline.py --data-dir data --db-path the_networks_of_war.duckdb --step 1
+```
+
+Create missing source-data subdirectories without running a preprocessing step:
+
+```bash
+python src/pipeline.py --prepare-data --step none
+```
+
+Recreate the full ignored source-data directory:
+
+```bash
+python src/pipeline.py --recreate-data --step none
 ```
 
 ## Test Commands
@@ -95,25 +111,25 @@ pytest tests/test_step_1_expectations.py -vv
 ```
 
 The Step 1 expectation tests rebuild Step 1 into a temporary DuckDB database. They skip automatically if the ignored
-raw CSV files in `csvs/` are not available locally.
+source files in `backend/data/` are not available locally.
 
 ## Step 1 Sources And Tables
 
-The current backend ingests the following source files and uses the matching documentation in `documentation/` where available.
-The online source column is a placeholder for links to the original data pages.
+The current backend ingests the following source files. Downloaded source subdirectories include the relevant PDFs and
+supporting files from each source bundle when available.
 
-| Table | Source CSV | Version | Documentation | Online source |
-| --- | --- | --- | --- | --- |
-| `source_country_codes` | `COW country codes.csv` | COW country codes | `Entities.pdf` | TODO |
-| `source_extrastate_wars` | `Extra-StateWarData_v4.0.csv` | 4.0 | `Extra-StateWars_Codebook.pdf` | TODO |
-| `source_interstate_mid_dyads` | `dyadic_mid_4.02.csv` | 4.02 | `Dyadic MID Codebook V4.0.pdf` | TODO |
-| `source_interstate_war_dyads` | `directed_dyadic_war.csv` | `directed_dyadic_war.csv` | `The Directed Dyadic Interstate War Dataset Codebook.pdf` | TODO |
-| `source_interstate_wars` | `Inter-StateWarData_v4.0.csv` | 4.0 | `MII_v4.0_Codebook.pdf` | TODO |
-| `source_intrastate_wars` | `INTRA-STATE_State_participants v5.1.csv` | 5.1 | `Codebook for Intra-state v5.1 2.9.20.pdf`; `Description of Intra-state v5.1.pdf` | TODO |
-| `source_war_types` | `war_types.csv` | local | local helper file with no external codebook | TODO |
+| Table | Source CSV | Version | Download source |
+| --- | --- | --- | --- |
+| `source_country_codes` | `COW-country-codes.csv` | unversioned | `https://correlatesofwar.org/wp-content/uploads/COW-country-codes.csv` |
+| `source_extrastate_wars` | `Extra-StateWarData_v4.0.csv` | 4.0 | `https://correlatesofwar.org/wp-content/uploads/Extra-StateWarData_v4.0.csv`; `https://correlatesofwar.org/wp-content/uploads/Extra-StateWars_Codebook.pdf` |
+| `source_interstate_mid_dyads` | `dyadic_mid_4.03.csv` | 4.03 | `https://correlatesofwar.org/wp-content/uploads/dyadic_mid_4.03_update.zip` |
+| `source_interstate_war_dyads` | `directed_dyadic_war.csv` | unversioned | `https://correlatesofwar.org/wp-content/uploads/Dyadic-Interstate-War-Dataset.zip` |
+| `source_interstate_wars` | `Inter-StateWarData_v4.0.csv` | 4.0 | `https://correlatesofwar.org/wp-content/uploads/Inter-StateWarData_v4.0.csv`; `https://correlatesofwar.org/wp-content/uploads/Inter-StateWarsList.pdf`; `https://correlatesofwar.org/wp-content/uploads/Inter-StateWars_Codebook.pdf` |
+| `source_intrastate_wars` | `INTRA-STATE_State_participants v5.1 CSV.csv` | 5.1 | `https://correlatesofwar.org/wp-content/uploads/Intra-State-Wars-v5.1.zip` |
+| `source_war_types` | `backend/manual/war_types.csv` | local | local helper file with no external codebook |
 
-Other files in `documentation/` correspond to datasets that have not yet been incorporated and were not used for
-the current Step 1 assumptions.
+Other files in the legacy ignored `documentation/` directory correspond to datasets that have not yet been incorporated
+and were not used for the current Step 1 assumptions.
 
 Step 1 also materializes transformed tables:
 
@@ -134,6 +150,8 @@ Step 1 also materializes compatibility tables:
 
 - The primary source tables listed above come directly from one CSV file, with only type coercion, column renaming,
   encoding normalization, and explicit source adjustments applied during load.
+- `dyadic_mid_4.03.csv` has no new columns relative to `dyadic_mid_4.02.csv` and no longer includes the 4.02 columns
+  `dyad`, `abbreva`, `abbrevb`, `lastobs`, and `newar`.
 - Version-scoped source adjustments live in `backend/sql/step_1/02a_apply_source_adjustments.sql` and
   `backend/sql/step_1/02b_insert_source_adjustments.sql`. The first file creates `source_file_versions` and adjustment
   tables; the second inserts missing source facts only when the expected CSV version is active and the source table does
@@ -142,17 +160,17 @@ Step 1 also materializes compatibility tables:
 ### Excluded Calculated Columns
 
 - Source columns that are documented as simple calculations from other source columns are not ingested. Currently
-  excluded calculated fields are `batdths` and `durindx` from `directed_dyadic_war.csv`; `durindx`, `duration`, and
-  `cumdurat` from `dyadic_mid_4.02.csv`; and `WDuratDays`, `WDuratMo`, and `TotalBDeaths` from
+  excluded calculated fields are `batdths` and `durindx` from unversioned `directed_dyadic_war.csv`; `durindx`, `duration`, and
+  `cumdurat` from `dyadic_mid_4.03.csv`; and `WDuratDays`, `WDuratMo`, and `TotalBDeaths` from
   `INTRA-STATE_State_participants v5.1.csv`. Duration and day-count fields are excluded because they should be
   calculated from the pipeline's resolved start and end dates, after applying the date assumptions below, such as using
   the last day of the year when only the end year is known.
 
 ### Date Values
 
-- Blank strings are loaded as `null`. Text values `-7`, `-8`, and `-9` are also treated as `null` because the COW codebooks
+- Blank strings are loaded as null. Text values `-7`, `-8`, and `-9` are also treated as `null` because the COW codebooks
   use negative values for ongoing, not applicable, or unknown values.
-- Negative day, month, and start-year date fields are loaded as `null`. Negative end-year values are loaded as `null` except
+- Negative day, month, and start-year date fields are loaded as null. Negative end-year values are loaded as `null` except
   for `-7`, which the COW codebooks document as the ongoing-war marker.
 - Missing, invalid, unknown, or not-applicable start months are interpreted as January, and start days are interpreted
   as day `1` of the resolved month.
@@ -168,12 +186,12 @@ Step 1 also materializes compatibility tables:
 
 - `COW country codes.csv` is deduplicated by `c_code`; the first row per code is retained.
 - `Extra-StateWarData_v4.0.csv` is read as `cp1252` and copied to UTF-8 in `backend/.work/` before DuckDB reads it.
-- `directed_dyadic_war.csv`, `dyadic_mid_4.02.csv`, `Inter-StateWarData_v4.0.csv`, and
+- `directed_dyadic_war.csv`, `dyadic_mid_4.03.csv`, `Inter-StateWarData_v4.0.csv`, and
   `INTRA-STATE_State_participants v5.1.csv` are read with `latin-1` encoding.
 
 ### Field Normalization
 
-- `dyadic_mid_4.02.csv` side-specific fatality levels are converted during ingestion to representative battle-death
+- `dyadic_mid_4.03.csv` side-specific fatality levels are converted during ingestion to representative battle-death
   estimates as follows: `0 -> 0`, `1 -> 25`, `2 -> 100`, `3 -> 250`, `4 -> 500`, `5 -> 999`, and `6 -> 1000`.
 - Participant names are normalized only for known display and matching issues: United States, Baron von
   Ungern-Sternberg's White army, Janissaries, Turkey/Ottoman Empire/Egypt, and a small set of lower-case rebel,
@@ -288,7 +306,7 @@ flowchart LR
     deaths corrected from original blank `batdtha` to `5,569`. The Thailand death count comes from Wikipedia's summary
     of Thailand in World War II:
     <https://en.wikipedia.org/wiki/Thailand_in_World_War_II>.
-- `dyadic_mid_4.02.csv`
+- `dyadic_mid_4.03.csv`
   - The source does not include COW war numbers, so rows are assigned to known wars by matching `disno` to
     `directed_dyadic_war.csv` where possible.
   - Unmatched MID disputes `3582`, `3583`, and `3585` are assigned from original missing `war_num` to World War II

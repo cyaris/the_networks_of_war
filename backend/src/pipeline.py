@@ -3,6 +3,15 @@
 from __future__ import annotations
 
 import argparse
+import re
+import shutil
+import ssl
+import subprocess
+import tempfile
+import urllib.error
+import urllib.request
+import zipfile
+from dataclasses import dataclass
 from pathlib import Path
 
 import duckdb
@@ -12,45 +21,109 @@ from utils import initialize_logger
 logger = initialize_logger(__name__)
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
-PROJECT_ROOT = BACKEND_ROOT.parent
 SQL_ROOT = BACKEND_ROOT / "sql"
 WORK_CSV_DIR = BACKEND_ROOT / ".work" / "csv"
 
-DEFAULT_CSV_DIR = PROJECT_ROOT / "csvs"
+DEFAULT_DATA_DIR = BACKEND_ROOT / "data"
+DEFAULT_CSV_DIR = DEFAULT_DATA_DIR
 DEFAULT_DB_PATH = BACKEND_ROOT / "the_networks_of_war.duckdb"
 INSPECT_SQL = SQL_ROOT / "inspect_tables.sql"
+SYSTEM_CA_FILE = Path("/etc/ssl/cert.pem")
+COW_UPLOADS_URL = "https://correlatesofwar.org/wp-content/uploads"
+CREATE_RELATION_PATTERN = re.compile(
+    r"^\s*create\s+or\s+replace\s+(?:table|view)\s+([A-Za-z_][A-Za-z0-9_]*)\b",
+    re.IGNORECASE | re.MULTILINE,
+)
 
-SOURCE_METADATA = {
-    "country_codes": {"file": "COW country codes.csv", "version": "COW country codes", "documentation": "Entities.pdf"},
-    "extrastate_wars": {
+SOURCE_METADATA = [
+    {
+        "key": "country_codes",
+        "file": "COW-country-codes.csv",
+        "version": "unversioned",
+        "downloads": [
+            {"url": f"{COW_UPLOADS_URL}/COW-country-codes.csv", "kind": "file", "filename": "COW-country-codes.csv"}
+        ],
+    },
+    {
+        "key": "extrastate_wars",
         "file": "Extra-StateWarData_v4.0.csv",
         "version": "4.0",
-        "documentation": "Extra-StateWars_Codebook.pdf",
+        "downloads": [
+            {
+                "url": f"{COW_UPLOADS_URL}/Extra-StateWarData_v4.0.csv",
+                "kind": "file",
+                "filename": "Extra-StateWarData_v4.0.csv",
+            },
+            {
+                "url": f"{COW_UPLOADS_URL}/Extra-StateWars_Codebook.pdf",
+                "kind": "file",
+                "filename": "Extra-StateWars_Codebook.pdf",
+            },
+        ],
     },
-    "interstate_mid_dyads": {
-        "file": "dyadic_mid_4.02.csv",
-        "version": "4.02",
-        "documentation": "Dyadic MID Codebook V4.0.pdf",
+    {
+        "key": "interstate_mid_dyads",
+        "file": "dyadic_mid_4.03.csv",
+        "version": "4.03",
+        "downloads": [
+            {
+                "url": f"{COW_UPLOADS_URL}/dyadic_mid_4.03_update.zip",
+                "kind": "zip",
+                "filename": "dyadic_mid_4.03_update.zip",
+            }
+        ],
     },
-    "interstate_war_dyads": {
+    {
+        "key": "interstate_war_dyads",
         "file": "directed_dyadic_war.csv",
-        "version": "directed_dyadic_war.csv",
-        "documentation": "The Directed Dyadic Interstate War Dataset Codebook.pdf",
+        "version": "unversioned",
+        "downloads": [
+            {
+                "url": f"{COW_UPLOADS_URL}/Dyadic-Interstate-War-Dataset.zip",
+                "kind": "zip",
+                "filename": "Dyadic-Interstate-War-Dataset.zip",
+            }
+        ],
     },
-    "interstate_wars": {
+    {
+        "key": "interstate_wars",
         "file": "Inter-StateWarData_v4.0.csv",
         "version": "4.0",
-        "documentation": "MII_v4.0_Codebook.pdf",
+        "downloads": [
+            {
+                "url": f"{COW_UPLOADS_URL}/Inter-StateWarData_v4.0.csv",
+                "kind": "file",
+                "filename": "Inter-StateWarData_v4.0.csv",
+            },
+            {
+                "url": f"{COW_UPLOADS_URL}/Inter-StateWarsList.pdf",
+                "kind": "file",
+                "filename": "Inter-StateWarsList.pdf",
+            },
+            {
+                "url": f"{COW_UPLOADS_URL}/Inter-StateWars_Codebook.pdf",
+                "kind": "file",
+                "filename": "Inter-StateWars_Codebook.pdf",
+            },
+        ],
     },
-    "intrastate_wars": {
-        "file": "INTRA-STATE_State_participants v5.1.csv",
+    {
+        "key": "intrastate_wars",
+        "file": "INTRA-STATE_State_participants v5.1 CSV.csv",
         "version": "5.1",
-        "documentation": "Codebook for Intra-state v5.1 2.9.20.pdf; Description of Intra-state v5.1.pdf",
+        "downloads": [
+            {
+                "url": f"{COW_UPLOADS_URL}/Intra-State-Wars-v5.1.zip",
+                "kind": "zip",
+                "filename": "Intra-State-Wars-v5.1.zip",
+            }
+        ],
     },
-    "war_types": {"file": "../war_types.csv", "version": "local", "documentation": "local helper file"},
-}
+    {"key": "war_types", "file": "manual/war_types.csv", "version": "local", "local": True},
+]
 
-SOURCE_FILES = {key: metadata["file"] for key, metadata in SOURCE_METADATA.items()}
+SOURCE_METADATA_BY_KEY = {metadata["key"]: metadata for metadata in SOURCE_METADATA}
+SOURCE_FILES = {metadata["key"]: metadata["file"] for metadata in SOURCE_METADATA}
 
 SOURCE_ENCODINGS = {"extrastate_wars": "cp1252"}
 
@@ -79,6 +152,10 @@ def render_sql(name: str, context: dict[str, str]) -> str:
     return (SQL_ROOT / name).read_text().format(**context)
 
 
+def created_relation_names(sql: str) -> list[str]:
+    return list(dict.fromkeys(match.group(1) for match in CREATE_RELATION_PATTERN.finditer(sql)))
+
+
 def format_query_results(columns: list[str], rows: list[tuple]) -> str:
     if not columns:
         return "Query completed; no tabular result."
@@ -104,18 +181,147 @@ def sql_identifier(value: str) -> str:
     return '"' + value.replace('"', '""') + '"'
 
 
+@dataclass(frozen=True)
+class SourceDataIssue:
+    source_key: str
+    message: str
+
+    def __str__(self) -> str:
+        return f"{self.source_key}: {self.message}"
+
+
 class Pipeline:
-    def __init__(self, db_path: Path = DEFAULT_DB_PATH, csv_dir: Path = DEFAULT_CSV_DIR) -> None:
-        self.csv_dir = csv_dir
+    def __init__(self, db_path: Path = DEFAULT_DB_PATH, csv_dir: Path = DEFAULT_DATA_DIR) -> None:
+        self.data_dir = csv_dir
         self.db_path = db_path
+
+    def source_dir_for(self, source_key: str) -> Path:
+        return self.data_dir / source_key
 
     def path_for(self, source_key: str) -> Path:
         relative = SOURCE_FILES[source_key]
 
-        if relative.startswith("../"):
-            return (PROJECT_ROOT / relative.removeprefix("../")).resolve()
+        if SOURCE_METADATA_BY_KEY[source_key].get("local"):
+            return (BACKEND_ROOT / relative).resolve()
 
-        return (self.csv_dir / relative).resolve()
+        return (self.source_dir_for(source_key) / relative).resolve()
+
+    def download_file(self, url: str, destination: Path) -> None:
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        request = urllib.request.Request(url, headers={"User-Agent": "the-networks-of-war-backend/0.1"})
+        context = ssl.create_default_context(cafile=str(SYSTEM_CA_FILE)) if SYSTEM_CA_FILE.exists() else None
+
+        try:
+            with urllib.request.urlopen(request, timeout=60, context=context) as response:
+                destination.write_bytes(response.read())
+        except urllib.error.URLError as exc:
+            if not isinstance(exc.reason, ssl.SSLCertVerificationError) or shutil.which("curl") is None:
+                raise
+
+            logger.warning("Python SSL verification failed for %s; retrying with curl", url)
+            subprocess.run(
+                ["curl", "--location", "--fail", "--silent", "--show-error", "--output", str(destination), url],
+                check=True,
+            )
+
+    def extract_zip(self, archive_path: Path, destination: Path) -> None:
+        with tempfile.TemporaryDirectory(prefix="networks-of-war-") as temp_name:
+            temp_dir = Path(temp_name)
+
+            with zipfile.ZipFile(archive_path) as archive:
+                archive.extractall(temp_dir)
+
+            children = [path for path in temp_dir.iterdir() if path.name != "__MACOSX"]
+            extracted_root = children[0] if len(children) == 1 and children[0].is_dir() else temp_dir
+            destination.mkdir(parents=True, exist_ok=True)
+
+            for path in extracted_root.iterdir():
+                target = destination / path.name
+                if target.exists():
+                    if target.is_dir():
+                        shutil.rmtree(target)
+                    else:
+                        target.unlink()
+                shutil.move(str(path), target)
+
+    def populate_source_dir(self, source_key: str) -> None:
+        metadata = SOURCE_METADATA_BY_KEY[source_key]
+
+        if metadata.get("local"):
+            return
+
+        source_dir = self.source_dir_for(source_key)
+        source_dir.mkdir(parents=True, exist_ok=True)
+        downloads_dir = self.data_dir / "_downloads"
+
+        for download in metadata["downloads"]:
+            download_path = downloads_dir / download["filename"]
+            logger.info("Downloading %s", download["url"])
+            self.download_file(download["url"], download_path)
+
+            if download["kind"] == "zip":
+                self.extract_zip(download_path, source_dir)
+            elif download["kind"] == "file":
+                shutil.copy2(download_path, source_dir / download["filename"])
+            else:
+                raise ValueError(f"Unsupported download kind: {download['kind']}")
+
+    def validate_source_dir(self, source_key: str) -> list[SourceDataIssue]:
+        metadata = SOURCE_METADATA_BY_KEY[source_key]
+
+        if metadata.get("local"):
+            return []
+
+        source_dir = self.source_dir_for(source_key)
+        found = sorted(path.name for path in source_dir.rglob("*") if path.is_file())
+        expected_files = {metadata["file"]}
+        expected_files.update(
+            download["filename"] for download in metadata.get("downloads", []) if download["kind"] == "file"
+        )
+        issues = []
+
+        for expected_file in sorted(expected_files):
+            if not any(path.name == expected_file for path in source_dir.rglob("*") if path.is_file()):
+                issues.append(
+                    SourceDataIssue(
+                        source_key,
+                        f"expected {expected_file!r} but found: {', '.join(found) if found else '(no files)'}",
+                    )
+                )
+
+        return issues
+
+    def missing_download_url_issues(self) -> list[SourceDataIssue]:
+        return [
+            SourceDataIssue(metadata["key"], "source table has no configured download URL")
+            for metadata in SOURCE_METADATA
+            if not metadata.get("local") and not metadata.get("downloads")
+        ]
+
+    def prepare_data(self, recreate: bool = False) -> None:
+        if recreate and self.data_dir.exists():
+            logger.info("Recreating data directory: %s", self.data_dir)
+            shutil.rmtree(self.data_dir)
+
+        self.data_dir.mkdir(parents=True, exist_ok=True)
+        issues = self.missing_download_url_issues()
+
+        for metadata in SOURCE_METADATA:
+            source_key = metadata["key"]
+
+            if metadata.get("local"):
+                continue
+
+            source_dir = self.source_dir_for(source_key)
+            if recreate or not source_dir.exists():
+                self.populate_source_dir(source_key)
+            else:
+                logger.info("Source directory already exists: %s", source_dir)
+
+            issues.extend(self.validate_source_dir(source_key))
+
+        if issues:
+            raise RuntimeError("Source data preparation issues:\n" + "\n".join(str(issue) for issue in issues))
 
     def prepared_path_for(self, source_key: str) -> Path:
         if source_key not in SOURCE_ENCODINGS:
@@ -130,10 +336,10 @@ class Pipeline:
     def sql_context(self) -> dict[str, str]:
         context = {f"{key}_path": sql_literal(self.prepared_path_for(key)) for key in SOURCE_FILES}
 
-        for key, metadata in SOURCE_METADATA.items():
+        for metadata in SOURCE_METADATA:
+            key = metadata["key"]
             context[f"{key}_source_file"] = sql_literal(Path(metadata["file"]).name)
             context[f"{key}_source_version"] = sql_literal(metadata["version"])
-            context[f"{key}_documentation"] = sql_literal(metadata["documentation"])
 
         return context
 
@@ -147,9 +353,6 @@ class Pipeline:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
 
         return duckdb.connect(str(self.db_path))
-
-    def execute_sql(self, conn: duckdb.DuckDBPyConnection, name: str) -> None:
-        conn.execute(render_sql(name, self.sql_context()))
 
     def drop_relation_if_exists(self, conn: duckdb.DuckDBPyConnection, relation_name: str) -> None:
         query = """
@@ -167,13 +370,21 @@ class Pipeline:
         relation_type = "view" if row[0] == "VIEW" else "table"
         conn.execute(f"drop {relation_type} {sql_identifier(relation_name)}")
 
+    def drop_created_relations(self, conn: duckdb.DuckDBPyConnection, sql: str) -> None:
+        for relation_name in created_relation_names(sql):
+            self.drop_relation_if_exists(conn, relation_name)
+
+    def execute_sql(self, conn: duckdb.DuckDBPyConnection, name: str) -> None:
+        sql = render_sql(name, self.sql_context())
+        self.drop_created_relations(conn, sql)
+        conn.execute(sql)
+
     def run_step_1(self, conn: duckdb.DuckDBPyConnection) -> None:
+        self.prepare_data(recreate=False)
         self.require_inputs()
 
         for name in STEP_1_SQL:
             logger.info("Running %s", name)
-            if name == "step_1/04_create_war_dyads.sql":
-                self.drop_relation_if_exists(conn, "war_dyads")
             self.execute_sql(conn, name)
 
     def inspect(self, conn: duckdb.DuckDBPyConnection) -> None:
@@ -186,7 +397,17 @@ class Pipeline:
         rows = result.fetchall() if columns else []
         logger.info("\n%s", format_query_results(columns, rows))
 
-    def run(self, step: str = "all", inspect: bool = False, query: str | None = None) -> None:
+    def run(
+        self,
+        step: str = "all",
+        inspect: bool = False,
+        query: str | None = None,
+        prepare_data: bool = False,
+        recreate_data: bool = False,
+    ) -> None:
+        if prepare_data or recreate_data:
+            self.prepare_data(recreate=recreate_data)
+
         with self.connect() as conn:
             if step in {"all", "1"}:
                 self.run_step_1(conn)
@@ -206,9 +427,14 @@ class Pipeline:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="DuckDB backend for The Networks of War preprocessing.")
 
-    parser.add_argument("--csv-dir", default=DEFAULT_CSV_DIR, type=Path)
+    parser.add_argument("--data-dir", default=DEFAULT_DATA_DIR, type=Path)
+    parser.add_argument("--csv-dir", dest="data_dir", type=Path, help=argparse.SUPPRESS)
     parser.add_argument("--db-path", default=DEFAULT_DB_PATH, type=Path)
     parser.add_argument("--inspect", action="store_true")
+    parser.add_argument(
+        "--prepare-data", action="store_true", help="Download and validate missing source data folders."
+    )
+    parser.add_argument("--recreate-data", action="store_true", help="Delete and recreate the entire data directory.")
     parser.add_argument(
         "--query", help="SQL query to execute against the DuckDB database after the selected step runs."
     )
@@ -220,7 +446,9 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
 
-    Pipeline(csv_dir=args.csv_dir, db_path=args.db_path).run(args.step, args.inspect, args.query)
+    Pipeline(csv_dir=args.data_dir, db_path=args.db_path).run(
+        args.step, args.inspect, args.query, prepare_data=args.prepare_data, recreate_data=args.recreate_data
+    )
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 
 import duckdb
@@ -13,7 +13,7 @@ SRC_ROOT = BACKEND_ROOT / "src"
 
 sys.path.insert(0, str(SRC_ROOT))
 
-from pipeline import DEFAULT_CSV_DIR, SOURCE_FILES, Pipeline, format_query_results  # noqa: E402
+from pipeline import DEFAULT_CSV_DIR, SOURCE_FILES, SOURCE_METADATA, Pipeline, format_query_results  # noqa: E402
 
 init(strip=False)
 
@@ -65,6 +65,20 @@ def non_date_column_csv(conn, table_name: str) -> str:
     order by ordinal_position
     """
     return ", ".join(column_name for (column_name,) in conn.execute(query, [table_name]).fetchall())
+
+
+def test_source_tables_have_download_urls_or_are_marked_local():
+    missing = [
+        metadata["key"] for metadata in SOURCE_METADATA if not metadata.get("local") and not metadata.get("downloads")
+    ]
+
+    assert missing == []
+
+
+def test_interstate_war_dyad_source_metadata_is_unversioned():
+    metadata = next(metadata for metadata in SOURCE_METADATA if metadata["key"] == "interstate_war_dyads")
+
+    assert metadata["version"] == "unversioned"
 
 
 @dataclass(frozen=True)
@@ -414,22 +428,23 @@ def test_source_interstate_mid_fatality_levels_are_converted_to_estimates(conn):
 
 def test_source_battle_death_fields_are_not_null(conn):
     checks = [
-        ("source_interstate_wars", "battle_deaths"),
-        ("source_interstate_war_dyads", "battle_deaths_a"),
-        ("source_interstate_war_dyads", "battle_deaths_b"),
-        ("source_extrastate_wars", "battle_deaths_a"),
-        ("source_extrastate_wars", "battle_deaths_b"),
-        ("source_intrastate_wars", "battle_deaths_a"),
-        ("source_intrastate_wars", "battle_deaths_b"),
+        ("source_interstate_wars", ("battle_deaths",)),
+        ("source_interstate_war_dyads", ("battle_deaths_a", "battle_deaths_b")),
+        ("source_extrastate_wars", ("battle_deaths_a",)),
+        ("source_extrastate_wars", ("battle_deaths_b",)),
+        ("source_intrastate_wars", ("battle_deaths_a",)),
+        ("source_intrastate_wars", ("battle_deaths_b",)),
     ]
 
     failures = []
 
-    for table_name, column_name in checks:
+    for table_name, column_names in checks:
+        label = f"{table_name}.{', '.join(column_names)}"
+        null_predicate = " or ".join(f"{column_name} is null" for column_name in column_names)
         count_sql = f"""
         select count(*)
         from {table_name}
-        where {column_name} is null
+        where {null_predicate}
         """
         null_count = scalar(conn, count_sql)
 
@@ -439,10 +454,10 @@ def test_source_battle_death_fields_are_not_null(conn):
         output_columns = non_date_column_csv(conn, table_name)
         detected_rows_sql = f"""
         select
-            '{column_name}' column_name,
+            '{', '.join(column_names)}' column_name,
             {output_columns}
         from {table_name}
-        where {column_name} is null
+        where {null_predicate}
         order by all
         limit 50
         """
@@ -451,9 +466,9 @@ def test_source_battle_death_fields_are_not_null(conn):
         columns = [column[0] for column in result.description]
         failures.append(
             SqlCheckFailure(
-                label=f"{table_name}.{column_name}",
+                label=label,
                 sql=detected_rows_sql,
-                summary=failure_summary(f"{table_name}.{column_name}", null_count),
+                summary=failure_summary(label, null_count),
                 detected_rows=format_query_results(columns, rows),
             )
         )
@@ -468,8 +483,8 @@ def test_source_adjusted_mid_war_number_relationships_are_applied(conn):
     from source_file_versions
     where
         source_key = 'interstate_mid_dyads'
-        and source_file = 'dyadic_mid_4.02.csv'
-        and source_version = '4.02'
+        and source_file = 'dyadic_mid_4.03.csv'
+        and source_version = '4.03'
     """
     assert scalar(conn, count_sql) == 1
 

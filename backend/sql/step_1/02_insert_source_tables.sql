@@ -101,12 +101,7 @@ select
     clean_int(new) new_record,
     clean_int(change) change_flag,
     clean_int(changetype_1) change_type_1,
-    clean_int(changetype_2) change_type_2,
-    clean_text(dyad) dyad,
-    clean_text(abbreva) abbrev_a,
-    clean_text(abbrevb) abbrev_b,
-    clean_int(lastobs) last_observation,
-    clean_int(newar) newar
+    clean_int(changetype_2) change_type_2
 from read_csv_auto({interstate_mid_dyads_path}, normalize_names = false, encoding = 'latin-1');
 
 insert into source_extrastate_wars
