@@ -905,15 +905,15 @@ def test_source_adjustment_inserts_do_not_duplicate_existing_source_facts(conn):
     join source_file_versions b on a.source_key = b.source_key
                                 and a.source_version = b.source_version
     join source_interstate_wars c on a.war_num = c.war_num
-                                   and a.war_name = c.war_name
-                                   and a.war_type = c.war_type
+                                  and a.war_name = c.war_name
+                                  and a.war_type = c.war_type
     union all
     select 'source_participant_side_adjustments' adjustment_table
     from source_participant_side_adjustments a
     join source_file_versions b on a.source_key = b.source_key
                                 and a.source_version = b.source_version
     join source_interstate_wars c on a.war_num = c.war_num
-                                   and a.c_code = c.c_code
+                                  and a.c_code = c.c_code
     left join participant_name_replacements d on clean_text(a.participant) = d."source"
     left join participant_name_replacements e on clean_text(c.participant) = e."source"
     where
