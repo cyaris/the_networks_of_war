@@ -149,13 +149,14 @@ Step 1 also materializes compatibility tables:
 ### Source Tables
 
 - The primary source tables listed above come directly from one CSV file, with only type coercion, column renaming,
-  encoding normalization, and explicit source adjustments applied during load.
+  encoding normalization, and the data-entry fixes documented below applied during load.
 - `dyadic_mid_4.03.csv` has no new columns relative to `dyadic_mid_4.02.csv` and no longer includes the 4.02 columns
   `dyad`, `abbreva`, `abbrevb`, `lastobs`, and `newar`.
-- Version-scoped source adjustments live in `backend/sql/step_1/02a_apply_source_adjustments.sql` and
-  `backend/sql/step_1/02b_insert_source_adjustments.sql`. The first file creates `source_file_versions` and adjustment
-  tables; the second inserts missing source facts only when the expected CSV version is active and the source table does
-  not already contain the fact.
+- Version-scoped source adjustments live in `backend/sql/step_1/02a_create_source_adjustment_tables.sql` and
+  `backend/sql/step_1/02b_apply_source_adjustments.sql`. The first file creates `source_file_versions` and adjustment
+  tables; the second inserts adjustment rows for source facts that are not present in the source CSVs. Downstream
+  transformations join adjustment tables to `source_file_versions` when an assignment is version-scoped. Data-entry
+  fixes applied while reading source CSVs are documented below.
 
 ### Excluded Calculated Columns
 
@@ -181,6 +182,9 @@ Step 1 also materializes compatibility tables:
 - End year `-7` is treated as ongoing and resolved to December 31 of the current year at pipeline runtime.
 - A date is flagged as estimated when the year is an ongoing marker or when a positive year has a missing or invalid
   month or day.
+- Raw source date components are expected to be in basic valid domains before cleaning: months `1-12`, days `1-31`,
+  and years `1500-2100`, while COW sentinels `-7`, `-8`, and `-9` are allowed. Values outside these domains are treated
+  as data-entry issues and documented below when accepted by the pipeline.
 
 ### Encoding And Deduplication
 
@@ -202,7 +206,7 @@ Step 1 also materializes compatibility tables:
 ### Table Shape
 
 - Directed dyadic interstate war records get war name and war type metadata from `source_interstate_wars` by `war_num`;
-  synthetic MID-only wars get metadata from active source adjustment tables.
+  synthetic MID-only wars get metadata from source adjustment tables.
 - Transformed tables do not carry source-only identifiers and outcome fields (`disno`, `dyindex`, `outcome_a`,
   `outcome_b`, and `outcome`) after they are no longer needed as table outputs. MID matching still uses `disno`
   internally where needed.
@@ -226,6 +230,9 @@ Step 1 also materializes compatibility tables:
 - For extra-state and intra-state rows with multiple date spans, the pipeline uses the earliest start date and latest
   end date as the war dyad/participant span.
 - Interstate participant dates use the earliest start date and latest end date across the two source date spans.
+- Source rows with multiple date spans are validated by date pair before spans are collapsed. A bad pair such as
+  `start_1 > end_1` should be corrected or explicitly accepted before relying on the row-level earliest-start/latest-end
+  span.
 
 ### Directed Dyads And MID Records
 
@@ -236,7 +243,7 @@ Step 1 also materializes compatibility tables:
 - MID dyads are not incorporated when the same directed dyad in the same war overlaps an existing source war-dyad row.
 - Existing battle-death values take precedence over MID fatality estimates for remaining merged rows. MID estimates are
   used when summed source battle deaths are `null` or zero and summed estimates are positive.
-- MID dyads are assigned to known wars by `disno` from `source_interstate_war_dyads` and active
+- MID dyads are assigned to known wars by `disno` from `source_interstate_war_dyads` and version-scoped rows in
   `source_interstate_mid_war_num_adjustments`.
 - Missing MID `disno` to `war_num` relationships are stored in the Step 1 source adjustment tables when the current CSV
   version still needs them. If a future CSV version introduces a new unmatched MID war,
@@ -304,7 +311,8 @@ flowchart LR
 ## Data-Entry Fixes And Assignment Rules
 
 - `directed_dyadic_war.csv`
-  - Start month is corrected from original value `24` to `12`.
+  - Start month value `24` is treated as invalid and loaded as `null`; resolved start dates use the standard missing
+    start-month default.
   - End year is corrected from original value `19118` to `1918`.
   - The World War II Thailand dyad (`war_num = 139`, `statea = 800`, `stateb = 710`) is loaded with Thailand battle
     deaths corrected from original blank `batdtha` to `5,569`. The Thailand death count comes from Wikipedia's summary
@@ -325,6 +333,7 @@ flowchart LR
 - `INTRA-STATE_State_participants v5.1.csv`
   - War number is corrected from original value `977` to `979`.
   - War `976` has `StartYr1` corrected from original value `2001` to `2011`.
-  - Wars `942`, `990.4`, `991`, `991.4`, and `992.5` are treated as ongoing by setting `EndYr1` to `-7`; the original
-    source values include `-7`, `-8`, and `-9`, but only `-7` is treated as an ongoing end-year marker. Other negative
-    end-year values are loaded as `null` because the codebooks use them for not applicable or unknown values.
+  - Wars `942`, `990.4`, `991`, `991.4`, and `992.5` are treated as ongoing because their source war names say
+    `present` or `ongoing`; `EndYr1` is set to `-7` for these rows. The original source values include `-7`, `-8`, and
+    `-9`, but only `-7` is treated as an ongoing end-year marker. Other negative end-year values are loaded as `null`
+    because the codebooks use them for not applicable or unknown values.
