@@ -125,7 +125,8 @@ SOURCE_METADATA = [
 SOURCE_METADATA_BY_KEY = {metadata["key"]: metadata for metadata in SOURCE_METADATA}
 SOURCE_FILES = {metadata["key"]: metadata["file"] for metadata in SOURCE_METADATA}
 
-SOURCE_ENCODINGS = {"extrastate_wars": "cp1252"}
+SOURCE_DEFAULT_ENCODING = None
+SOURCE_ENCODING_OVERRIDES = {"extrastate_wars": "cp1252"}
 
 STEP_1_SQL = [
     "step_1/00_setup.sql",
@@ -328,12 +329,14 @@ class Pipeline:
             raise RuntimeError("Source data preparation issues:\n" + "\n".join(str(issue) for issue in issues))
 
     def prepared_path_for(self, source_key: str) -> Path:
-        if source_key not in SOURCE_ENCODINGS:
+        encoding = SOURCE_ENCODING_OVERRIDES.get(source_key, SOURCE_DEFAULT_ENCODING)
+
+        if encoding is None:
             return self.path_for(source_key)
 
         WORK_CSV_DIR.mkdir(parents=True, exist_ok=True)
         path = WORK_CSV_DIR / self.path_for(source_key).name
-        path.write_text(self.path_for(source_key).read_text(encoding=SOURCE_ENCODINGS[source_key]), encoding="utf-8")
+        path.write_text(self.path_for(source_key).read_text(encoding=encoding), encoding="utf-8")
 
         return path.resolve()
 

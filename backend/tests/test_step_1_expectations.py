@@ -75,6 +75,120 @@ def non_date_column_csv(conn, table_name: str) -> str:
     return ", ".join(column_name for (column_name,) in conn.execute(query, [table_name]).fetchall())
 
 
+CLEAN_PARTICIPANT_NESTED_REPLACEMENTS = (
+    (" and ", " & "),
+    (" rebels", " Rebels"),
+    (" resistance", " Resistance"),
+    (" resistence", " Resistance"),
+    (" sultanate", " Sultanate"),
+    (" tribe", " Tribe"),
+)
+
+CLEAN_PARTICIPANT_SPECIAL_REPLACEMENTS = (
+    ("Baron von Ungern-Sternbergs White army", "Baron von Ungern-Sternberg's White army"),
+    (" Janissaries", "Janissaries"),
+    ("Turkey/Ottoman Empire/Egypt", "Turkey, Ottoman Empire & Egypt"),
+    ("United States", "United States of America"),
+)
+
+CLEAN_PARTICIPANT_SOURCE_REPLACEMENTS = (
+    ("al-Qaeda & Iraqi resistence", "al-Qaeda & Iraqi Resistance"),
+    ("Albanians and Bosnians", "Albanians & Bosnians"),
+    ("Asir and Yemen Rebels", "Asir & Yemen Rebels"),
+    ("Beni Aseer tribe", "Beni Aseer Tribe"),
+    ("Bharatpuran rebels", "Bharatpuran Rebels"),
+    ("Bosnia and Herzegovina", "Bosnia & Herzegovina"),
+    ("Bosnia-Herzegovina and Bulgaria", "Bosnia-Herzegovina & Bulgaria"),
+    ("Bosnian and Montenegrin Beys", "Bosnian & Montenegrin Beys"),
+    ("Damascus and Aleppo", "Damascus & Aleppo"),
+    ("EPLF and ELF", "EPLF & ELF"),
+    ("FNL and FDD", "FNL & FDD"),
+    ("GMD and CCP", "GMD & CCP"),
+    ("Javanese rebels", "Javanese Rebels"),
+    ("Kandyan rebels", "Kandyan Rebels"),
+    ("Karens and Communists", "Karens & Communists"),
+    ("KDP and IMK", "KDP & IMK"),
+    ("Kumuliks and Allies", "Kumuliks & Allies"),
+    ("Lebanese Maronites and Druze", "Lebanese Maronites & Druze"),
+    ("Leftist Rebels and Drug Cartels", "Leftist Rebels & Drug Cartels"),
+    ("Liberals and Radicals", "Liberals & Radicals"),
+    ("Mahdist rebels", "Mahdist Rebels"),
+    ("Montenegro and Hercegovina", "Montenegro & Hercegovina"),
+    ("Monteneros and ERP", "Monteneros & ERP"),
+    ("Ninjas and Cocoye militias", "Ninjas & Cocoye militias"),
+    ("NPFL and INPFL", "NPFL & INPFL"),
+    ("Palestinians and Bedouins", "Palestinians & Bedouins"),
+    ("Pathan tribe", "Pathan Tribe"),
+    ("Pathan tribes", "Pathan Tribes"),
+    ("PUK and INC", "PUK & INC"),
+    ("RCD and MLC", "RCD & MLC"),
+    ("Rif tribes", "Rif Tribes"),
+    ("Sanusi tribe", "Sanusi Tribe"),
+    ("Sao Tome and Principe", "Sao Tome & Principe"),
+    ("Shaanxi and Gansu Muslims", "Shaanxi & Gansu Muslims"),
+    ("Shi'ites and Druzes", "Shi'ites & Druzes"),
+    ("Shiites and SAIRI", "Shiites & SAIRI"),
+    ("Sierra Leone rebels", "Sierra Leone Rebels"),
+    ("SPLA-Nasir and Anya Nya II", "SPLA-Nasir & Anya Nya II"),
+    ("St. Kitts and Nevis", "St. Kitts & Nevis"),
+    ("St. Vincent and the Grenadines", "St. Vincent & the Grenadines"),
+    ("Trinidad and Tobago", "Trinidad & Tobago"),
+    ("Uyghur and Kirghiz", "Uyghur & Kirghiz"),
+    ("Wadai sultanate", "Wadai Sultanate"),
+    ("Waziri tribes", "Waziri Tribes"),
+    ("Workers and Peasants", "Workers & Peasants"),
+    ("Yunnan and Guizhou", "Yunnan & Guizhou"),
+    ("Zailis and Jinden", "Zailis & Jinden"),
+    ("Zhili and Fengtien Factions", "Zhili & Fengtien Factions"),
+    ("Zulu tribe", "Zulu Tribe"),
+)
+
+
+def clean_text_python(value) -> str | None:
+    if value is None:
+        return None
+
+    text = str(value).strip()
+
+    if text == "" or text in {"-7", "-8", "-9"}:
+        return None
+
+    return text
+
+
+def apply_legacy_participant_replacements(value: str | None) -> str | None:
+    text = clean_text_python(value)
+
+    if text is None:
+        return None
+
+    for old, new in CLEAN_PARTICIPANT_NESTED_REPLACEMENTS:
+        text = text.replace(old, new)
+
+    return text
+
+
+def participant_input_values(conn) -> set[str | None]:
+    query = """
+    select state_name input_value
+    from source_country_codes
+    union
+    select coalesce(b.state_name, a.participant) input_value
+    from source_interstate_wars a
+    left join country_codes b on a.c_code = b.c_code
+    union
+    select participant_a input_value
+    from war_dyads
+    union
+    select participant_b input_value
+    from war_dyads
+    union
+    select participant input_value
+    from source_participant_side_adjustments
+    """
+    return {input_value for (input_value,) in conn.execute(query).fetchall()}
+
+
 SOURCE_DATE_PAIR_TABLES = [
     ("source_interstate_wars", 2),
     ("source_interstate_war_dyads", 1),
@@ -132,11 +246,10 @@ RAW_SOURCE_DATE_COMPONENTS = [
     ),
 ]
 
-RAW_SOURCE_DATE_ENCODINGS = {
-    "interstate_war_dyads": "latin-1",
-    "interstate_mid_dyads": "latin-1",
-    "interstate_wars": "latin-1",
-    "intrastate_wars": "latin-1",
+RAW_SOURCE_DATE_DEFAULT_ENCODING = "latin-1"
+RAW_SOURCE_DATE_ENCODING_OVERRIDES = {
+    # The pipeline prepares the cp1252 extra-state source as UTF-8 before DuckDB reads it.
+    "extrastate_wars": None,
 }
 
 
@@ -146,8 +259,8 @@ def raw_source_date_component_check_sql(
     source_path: Path,
     row_reference_columns: list[str],
     date_components: dict[str, list[str]],
+    encoding: str | None = RAW_SOURCE_DATE_DEFAULT_ENCODING,
 ) -> str:
-    encoding = RAW_SOURCE_DATE_ENCODINGS.get(source_key)
     encoding_sql = f", encoding = {sql_literal(encoding)}" if encoding else ""
     row_reference = ", ".join(
         f"'{column_name}=' || coalesce({sql_identifier(column_name)}, '<null>')"
@@ -295,6 +408,29 @@ def test_date_macros_capture_step_1_date_assumptions(conn, expression, expected)
     assert actual == expected
 
 
+def test_clean_participant_nested_replacement_inventory_matches_current_sources(conn):
+    actual_replacements = set()
+
+    for input_value in participant_input_values(conn):
+        before = clean_text_python(input_value)
+        after = apply_legacy_participant_replacements(input_value)
+
+        if before != after:
+            actual_replacements.add((before, after))
+
+    assert actual_replacements == set(CLEAN_PARTICIPANT_SOURCE_REPLACEMENTS)
+
+
+@pytest.mark.parametrize(
+    ("input_value", "expected"),
+    [*CLEAN_PARTICIPANT_SPECIAL_REPLACEMENTS, *CLEAN_PARTICIPANT_SOURCE_REPLACEMENTS],
+)
+def test_clean_participant_macro_captures_step_1_participant_assumptions(conn, input_value, expected):
+    actual = conn.execute("select clean_participant(?)", [input_value]).fetchone()[0]
+
+    assert actual == expected
+
+
 def test_raw_source_date_components_use_valid_domains(conn):
     pipeline = Pipeline(csv_dir=DEFAULT_CSV_DIR)
     failures = []
@@ -303,7 +439,12 @@ def test_raw_source_date_components_use_valid_domains(conn):
         source_file = Path(SOURCE_FILES[source_key]).name
         source_path = pipeline.prepared_path_for(source_key)
         flagged_rows_sql = raw_source_date_component_check_sql(
-            source_key, source_file, source_path, row_reference_columns, date_components
+            source_key,
+            source_file,
+            source_path,
+            row_reference_columns,
+            date_components,
+            RAW_SOURCE_DATE_ENCODING_OVERRIDES.get(source_key, RAW_SOURCE_DATE_DEFAULT_ENCODING),
         )
         count_sql = f"""
         with
