@@ -316,8 +316,7 @@ flowchart LR
   - End year is corrected from original value `19118` to `1918`.
   - The World War II Thailand dyad (`war_num = 139`, `statea = 800`, `stateb = 710`) is loaded with Thailand battle
     deaths corrected from original blank `batdtha` to `5,569`. The Thailand death count comes from Wikipedia's summary
-    of Thailand in World War II:
-    <a href="https://en.wikipedia.org/wiki/Thailand_in_World_War_II" target="_blank" rel="noopener noreferrer">Thailand in World War II</a>.
+    of <a href="https://en.wikipedia.org/wiki/Thailand_in_World_War_II" target="_blank" rel="noopener noreferrer">Thailand in World War II</a>.
 - `dyadic_mid_4.03.csv`
   - The source does not include COW war numbers, so rows are assigned to known wars by matching `disno` to
     `directed_dyadic_war.csv` where possible.
