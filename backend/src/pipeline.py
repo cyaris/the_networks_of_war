@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import shutil
 import ssl
@@ -28,100 +29,20 @@ DEFAULT_DATA_DIR = BACKEND_ROOT / "data"
 DEFAULT_CSV_DIR = DEFAULT_DATA_DIR
 DEFAULT_DB_PATH = BACKEND_ROOT / "the_networks_of_war.duckdb"
 PARTICIPANT_NAME_REPLACEMENTS_PATH = BACKEND_ROOT / "manual" / "participant_name_replacements.json"
+SOURCE_METADATA_PATH = BACKEND_ROOT / "manual" / "source_metadata.json"
 INSPECT_SQL = SQL_ROOT / "inspect_tables.sql"
 SYSTEM_CA_FILE = Path("/etc/ssl/cert.pem")
-COW_UPLOADS_URL = "https://correlatesofwar.org/wp-content/uploads"
 CREATE_RELATION_PATTERN = re.compile(
     r"^\s*create\s+or\s+replace\s+(?:table|view)\s+([A-Za-z_][A-Za-z0-9_]*)\b",
     re.IGNORECASE | re.MULTILINE,
 )
 
-SOURCE_METADATA = [
-    {
-        "key": "country_codes",
-        "file": "COW-country-codes.csv",
-        "version": "unversioned",
-        "downloads": [
-            {"url": f"{COW_UPLOADS_URL}/COW-country-codes.csv", "kind": "file", "filename": "COW-country-codes.csv"}
-        ],
-    },
-    {
-        "key": "extrastate_wars",
-        "file": "Extra-StateWarData_v4.0.csv",
-        "version": "4.0",
-        "downloads": [
-            {
-                "url": f"{COW_UPLOADS_URL}/Extra-StateWarData_v4.0.csv",
-                "kind": "file",
-                "filename": "Extra-StateWarData_v4.0.csv",
-            },
-            {
-                "url": f"{COW_UPLOADS_URL}/Extra-StateWars_Codebook.pdf",
-                "kind": "file",
-                "filename": "Extra-StateWars_Codebook.pdf",
-            },
-        ],
-    },
-    {
-        "key": "interstate_mid_dyads",
-        "file": "dyadic_mid_4.03.csv",
-        "version": "4.03",
-        "downloads": [
-            {
-                "url": f"{COW_UPLOADS_URL}/dyadic_mid_4.03_update.zip",
-                "kind": "zip",
-                "filename": "dyadic_mid_4.03_update.zip",
-            }
-        ],
-    },
-    {
-        "key": "interstate_war_dyads",
-        "file": "directed_dyadic_war.csv",
-        "version": "unversioned",
-        "downloads": [
-            {
-                "url": f"{COW_UPLOADS_URL}/Dyadic-Interstate-War-Dataset.zip",
-                "kind": "zip",
-                "filename": "Dyadic-Interstate-War-Dataset.zip",
-            }
-        ],
-    },
-    {
-        "key": "interstate_wars",
-        "file": "Inter-StateWarData_v4.0.csv",
-        "version": "4.0",
-        "downloads": [
-            {
-                "url": f"{COW_UPLOADS_URL}/Inter-StateWarData_v4.0.csv",
-                "kind": "file",
-                "filename": "Inter-StateWarData_v4.0.csv",
-            },
-            {
-                "url": f"{COW_UPLOADS_URL}/Inter-StateWarsList.pdf",
-                "kind": "file",
-                "filename": "Inter-StateWarsList.pdf",
-            },
-            {
-                "url": f"{COW_UPLOADS_URL}/Inter-StateWars_Codebook.pdf",
-                "kind": "file",
-                "filename": "Inter-StateWars_Codebook.pdf",
-            },
-        ],
-    },
-    {
-        "key": "intrastate_wars",
-        "file": "INTRA-STATE_State_participants v5.1 CSV.csv",
-        "version": "5.1",
-        "downloads": [
-            {
-                "url": f"{COW_UPLOADS_URL}/Intra-State-Wars-v5.1.zip",
-                "kind": "zip",
-                "filename": "Intra-State-Wars-v5.1.zip",
-            }
-        ],
-    },
-    {"key": "war_types", "file": "manual/war_types.csv", "version": "local", "local": True},
-]
+
+def load_source_metadata() -> list[dict]:
+    return json.loads(SOURCE_METADATA_PATH.read_text())
+
+
+SOURCE_METADATA = load_source_metadata()
 
 SOURCE_METADATA_BY_KEY = {metadata["key"]: metadata for metadata in SOURCE_METADATA}
 SOURCE_FILES = {metadata["key"]: metadata["file"] for metadata in SOURCE_METADATA}

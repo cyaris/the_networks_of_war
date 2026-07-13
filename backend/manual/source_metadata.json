@@ -1,0 +1,95 @@
+[
+  {
+    "key": "country_codes",
+    "file": "COW-country-codes.csv",
+    "version": "unversioned",
+    "downloads": [
+      {
+        "url": "https://correlatesofwar.org/wp-content/uploads/COW-country-codes.csv",
+        "kind": "file",
+        "filename": "COW-country-codes.csv"
+      }
+    ]
+  },
+  {
+    "key": "extrastate_wars",
+    "file": "Extra-StateWarData_v4.0.csv",
+    "version": "4.0",
+    "downloads": [
+      {
+        "url": "https://correlatesofwar.org/wp-content/uploads/Extra-StateWarData_v4.0.csv",
+        "kind": "file",
+        "filename": "Extra-StateWarData_v4.0.csv"
+      },
+      {
+        "url": "https://correlatesofwar.org/wp-content/uploads/Extra-StateWars_Codebook.pdf",
+        "kind": "file",
+        "filename": "Extra-StateWars_Codebook.pdf"
+      }
+    ]
+  },
+  {
+    "key": "interstate_mid_dyads",
+    "file": "dyadic_mid_4.03.csv",
+    "version": "4.03",
+    "downloads": [
+      {
+        "url": "https://correlatesofwar.org/wp-content/uploads/dyadic_mid_4.03_update.zip",
+        "kind": "zip",
+        "filename": "dyadic_mid_4.03_update.zip"
+      }
+    ]
+  },
+  {
+    "key": "interstate_war_dyads",
+    "file": "directed_dyadic_war.csv",
+    "version": "unversioned",
+    "downloads": [
+      {
+        "url": "https://correlatesofwar.org/wp-content/uploads/Dyadic-Interstate-War-Dataset.zip",
+        "kind": "zip",
+        "filename": "Dyadic-Interstate-War-Dataset.zip"
+      }
+    ]
+  },
+  {
+    "key": "interstate_wars",
+    "file": "Inter-StateWarData_v4.0.csv",
+    "version": "4.0",
+    "downloads": [
+      {
+        "url": "https://correlatesofwar.org/wp-content/uploads/Inter-StateWarData_v4.0.csv",
+        "kind": "file",
+        "filename": "Inter-StateWarData_v4.0.csv"
+      },
+      {
+        "url": "https://correlatesofwar.org/wp-content/uploads/Inter-StateWarsList.pdf",
+        "kind": "file",
+        "filename": "Inter-StateWarsList.pdf"
+      },
+      {
+        "url": "https://correlatesofwar.org/wp-content/uploads/Inter-StateWars_Codebook.pdf",
+        "kind": "file",
+        "filename": "Inter-StateWars_Codebook.pdf"
+      }
+    ]
+  },
+  {
+    "key": "intrastate_wars",
+    "file": "INTRA-STATE_State_participants v5.1 CSV.csv",
+    "version": "5.1",
+    "downloads": [
+      {
+        "url": "https://correlatesofwar.org/wp-content/uploads/Intra-State-Wars-v5.1.zip",
+        "kind": "zip",
+        "filename": "Intra-State-Wars-v5.1.zip"
+      }
+    ]
+  },
+  {
+    "key": "war_types",
+    "file": "manual/war_types.csv",
+    "version": "local",
+    "local": true
+  }
+]

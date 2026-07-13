@@ -148,7 +148,6 @@ SOURCE_DATE_PAIR_TABLES = [
     ("source_intrastate_wars", 4),
 ]
 
-
 RAW_SOURCE_DATE_COMPONENTS = [
     (
         "interstate_war_dyads",
@@ -198,10 +197,8 @@ RAW_SOURCE_DATE_COMPONENTS = [
 ]
 
 RAW_SOURCE_DATE_DEFAULT_ENCODING = "latin-1"
-RAW_SOURCE_DATE_ENCODING_OVERRIDES = {
-    # The pipeline prepares the cp1252 extra-state source as UTF-8 before DuckDB reads it.
-    "extrastate_wars": None,
-}
+# The pipeline prepares the cp1252 extra-state source as UTF-8 before DuckDB reads it.
+RAW_SOURCE_DATE_ENCODING_OVERRIDES = {"extrastate_wars": None}
 
 
 def raw_source_date_component_check_sql(
@@ -256,8 +253,15 @@ def test_source_tables_have_download_urls_or_are_marked_local():
     missing = [
         metadata["key"] for metadata in SOURCE_METADATA if not metadata.get("local") and not metadata.get("downloads")
     ]
+    non_absolute_urls = [
+        download["url"]
+        for metadata in SOURCE_METADATA
+        for download in metadata.get("downloads", [])
+        if not download["url"].startswith(("http://", "https://"))
+    ]
 
     assert missing == []
+    assert non_absolute_urls == []
 
 
 @dataclass(frozen=True)
