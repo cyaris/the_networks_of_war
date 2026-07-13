@@ -13,7 +13,15 @@ SRC_ROOT = BACKEND_ROOT / "src"
 
 sys.path.insert(0, str(SRC_ROOT))
 
-from pipeline import DEFAULT_CSV_DIR, SOURCE_FILES, SOURCE_METADATA, Pipeline, format_query_results  # noqa: E402
+from pipeline import (  # noqa: E402
+    DEFAULT_CSV_DIR,
+    SOURCE_FILES,
+    SOURCE_METADATA,
+    Pipeline,
+    format_query_results,
+    sql_identifier,
+    sql_literal,
+)
 
 init(strip=False)
 
@@ -65,6 +73,119 @@ def non_date_column_csv(conn, table_name: str) -> str:
     order by ordinal_position
     """
     return ", ".join(column_name for (column_name,) in conn.execute(query, [table_name]).fetchall())
+
+
+SOURCE_DATE_PAIR_TABLES = [
+    ("source_interstate_wars", 2),
+    ("source_interstate_war_dyads", 1),
+    ("source_interstate_mid_dyads", 1),
+    ("source_extrastate_wars", 2),
+    ("source_intrastate_wars", 4),
+]
+
+
+RAW_SOURCE_DATE_COMPONENTS = [
+    (
+        "interstate_war_dyads",
+        ["warnum", "disno", "dyindex", "statea", "stateb", "year"],
+        {
+            "month": ["warstrtmnth", "warendmnth"],
+            "day": ["warstrtday", "warenday"],
+            "year": ["warstrtyr", "warendyr"],
+        },
+    ),
+    (
+        "interstate_mid_dyads",
+        ["disno", "dyindex", "statea", "stateb", "year"],
+        {
+            "month": ["strtmnth", "endmnth"],
+            "day": ["strtday", "endday"],
+            "year": ["strtyr", "endyear"],
+        },
+    ),
+    (
+        "extrastate_wars",
+        ["WarNum", "WarName", "ccode1", "ccode2"],
+        {
+            "month": ["StartMonth1", "EndMonth1", "StartMonth2", "EndMonth2"],
+            "day": ["StartDay1", "EndDay1", "StartDay2", "EndDay2"],
+            "year": ["StartYear1", "EndYear1", "StartYear2", "EndYear2"],
+        },
+    ),
+    (
+        "interstate_wars",
+        ["WarNum", "WarName", "ccode", "StateName"],
+        {
+            "month": ["StartMonth1", "EndMonth1", "StartMonth2", "EndMonth2"],
+            "day": ["StartDay1", "EndDay1", "StartDay2", "EndDay2"],
+            "year": ["StartYear1", "EndYear1", "StartYear2", "EndYear2"],
+        },
+    ),
+    (
+        "intrastate_wars",
+        ["WarNum", "WarName", "CcodeA", "CcodeB"],
+        {
+            "month": ["StartMo1", "EndMo1", "StartMo2", "EndMo2", "StartMo3", "EndMo3", "StartMo4", "EndMo4"],
+            "day": ["StartDy1", "EndDy1", "StartDy2", "EndDy2", "StartDy3", "EndDy3", "StartDy4", "EndDy4"],
+            "year": ["StartYr1", "EndYr1", "StartYr2", "EndYr2", "StartYr3", "EndYr3", "StartYr4", "EndYr4"],
+        },
+    ),
+]
+
+RAW_SOURCE_DATE_ENCODINGS = {
+    "interstate_war_dyads": "latin-1",
+    "interstate_mid_dyads": "latin-1",
+    "interstate_wars": "latin-1",
+    "intrastate_wars": "latin-1",
+}
+
+
+def raw_source_date_component_check_sql(
+    source_key: str,
+    source_file: str,
+    source_path: Path,
+    row_reference_columns: list[str],
+    date_components: dict[str, list[str]],
+) -> str:
+    encoding = RAW_SOURCE_DATE_ENCODINGS.get(source_key)
+    encoding_sql = f", encoding = {sql_literal(encoding)}" if encoding else ""
+    row_reference = ", ".join(
+        f"'{column_name}=' || coalesce({sql_identifier(column_name)}, '<null>')"
+        for column_name in row_reference_columns
+    )
+    date_component_values = ",\n            ".join(
+        f"({sql_literal(column_name)}, {sql_literal(date_part)}, {sql_identifier(column_name)})"
+        for date_part, column_names in date_components.items()
+        for column_name in column_names
+    )
+
+    return f"""
+    select
+        {sql_literal(source_key)} source_key,
+        {sql_literal(source_file)} source_file,
+        concat_ws(' | ', {row_reference}) row_reference,
+        dates.column_name,
+        dates.date_part,
+        dates.raw_value
+    from read_csv_auto({sql_literal(source_path)}, normalize_names = false, all_varchar = true{encoding_sql})
+    cross join lateral (
+        values
+            {date_component_values}
+    ) dates(column_name, date_part, raw_value)
+    where
+        trim(dates.raw_value) != ''
+        and (
+            try_cast(dates.raw_value as integer) is null
+            or (
+                try_cast(dates.raw_value as integer) not in (-9, -8, -7)
+                and (
+                    (dates.date_part = 'month' and try_cast(dates.raw_value as integer) not between 1 and 12)
+                    or (dates.date_part = 'day' and try_cast(dates.raw_value as integer) not between 1 and 31)
+                    or (dates.date_part = 'year' and try_cast(dates.raw_value as integer) not between 1500 and 2100)
+                )
+            )
+        )
+    """
 
 
 def test_source_tables_have_download_urls_or_are_marked_local():
@@ -205,46 +326,79 @@ def test_date_macros_capture_step_1_date_assumptions(conn, expression, expected)
     assert actual == expected
 
 
-def test_source_resolved_start_dates_do_not_exceed_end_dates(conn):
-    checks = [
-        (
-            "source_interstate_wars",
-            "least(cow_date(start_year_1, start_month_1, start_day_1, 1, 1), cow_date(start_year_2, start_month_2, start_day_2, 1, 1))",
-            "greatest(cow_end_date(end_year_1, end_month_1, end_day_1), cow_end_date(end_year_2, end_month_2, end_day_2))",
-        ),
-        (
-            "source_interstate_war_dyads",
-            "cow_date(start_year_1, start_month_1, start_day_1, 1, 1)",
-            "cow_end_date(end_year_1, end_month_1, end_day_1)",
-        ),
-        (
-            "source_interstate_mid_dyads",
-            "cow_date(start_year_1, start_month_1, start_day_1, 1, 1)",
-            "cow_end_date(end_year_1, end_month_1, end_day_1)",
-        ),
-        (
-            "source_extrastate_wars",
-            "least(cow_date(start_year_1, start_month_1, start_day_1, 1, 1), cow_date(start_year_2, start_month_2, start_day_2, 1, 1))",
-            "greatest(cow_end_date(end_year_1, end_month_1, end_day_1), cow_end_date(end_year_2, end_month_2, end_day_2))",
-        ),
-        (
-            "source_intrastate_wars",
-            "least(cow_date(start_year_1, start_month_1, start_day_1, 1, 1), cow_date(start_year_2, start_month_2, start_day_2, 1, 1), cow_date(start_year_3, start_month_3, start_day_3, 1, 1), cow_date(start_year_4, start_month_4, start_day_4, 1, 1))",
-            "greatest(cow_end_date(end_year_1, end_month_1, end_day_1), cow_end_date(end_year_2, end_month_2, end_day_2), cow_end_date(end_year_3, end_month_3, end_day_3), cow_end_date(end_year_4, end_month_4, end_day_4))",
-        ),
-    ]
-
+def test_raw_source_date_components_use_valid_domains(conn):
+    pipeline = Pipeline(csv_dir=DEFAULT_CSV_DIR)
     failures = []
 
-    for table_name, start_date_expression, end_date_expression in checks:
+    for source_key, row_reference_columns, date_components in RAW_SOURCE_DATE_COMPONENTS:
+        source_file = Path(SOURCE_FILES[source_key]).name
+        source_path = pipeline.prepared_path_for(source_key)
+        flagged_rows_sql = raw_source_date_component_check_sql(
+            source_key, source_file, source_path, row_reference_columns, date_components
+        )
+        count_sql = f"""
+        with
+
+        flagged_rows as (
+        {flagged_rows_sql})
+
+        select count(*)
+        from flagged_rows
+        """
+        flagged_count = scalar(conn, count_sql)
+
+        if flagged_count == 0:
+            continue
+
+        detected_rows_sql = f"""
+        with
+
+        flagged_rows as (
+        {flagged_rows_sql})
+
+        select *
+        from flagged_rows
+        order by source_key, row_reference, column_name
+        limit 50
+        """
+        result = conn.execute(detected_rows_sql)
+        rows = result.fetchall()
+        columns = [column[0] for column in result.description]
+        failures.append(
+            SqlCheckFailure(
+                label=source_key,
+                sql=detected_rows_sql,
+                summary=failure_summary(source_key, flagged_count),
+                detected_rows=format_query_results(columns, rows),
+            )
+        )
+
+    if failures:
+        fail_sql_check("Raw source date components outside valid domains:", failures=failures)
+
+
+def test_source_resolved_date_pairs_do_not_start_after_they_end(conn):
+    failures = []
+
+    for table_name, date_pair_count in SOURCE_DATE_PAIR_TABLES:
         output_columns = non_date_column_csv(conn, table_name)
+        date_pair_values_sql = ",\n            ".join([f"""(
+                {date_pair},
+                cow_date(start_year_{date_pair}, start_month_{date_pair}, start_day_{date_pair}, 1, 1),
+                cow_end_date(end_year_{date_pair}, end_month_{date_pair}, end_day_{date_pair})
+            )""" for date_pair in range(1, date_pair_count + 1)])
         flagged_rows_sql = f"""
         select
-            {start_date_expression} start_date,
-            {end_date_expression} end_date,
+            dates.date_pair,
+            dates.start_date,
+            dates.end_date,
             {output_columns}
         from {table_name}
-        where start_date > end_date
+        cross join lateral (
+            values
+            {date_pair_values_sql}
+        ) dates(date_pair, start_date, end_date)
+        where dates.start_date > dates.end_date
         """
         count_sql = f"""
         with
@@ -284,7 +438,78 @@ def test_source_resolved_start_dates_do_not_exceed_end_dates(conn):
         )
 
     if failures:
-        fail_sql_check("Source rows where resolved start_date exceeds end_date:", failures=failures)
+        fail_sql_check("Source date pairs where resolved start_date exceeds end_date:", failures=failures)
+
+
+def test_source_date_pairs_have_required_year_bounds(conn):
+    failures = []
+
+    for table_name, date_pair_count in SOURCE_DATE_PAIR_TABLES:
+        output_columns = non_date_column_csv(conn, table_name)
+        date_pair_values_sql = ",\n            ".join([f"""(
+                {date_pair},
+                start_year_{date_pair},
+                end_year_{date_pair},
+                coalesce(start_year_{date_pair}, start_month_{date_pair}, start_day_{date_pair}, end_year_{date_pair}, end_month_{date_pair}, end_day_{date_pair}) is not null
+            )""" for date_pair in range(1, date_pair_count + 1)])
+        flagged_rows_sql = f"""
+        select
+            dates.date_pair,
+            if(dates.start_year is null, 'missing_start_year', 'missing_non_ongoing_end_year') date_issue,
+            dates.start_year,
+            dates.end_year,
+            {output_columns}
+        from {table_name}
+        cross join lateral (
+            values
+            {date_pair_values_sql}
+        ) dates(date_pair, start_year, end_year, date_pair_present)
+        where
+            dates.date_pair_present
+            and (
+                dates.start_year is null
+                or dates.end_year is null
+            )
+        """
+        count_sql = f"""
+        with
+
+        flagged_rows as (
+        {flagged_rows_sql})
+
+        select count(*)
+        from flagged_rows
+        """
+        flagged_count = scalar(conn, count_sql)
+
+        if flagged_count == 0:
+            continue
+
+        detected_rows_sql = f"""
+        with
+
+        flagged_rows as (
+        {flagged_rows_sql})
+
+        select *
+        from flagged_rows
+        order by all
+        limit 50
+        """
+        result = conn.execute(detected_rows_sql)
+        rows = result.fetchall()
+        columns = [column[0] for column in result.description]
+        failures.append(
+            SqlCheckFailure(
+                label=table_name,
+                sql=detected_rows_sql,
+                summary=failure_summary(table_name, flagged_count),
+                detected_rows=format_query_results(columns, rows),
+            )
+        )
+
+    if failures:
+        fail_sql_check("Source date pairs with missing required date bounds:", failures=failures)
 
 
 def test_calculated_and_transient_source_columns_are_not_materialized(conn):
@@ -364,7 +589,9 @@ def test_source_transition_war_references_are_positive_or_null(conn):
 
 def test_source_interstate_war_dyad_data_entry_fixes_are_applied(conn):
     query = """
-    select start_month_1
+    select
+        start_month_1,
+        start_year_1
     from source_interstate_war_dyads
     where
         war_num = 106
@@ -372,7 +599,7 @@ def test_source_interstate_war_dyad_data_entry_fixes_are_applied(conn):
         and c_code_a = 2
         and c_code_b = 300
     """
-    assert scalar(conn, query) == 12
+    assert conn.execute(query).fetchone() == (None, 1918)
 
     query = """
     select end_year_1
@@ -424,7 +651,7 @@ def test_source_interstate_mid_fatality_levels_are_converted_to_estimates(conn):
     assert actual_estimates == {0, 25, 100, 250, 500, 999, 1000}
 
 
-def test_source_battle_death_fields_are_not_null(conn):
+def test_required_source_battle_death_fields_are_not_null(conn):
     checks = [
         ("source_interstate_wars", ("battle_deaths",)),
         ("source_interstate_war_dyads", ("battle_deaths_a", "battle_deaths_b")),
@@ -549,6 +776,42 @@ def test_source_adjusted_mid_participant_side_assignments_are_applied(conn):
     assert actual_sides == {(660, "Lebanon", 1), (666, "Israel", 2)}
 
 
+def test_source_adjustment_inserts_do_not_duplicate_existing_source_facts(conn):
+    query = """
+    with
+
+    duplicated_adjustments as (
+
+    select 'source_interstate_mid_war_num_adjustments' adjustment_table
+    from source_interstate_mid_war_num_adjustments a
+    join source_file_versions b on a.source_key = b.source_key
+                                and a.source_version = b.source_version
+    join source_interstate_war_dyads c on a.disno = c.disno
+                                       and a.war_num = c.war_num
+    union all
+    select 'source_interstate_war_metadata_adjustments' adjustment_table
+    from source_interstate_war_metadata_adjustments a
+    join source_file_versions b on a.source_key = b.source_key
+                                and a.source_version = b.source_version
+    join source_interstate_wars c on a.war_num = c.war_num
+                                   and a.war_name = c.war_name
+                                   and a.war_type = c.war_type
+    union all
+    select 'source_participant_side_adjustments' adjustment_table
+    from source_participant_side_adjustments a
+    join source_file_versions b on a.source_key = b.source_key
+                                and a.source_version = b.source_version
+    join source_interstate_wars c on a.war_num = c.war_num
+                                   and a.c_code = c.c_code
+                                   and clean_participant(a.participant) = clean_participant(c.participant)
+                                   and a.side = c.side)
+
+    select count(*)
+    from duplicated_adjustments
+    """
+    assert scalar(conn, query) == 0
+
+
 def test_interstate_war_source_rows_are_participant_rows(conn):
     count_sql = """
     select count(*)
@@ -578,6 +841,62 @@ def test_source_intrastate_war_data_entry_fixes_are_applied(conn):
         and end_year_1 != -7
     """
     assert scalar(conn, count_sql) == 0
+
+
+def test_source_wars_named_present_or_ongoing_are_marked_ongoing(conn):
+    detected_rows_sql = """
+    with
+
+    named_ongoing_wars as (
+
+    select
+        'source_interstate_wars' source_table,
+        war_num,
+        any_value(war_name) war_name,
+        max(greatest(ongoing_war(end_year_1), ongoing_war(end_year_2))) ongoing_war
+    from source_interstate_wars
+    where regexp_matches(lower(war_name), '(^|[^a-z])(present|ongoing)([^a-z]|$)')
+    group by 1, 2
+    union all
+    select
+        'source_extrastate_wars' source_table,
+        war_num,
+        any_value(war_name) war_name,
+        max(greatest(ongoing_war(end_year_1), ongoing_war(end_year_2))) ongoing_war
+    from source_extrastate_wars
+    where regexp_matches(lower(war_name), '(^|[^a-z])(present|ongoing)([^a-z]|$)')
+    group by 1, 2
+    union all
+    select
+        'source_intrastate_wars' source_table,
+        war_num,
+        any_value(war_name) war_name,
+        max(greatest(ongoing_war(end_year_1), ongoing_war(end_year_2), ongoing_war(end_year_3), ongoing_war(end_year_4))) ongoing_war
+    from source_intrastate_wars
+    where regexp_matches(lower(war_name), '(^|[^a-z])(present|ongoing)([^a-z]|$)')
+    group by 1, 2)
+
+    select *
+    from named_ongoing_wars
+    where ongoing_war = 0
+    order by source_table, war_num
+    """
+    result = conn.execute(detected_rows_sql)
+    rows = result.fetchall()
+    columns = [column[0] for column in result.description]
+
+    if rows:
+        fail_sql_check(
+            "Source wars named present or ongoing should retain the ongoing end-year marker.",
+            failures=[
+                SqlCheckFailure(
+                    label="named ongoing source wars without ongoing marker",
+                    sql=detected_rows_sql,
+                    summary=failure_summary("named ongoing source wars without ongoing marker", len(rows)),
+                    detected_rows=format_query_results(columns, rows),
+                )
+            ],
+        )
 
 
 def test_mid_dyads_do_not_duplicate_source_dyad_overlaps(conn):

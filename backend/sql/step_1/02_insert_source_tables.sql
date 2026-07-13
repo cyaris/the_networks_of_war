@@ -15,7 +15,7 @@ select
     clean_int(statea) c_code_a,
     clean_int(stateb) c_code_b,
     clean_date_day(warstrtday) start_day_1,
-    if(clean_int(warstrtmnth) = 24, 12, clean_date_month(warstrtmnth)) start_month_1,
+    clean_date_month(warstrtmnth) start_month_1,
     clean_date_year(warstrtyr) start_year_1,
     clean_date_day(warenday) end_day_1,
     clean_date_month(warendmnth) end_month_1,
@@ -193,8 +193,6 @@ select
     clean_date_year(StartYr4) start_year_4,
     clean_date_day(EndDy1) end_day_1,
     clean_date_month(EndMo1) end_month_1,
-    -- todo: review the line below.
-    -- Data-entry fix: these wars are ongoing despite non-ongoing source end-year sentinels.
     if(clean_number(WarNum) in (942, 990.4, 991, 991.4, 992.5), -7, clean_end_year(EndYr1)) end_year_1,
     clean_date_day(EndDy2) end_day_2,
     clean_date_month(EndMo2) end_month_2,
