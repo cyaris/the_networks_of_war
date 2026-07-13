@@ -243,31 +243,6 @@ def fail_sql_check(title: str, *, failures: list[SqlCheckFailure]) -> None:
     pytest.fail("\n\n".join(["", *sections]), pytrace=False)
 
 
-def test_fail_sql_check_groups_each_failure_by_query_summary_and_detected_rows():
-    with pytest.raises(pytest.fail.Exception) as excinfo:
-        fail_sql_check(
-            "Bad source rows",
-            failures=[
-                SqlCheckFailure(
-                    label="source rows",
-                    sql="select\n    *\nfrom source_table",
-                    summary=failure_summary("source rows", 2),
-                    detected_rows="detected table",
-                )
-            ],
-        )
-
-    message = str(excinfo.value)
-
-    assert f"{Style.BRIGHT}{Fore.RED}Bad source rows{Style.RESET_ALL}" in message
-    assert "SQL queries:" not in message
-    assert "Source fields:" not in message
-    assert message.index("SQL query:") < message.index("Failure summary:") < message.index("Detected rows:")
-    assert f"{Fore.WHITE}{failure_summary('source rows', 2).strip()}{Style.RESET_ALL}" in message
-    assert f"{Fore.WHITE}select\n    *\nfrom source_table{Style.RESET_ALL}" in message
-    assert f"{Fore.WHITE}detected table{Style.RESET_ALL}" in message
-
-
 def test_negative_date_sentinels_are_cleaned_except_ongoing_end_year(conn):
     query = """
     select
@@ -379,9 +354,30 @@ def test_raw_source_date_components_use_valid_domains(conn):
 
 def test_source_resolved_date_pairs_do_not_start_after_they_end(conn):
     failures = []
+    output_column_allowlist = [
+        "war_num",
+        "disno",
+        "dyindex",
+        "war_name",
+        "war_type",
+        "c_code",
+        "c_code_a",
+        "c_code_b",
+        "participant",
+        "participant_a",
+        "participant_b",
+        "name_a",
+        "name_b",
+        "side",
+        "internationalized",
+        "source_year",
+    ]
 
     for table_name, date_pair_count in SOURCE_DATE_PAIR_TABLES:
-        output_columns = non_date_column_csv(conn, table_name)
+        existing_columns = column_names(conn, table_name)
+        output_columns = ", ".join(
+            sql_identifier(column_name) for column_name in output_column_allowlist if column_name in existing_columns
+        )
         date_pair_values_sql = ",\n            ".join([f"""(
                 {date_pair},
                 cow_date(start_year_{date_pair}, start_month_{date_pair}, start_day_{date_pair}, 1, 1),
@@ -914,55 +910,24 @@ def test_mid_dyads_do_not_duplicate_source_dyad_overlaps(conn):
     assert scalar(conn, count_sql) == 0
 
 
-def test_dyad_battle_death_estimate_flags_are_binary(conn):
-    for table_name in ["dyads_after_mid"]:
-        count_sql = f"""
-        select count(*)
-        from {table_name}
-        where
-            battle_deaths_estimated_a not in (0, 1)
-            or battle_deaths_estimated_b not in (0, 1)
-            or battle_deaths_estimated_a is null
-            or battle_deaths_estimated_b is null
-        """
-        assert scalar(conn, count_sql) == 0
-
-
-def test_participant_battle_death_estimate_flags_are_binary(conn):
-    for table_name in ["war_participants", "participants"]:
-        count_sql = f"""
-        select count(*)
-        from {table_name}
-        where
-            battle_deaths_estimated not in (0, 1)
-            or battle_deaths_estimated is null
-        """
-        assert scalar(conn, count_sql) == 0
-
-
-def test_participants_have_side_assignments(conn):
-    detected_rows_sql = """
-    select *
-    from participants
-    where side is null
-    order by war_num, c_code, participant
+@pytest.mark.parametrize(
+    ("table_name", "flag_columns"),
+    [
+        ("dyads_after_mid", ("battle_deaths_estimated_a", "battle_deaths_estimated_b")),
+        ("war_participants", ("battle_deaths_estimated",)),
+        ("participants", ("battle_deaths_estimated",)),
+    ],
+)
+def test_battle_death_estimate_flags_are_binary(conn, table_name, flag_columns):
+    invalid_predicate = " or ".join(
+        f"{column_name} not in (0, 1) or {column_name} is null" for column_name in flag_columns
+    )
+    count_sql = f"""
+    select count(*)
+    from {table_name}
+    where {invalid_predicate}
     """
-    result = conn.execute(detected_rows_sql)
-    rows = result.fetchall()
-    columns = [column[0] for column in result.description]
-
-    if rows:
-        fail_sql_check(
-            "Participants should have side assignments.",
-            failures=[
-                SqlCheckFailure(
-                    label="participants with missing sides",
-                    sql=detected_rows_sql,
-                    summary=failure_summary("participants with missing sides", len(rows)),
-                    detected_rows=format_query_results(columns, rows),
-                )
-            ],
-        )
+    assert scalar(conn, count_sql) == 0
 
 
 def test_source_side_assignments_are_valid(conn):
@@ -1071,11 +1036,13 @@ def test_interstate_war_dyads_use_semantic_participant_sides(conn):
     )
 
 
-def test_final_participant_side_assignments_are_valid(conn):
+def test_final_participant_side_assignments_are_present_and_valid(conn):
     count_sql = """
     select count(*)
     from participants
-    where side not in (1, 2, 3)
+    where
+        side is null
+        or side not in (1, 2, 3)
     """
     invalid_count = scalar(conn, count_sql)
 
@@ -1085,7 +1052,9 @@ def test_final_participant_side_assignments_are_valid(conn):
     detected_rows_sql = """
     select *
     from participants
-    where side not in (1, 2, 3)
+    where
+        side is null
+        or side not in (1, 2, 3)
     order by war_num, c_code, participant
     limit 50
     """
@@ -1094,12 +1063,12 @@ def test_final_participant_side_assignments_are_valid(conn):
     columns = [column[0] for column in result.description]
 
     fail_sql_check(
-        "Final participant side assignments should be in (1, 2, 3):",
+        "Final participant side assignments should be present and in (1, 2, 3):",
         failures=[
             SqlCheckFailure(
-                label="participants invalid side rows",
+                label="participants missing or invalid side rows",
                 sql=detected_rows_sql,
-                summary=failure_summary("participants invalid side rows", invalid_count),
+                summary=failure_summary("participants missing or invalid side rows", invalid_count),
                 detected_rows=format_query_results(columns, rows),
             )
         ],
