@@ -92,7 +92,7 @@ CLEAN_PARTICIPANT_TEXT_ASSUMPTIONS = ((" Janissaries", "Janissaries"),)
 def participant_name_replacements() -> tuple[tuple[str, str], ...]:
     rows = json.loads(PARTICIPANT_NAME_REPLACEMENTS_PATH.read_text())
 
-    return tuple((row["source_participant"], row["replacement_participant"]) for row in rows)
+    return tuple((row["source"], row["replacement"]) for row in rows)
 
 
 def clean_text_python(value) -> str | None:
@@ -362,9 +362,9 @@ def test_date_macros_capture_step_1_date_assumptions(conn, expression, expected)
 def test_clean_participant_nested_replacement_inventory_matches_current_sources(conn):
     actual_replacements = set()
     expected_replacements = {
-        (source_participant, replacement_participant)
-        for source_participant, replacement_participant in participant_name_replacements()
-        if apply_legacy_participant_replacements(source_participant) == replacement_participant
+        (source, replacement)
+        for source, replacement in participant_name_replacements()
+        if apply_legacy_participant_replacements(source) == replacement
     }
 
     for input_value in participant_input_values(conn):
@@ -383,9 +383,9 @@ def test_clean_participant_nested_replacement_inventory_matches_current_sources(
 )
 def test_clean_participant_macro_captures_step_1_participant_assumptions(conn, input_value, expected):
     query = """
-    select clean_participant(a.input_value, b.replacement_participant)
+    select clean_participant(a.input_value, b."replacement")
     from (select ? input_value) a
-    left join participant_name_replacements b on clean_text(a.input_value) = b.source_participant
+    left join participant_name_replacements b on clean_text(a.input_value) = b."source"
     """
     actual = conn.execute(query, [input_value]).fetchone()[0]
 
@@ -397,8 +397,8 @@ def test_participant_name_replacements_are_unique_and_materialized(conn):
 
     query = """
     select
-        source_participant,
-        replacement_participant
+        "source",
+        "replacement"
     from participant_name_replacements
     order by 1
     """
@@ -910,10 +910,10 @@ def test_source_adjustment_inserts_do_not_duplicate_existing_source_facts(conn):
                                 and a.source_version = b.source_version
     join source_interstate_wars c on a.war_num = c.war_num
                                    and a.c_code = c.c_code
-    left join participant_name_replacements d on clean_text(a.participant) = d.source_participant
-    left join participant_name_replacements e on clean_text(c.participant) = e.source_participant
+    left join participant_name_replacements d on clean_text(a.participant) = d."source"
+    left join participant_name_replacements e on clean_text(c.participant) = e."source"
     where
-        clean_participant(a.participant, d.replacement_participant) = clean_participant(c.participant, e.replacement_participant)
+        clean_participant(a.participant, d."replacement") = clean_participant(c.participant, e."replacement")
         and a.side = c.side)
 
     select count(*)
@@ -1035,7 +1035,7 @@ def test_battle_death_estimate_flags_are_binary(conn, table_name, flag_columns):
     assert scalar(conn, count_sql) == 0
 
 
-def test_interstate_war_source_participant_rows_are_valid(conn):
+def test_interstate_war_source_rows_are_valid(conn):
     detected_rows_sql = """
     select *
     from source_interstate_wars

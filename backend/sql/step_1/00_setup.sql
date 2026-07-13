@@ -37,15 +37,15 @@ create or replace macro clean_war_reference(value) as (
 create or replace table participant_name_replacements as
 
 select
-    clean_text(source_participant) source_participant,
-    clean_text(replacement_participant) replacement_participant
+    clean_text("source") "source",
+    clean_text("replacement") "replacement"
 from read_json_auto({participant_name_replacements_path})
 where
-    clean_text(source_participant) is not null
-    and clean_text(replacement_participant) is not null;
+    clean_text("source") is not null
+    and clean_text("replacement") is not null;
 
-create or replace macro clean_participant(value, replacement_participant) as (
-    coalesce(replacement_participant, clean_text(value))
+create or replace macro clean_participant(value, replacement) as (
+    coalesce(replacement, clean_text(value))
 );
 
 create or replace macro cow_date(year_value, month_value, day_value, default_month, default_day) as (
