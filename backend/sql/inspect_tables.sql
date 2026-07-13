@@ -44,21 +44,21 @@ select
 from dyads_after_sources
 union all
 select
-    'initial_participants' table_name,
+    'participants' table_name,
     count(*) row_count
-from initial_participants
+from participants
 union all
 select
-    'initial_dyads' table_name,
+    'dyads' table_name,
     count(*) row_count
-from initial_dyads
+from dyads
 union all
 select
-    'initial_dyad_years' table_name,
+    'dyad_years' table_name,
     count(*) row_count
-from initial_dyad_years
+from dyad_years
 union all
 select
-    'initial_wars' table_name,
+    'wars' table_name,
     count(*) row_count
-from initial_wars;
+from wars;

@@ -15,20 +15,13 @@ mid_wars_prepared as (
 
 select
     a.disno,
-    case
-        when b.war_num is not null then b.war_num
-        when a.start_year_1 <= 1945 then 139
-        when a.disno = 4182 then 4182
-        when a.disno = 4339 then 905
-        else -1
-    end war_num,
+    coalesce(b.war_num, -1) war_num,
     a.c_code_a,
     a.c_code_b,
     cow_date(a.start_year_1, a.start_month_1, a.start_day_1, 1, 1) start_date,
     cow_end_date(a.end_year_1, a.end_month_1, a.end_day_1) end_date,
     date_estimated(a.start_year_1, a.start_month_1, a.start_day_1) start_date_estimated,
     date_estimated(a.end_year_1, a.end_month_1, a.end_day_1) end_date_estimated,
-    ongoing_war(a.end_year_1) ongoing_war,
     a.battle_deaths_estimated_a,
     a.battle_deaths_estimated_b
 from source_interstate_mid_dyads a
@@ -46,7 +39,6 @@ select
     end_date,
     start_date_estimated,
     end_date_estimated,
-    ongoing_war,
     battle_deaths_estimated_a,
     battle_deaths_estimated_b
 from mid_wars_prepared
@@ -60,12 +52,11 @@ select
     end_date,
     start_date_estimated,
     end_date_estimated,
-    ongoing_war,
     battle_deaths_estimated_b battle_deaths_estimated_a,
     battle_deaths_estimated_a battle_deaths_estimated_b
 from mid_wars_prepared),
 
-war_names as (
+war_name_candidates as (
 
 select
     war_num,
@@ -74,8 +65,19 @@ from dyads_after_sources
 group by 1
 union all
 select
-    4182 war_num,
-    'Israeli–Hezbollah Conflict (South Lebanon)' war_name),
+    war_num,
+    any_value(war_name) war_name
+from source_interstate_wars
+where war_name is not null
+group by 1),
+
+war_names as (
+
+select
+    war_num,
+    any_value(war_name) war_name
+from war_name_candidates
+group by 1),
 
 mid_dyads as (
 
@@ -94,7 +96,6 @@ select
     max(a.end_date) end_date,
     max(a.start_date_estimated) start_date_estimated,
     max(a.end_date_estimated) end_date_estimated,
-    max(a.ongoing_war) ongoing_war,
     null::double battle_deaths_a,
     null::double battle_deaths_b,
     sum(greatest(coalesce(a.battle_deaths_estimated_a, 0), 0)) battle_deaths_estimated_a,
@@ -121,7 +122,6 @@ select
     end_date,
     start_date_estimated,
     end_date_estimated,
-    ongoing_war,
     battle_deaths_a,
     battle_deaths_b,
     null::double battle_deaths_estimated_a,
@@ -142,7 +142,6 @@ select
     a.end_date,
     a.start_date_estimated,
     a.end_date_estimated,
-    a.ongoing_war,
     a.battle_deaths_a,
     a.battle_deaths_b,
     a.battle_deaths_estimated_a,
@@ -168,7 +167,6 @@ select
     max(end_date) end_date,
     max(start_date_estimated) start_date_estimated,
     max(end_date_estimated) end_date_estimated,
-    max(ongoing_war) ongoing_war,
     coalesce(nullif(sum(coalesce(battle_deaths_a, 0)), 0), sum(coalesce(battle_deaths_estimated_a, 0)), 0) battle_deaths_a,
     coalesce(nullif(sum(coalesce(battle_deaths_b, 0)), 0), sum(coalesce(battle_deaths_estimated_b, 0)), 0) battle_deaths_b,
     if(nullif(sum(coalesce(battle_deaths_a, 0)), 0) is null and sum(coalesce(battle_deaths_estimated_a, 0)) > 0, 1, 0) battle_deaths_estimated_a,

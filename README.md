@@ -50,14 +50,14 @@ python src/pipeline.py --step 1 --inspect
 Query the existing DuckDB database without rebuilding it:
 
 ```bash
-python src/pipeline.py --step none --query "select count(*) as row_count from initial_dyads"
-python src/pipeline.py --step none --query "select * from initial_wars limit 10"
+python src/pipeline.py --step none --query "select count(*) as row_count from dyads"
+python src/pipeline.py --step none --query "select * from wars limit 10"
 ```
 
 Run Step 1, then query the freshly rebuilt tables:
 
 ```bash
-python src/pipeline.py --step 1 --query "select war_num, war_name from initial_wars limit 10"
+python src/pipeline.py --step 1 --query "select war_num, war_name from wars limit 10"
 ```
 
 Use non-default input or database paths:
@@ -85,7 +85,7 @@ Run a single test or matching group of tests:
 
 ```bash
 pytest tests/test_step_1_expectations.py -k "negative_date_sentinels"
-pytest tests/test_step_1_expectations.py -k "date_macros or initial_dyads"
+pytest tests/test_step_1_expectations.py -k "date_macros or dyads"
 ```
 
 Show verbose test names and failures:
@@ -102,15 +102,15 @@ raw CSV files in `csvs/` are not available locally.
 The current backend ingests the following source files and uses the matching documentation in `documentation/` where available.
 The online source column is a placeholder for links to the original data pages.
 
-| Table | Source CSV | Documentation | Online source |
-| --- | --- | --- | --- |
-| `source_country_codes` | `COW country codes.csv` | `Entities.pdf` | TODO |
-| `source_extrastate_wars` | `Extra-StateWarData_v4.0.csv` | `Extra-StateWars_Codebook.pdf` | TODO |
-| `source_interstate_mid_dyads` | `dyadic_mid_4.02.csv` | `Dyadic MID Codebook V4.0.pdf` | TODO |
-| `source_interstate_war_dyads` | `directed_dyadic_war.csv` | `The Directed Dyadic Interstate War Dataset Codebook.pdf` | TODO |
-| `source_interstate_wars` | `Inter-StateWarData_v4.0.csv` | `MII_v4.0_Codebook.pdf` | TODO |
-| `source_intrastate_wars` | `INTRA-STATE_State_participants v5.1.csv` | `Codebook for Intra-state v5.1 2.9.20.pdf`; `Description of Intra-state v5.1.pdf` | TODO |
-| `source_war_types` | `war_types.csv` | local helper file with no external codebook | TODO |
+| Table | Source CSV | Version | Documentation | Online source |
+| --- | --- | --- | --- | --- |
+| `source_country_codes` | `COW country codes.csv` | COW country codes | `Entities.pdf` | TODO |
+| `source_extrastate_wars` | `Extra-StateWarData_v4.0.csv` | 4.0 | `Extra-StateWars_Codebook.pdf` | TODO |
+| `source_interstate_mid_dyads` | `dyadic_mid_4.02.csv` | 4.02 | `Dyadic MID Codebook V4.0.pdf` | TODO |
+| `source_interstate_war_dyads` | `directed_dyadic_war.csv` | `directed_dyadic_war.csv` | `The Directed Dyadic Interstate War Dataset Codebook.pdf` | TODO |
+| `source_interstate_wars` | `Inter-StateWarData_v4.0.csv` | 4.0 | `MII_v4.0_Codebook.pdf` | TODO |
+| `source_intrastate_wars` | `INTRA-STATE_State_participants v5.1.csv` | 5.1 | `Codebook for Intra-state v5.1 2.9.20.pdf`; `Description of Intra-state v5.1.pdf` | TODO |
+| `source_war_types` | `war_types.csv` | local | local helper file with no external codebook | TODO |
 
 Other files in `documentation/` correspond to datasets that have not yet been incorporated and were not used for
 the current Step 1 assumptions.
@@ -123,17 +123,21 @@ Step 1 also materializes transformed tables:
 
 Step 1 also materializes compatibility tables:
 
-- `initial_dyads`
-- `initial_dyad_years`
-- `initial_participants`
-- `initial_wars`
+- `dyads`
+- `dyad_years`
+- `participants`
+- `wars`
 
 ## Ingestion Assumptions
 
 ### Source Tables
 
-- Source table names beginning with `source_` mean the table comes directly from one CSV file, with only type coercion,
-  column renaming, encoding normalization, and explicit data-entry fixes applied during load.
+- The primary source tables listed above come directly from one CSV file, with only type coercion, column renaming,
+  encoding normalization, and explicit source adjustments applied during load.
+- Version-scoped source adjustments live in `backend/sql/step_1/02a_apply_source_adjustments.sql` and
+  `backend/sql/step_1/02b_insert_source_adjustments.sql`. The first file creates `source_file_versions` and adjustment
+  tables; the second inserts missing source facts only when the expected CSV version is active and the source table does
+  not already contain the fact.
 
 ### Excluded Calculated Columns
 
@@ -146,9 +150,9 @@ Step 1 also materializes compatibility tables:
 
 ### Date Values
 
-- Blank strings are loaded as null. Text values `-7`, `-8`, and `-9` are also treated as null because the COW codebooks
+- Blank strings are loaded as `null`. Text values `-7`, `-8`, and `-9` are also treated as `null` because the COW codebooks
   use negative values for ongoing, not applicable, or unknown values.
-- Negative day, month, and start-year date fields are loaded as null. Negative end-year values are loaded as null except
+- Negative day, month, and start-year date fields are loaded as `null`. Negative end-year values are loaded as `null` except
   for `-7`, which the COW codebooks document as the ongoing-war marker.
 - Missing, invalid, unknown, or not-applicable start months are interpreted as January, and start days are interpreted
   as day `1` of the resolved month.
@@ -191,6 +195,12 @@ Step 1 also materializes compatibility tables:
 - Extra-state and intra-state war dyads are treated as side A versus side B rows, with side A assigned side `1` and
   side B assigned side `2`.
 - Extra-state and intra-state participant rows are derived from both sides of the corresponding dyad rows.
+- Directed dyadic interstate source rows do not materialize `side_a` or `side_b`; row position is already represented
+  by `c_code_a` and `c_code_b`. The original directed dyadic role fields are retained as `role_a`, `role_b`,
+  `dyad_role_a`, and `dyad_role_b`.
+- In the transformed `war_dyads` view, interstate `side_a` and `side_b` are resolved back to substantive participant
+  sides from `source_interstate_wars`; extra-state and intra-state dyads keep their source side A versus side B
+  convention.
 
 ### Date Spans
 
@@ -206,25 +216,30 @@ Step 1 also materializes compatibility tables:
 - Only dyadic MID records with `war = 1` are incorporated.
 - MID dyads are not incorporated when the same directed dyad in the same war overlaps an existing source war-dyad row.
 - Existing battle-death values take precedence over MID fatality estimates for remaining merged rows. MID estimates are
-  used when summed source battle deaths are null or zero and summed estimates are positive.
-- MID dyads are assigned to known wars by `disno` when possible.
-- MID dyads that cannot be assigned by `disno` are assigned to World War II (`war_num = 139`) when their start year is
-  1945 or earlier.
-- Unmatched MID dispute `4339` is assigned to Africa's World War (`war_num = 905`).
-- The unmatched Lebanon-Israel MID conflict (`disno = 4182`) is assigned synthetic `war_num = 4182` and named
-  `Israeli–Hezbollah Conflict (South Lebanon)` because no matching war number exists in the interstate war data.
+  used when summed source battle deaths are `null` or zero and summed estimates are positive.
+- MID dyads are assigned to known wars by `disno` from `source_interstate_war_dyads`.
+- Missing MID `disno` to `war_num` relationships are added to `source_interstate_war_dyads` by the Step 1 source
+  adjustment files when the current CSV version still needs them. If a future CSV version introduces a new unmatched
+  MID war, `test_mid_dyads_resolve_all_mid_war_numbers` should fail until the source adjustment file is updated or the
+  new source data is accepted as authoritative.
+- Synthetic war metadata, such as the Lebanon-Israel MID conflict (`disno = 4182`) named
+  `Israeli–Hezbollah Conflict (South Lebanon)`, is added to `source_interstate_wars` by the same adjustment step when
+  the source table does not already contain it.
 
 ### Participant Inference
 
-- Participants found in dyadic data but missing from `war_participants` are added to `initial_participants` from the
+- Participants found in dyadic data but missing from `war_participants` are added to `participants` from the
   dyadic side A records.
 - Missing participant sides are inferred from the opposite participant in dyadic data when that inference is unambiguous.
+- Interstate war participant sides are taken from `source_interstate_wars`, either directly in `war_participants` or
+  through semantic side values on `war_dyads`, because the directed dyadic source can include reciprocal rows where the
+  same state appears as both `c_code_a` and `c_code_b` for the same war or dispute.
 - Inferred dyads are created by choosing anchor participants for each war. An anchor is a participant that is treated as
   a known adversary for all overlapping participants on the opposite side when source dyadic records are incomplete.
 - Anchor selection is independent by side and participant type. A participant is selected as an anchor when its side has
   exactly one total participant, exactly one named non-state participant, or exactly one state participant. More than one
   anchor can be selected for the same war, including anchors on both sides.
-- Named non-state participants with COW code `-8` are retained in `initial_dyads`. Unnamed or literal aggregate
+- Named non-state participants with COW code `-8` are retained in `dyads`. Unnamed or literal aggregate
   placeholders are excluded.
 
 For example, in the Third Somalia War (`war_num = 940.8`), the source intra-state participant file lists six side 1
@@ -254,13 +269,15 @@ flowchart LR
     usa --- eritrea
 ```
 
-### Initial Dyads
+### Dyads
 
 - Source dyads with COW code `-8` on one side are expanded against every actual participant on that side. For example,
   if `c_code_a = -8`, side B is treated as having fought each source participant on side A for that conflict.
-- Unnamed aggregate dyads are excluded from `initial_dyads` after those rows are used for named-participant expansion.
+- Unnamed aggregate dyads are excluded from `dyads` after those rows are used for named-participant expansion.
 - Inferred dyads are only created where the anchor and opposing participant date ranges overlap.
-- `initial_dyad_years` expands `initial_dyads` into one row per year for years in the range `1500` through `2099`.
+- Final dyads are deduplicated to one row per `war_num` and unordered participant pair. When duplicate spans exist, the
+  final row keeps the earliest start date and latest end date from the unordered dyad pair.
+- `dyad_years` expands `dyads` into one row per year for years in the range `1500` through `2099`.
 
 ## Data-Entry Fixes And Assignment Rules
 
@@ -274,7 +291,7 @@ flowchart LR
 - `dyadic_mid_4.02.csv`
   - The source does not include COW war numbers, so rows are assigned to known wars by matching `disno` to
     `directed_dyadic_war.csv` where possible.
-  - Unmatched MID rows with start years through `1945` are assigned from original missing `war_num` to World War II
+  - Unmatched MID disputes `3582`, `3583`, and `3585` are assigned from original missing `war_num` to World War II
     (`war_num = 139`) after manual review.
   - Unmatched MID dispute `4339` is assigned from original missing `war_num` to Africa's World War (`war_num = 905`)
     after manual review.
@@ -282,9 +299,10 @@ flowchart LR
     named `Israeli–Hezbollah Conflict (South Lebanon)`. This fake war id uses the MID `disno` because the conflict
     appears in the dyadic MID records with `war = 1`, but no corresponding `war_num` exists for it in the interstate
     war data.
+  - These assignments are implemented as version-scoped source adjustments, not as transformation-time fallback logic.
 - `INTRA-STATE_State_participants v5.1.csv`
   - War number is corrected from original value `977` to `979`.
   - War `976` has `StartYr1` corrected from original value `2001` to `2011`.
   - Wars `942`, `990.4`, `991`, `991.4`, and `992.5` are treated as ongoing by setting `EndYr1` to `-7`; the original
     source values include `-7`, `-8`, and `-9`, but only `-7` is treated as an ongoing end-year marker. Other negative
-    end-year values are loaded as null because the codebooks use them for not applicable or unknown values.
+    end-year values are loaded as `null` because the codebooks use them for not applicable or unknown values.

@@ -20,32 +20,54 @@ DEFAULT_CSV_DIR = PROJECT_ROOT / "csvs"
 DEFAULT_DB_PATH = BACKEND_ROOT / "the_networks_of_war.duckdb"
 INSPECT_SQL = SQL_ROOT / "inspect_tables.sql"
 
-SOURCE_FILES = {
-    "country_codes": "COW country codes.csv",
-    "extrastate_wars": "Extra-StateWarData_v4.0.csv",
-    "interstate_mid_dyads": "dyadic_mid_4.02.csv",
-    "interstate_war_dyads": "directed_dyadic_war.csv",
-    "interstate_wars": "Inter-StateWarData_v4.0.csv",
-    "intrastate_wars": "INTRA-STATE_State_participants v5.1.csv",
-    "war_types": "../war_types.csv",
+SOURCE_METADATA = {
+    "country_codes": {"file": "COW country codes.csv", "version": "COW country codes", "documentation": "Entities.pdf"},
+    "extrastate_wars": {
+        "file": "Extra-StateWarData_v4.0.csv",
+        "version": "4.0",
+        "documentation": "Extra-StateWars_Codebook.pdf",
+    },
+    "interstate_mid_dyads": {
+        "file": "dyadic_mid_4.02.csv",
+        "version": "4.02",
+        "documentation": "Dyadic MID Codebook V4.0.pdf",
+    },
+    "interstate_war_dyads": {
+        "file": "directed_dyadic_war.csv",
+        "version": "directed_dyadic_war.csv",
+        "documentation": "The Directed Dyadic Interstate War Dataset Codebook.pdf",
+    },
+    "interstate_wars": {
+        "file": "Inter-StateWarData_v4.0.csv",
+        "version": "4.0",
+        "documentation": "MII_v4.0_Codebook.pdf",
+    },
+    "intrastate_wars": {
+        "file": "INTRA-STATE_State_participants v5.1.csv",
+        "version": "5.1",
+        "documentation": "Codebook for Intra-state v5.1 2.9.20.pdf; Description of Intra-state v5.1.pdf",
+    },
+    "war_types": {"file": "../war_types.csv", "version": "local", "documentation": "local helper file"},
 }
 
-SOURCE_ENCODINGS = {
-    "extrastate_wars": "cp1252",
-}
+SOURCE_FILES = {key: metadata["file"] for key, metadata in SOURCE_METADATA.items()}
+
+SOURCE_ENCODINGS = {"extrastate_wars": "cp1252"}
 
 STEP_1_SQL = [
     "step_1/00_setup.sql",
     "step_1/01_create_source_tables.sql",
     "step_1/02_insert_source_tables.sql",
+    "step_1/02a_apply_source_adjustments.sql",
+    "step_1/02b_insert_source_adjustments.sql",
     "step_1/03_create_reference_tables.sql",
     "step_1/04_create_war_dyads.sql",
     "step_1/05_create_war_participants.sql",
     "step_1/06_create_dyads_after_mid.sql",
-    "step_1/07_create_initial_participants.sql",
-    "step_1/08_create_initial_dyads.sql",
-    "step_1/09_create_initial_dyad_years.sql",
-    "step_1/10_create_initial_wars.sql",
+    "step_1/07_create_participants.sql",
+    "step_1/08_create_dyads.sql",
+    "step_1/09_create_dyad_years.sql",
+    "step_1/10_create_wars.sql",
 ]
 
 
@@ -83,11 +105,7 @@ def sql_identifier(value: str) -> str:
 
 
 class Pipeline:
-    def __init__(
-        self,
-        db_path: Path = DEFAULT_DB_PATH,
-        csv_dir: Path = DEFAULT_CSV_DIR,
-    ) -> None:
+    def __init__(self, db_path: Path = DEFAULT_DB_PATH, csv_dir: Path = DEFAULT_CSV_DIR) -> None:
         self.csv_dir = csv_dir
         self.db_path = db_path
 
@@ -95,14 +113,12 @@ class Pipeline:
         relative = SOURCE_FILES[source_key]
 
         if relative.startswith("../"):
-
             return (PROJECT_ROOT / relative.removeprefix("../")).resolve()
 
         return (self.csv_dir / relative).resolve()
 
     def prepared_path_for(self, source_key: str) -> Path:
         if source_key not in SOURCE_ENCODINGS:
-
             return self.path_for(source_key)
 
         WORK_CSV_DIR.mkdir(parents=True, exist_ok=True)
@@ -112,7 +128,14 @@ class Pipeline:
         return path.resolve()
 
     def sql_context(self) -> dict[str, str]:
-        return {f"{key}_path": sql_literal(self.prepared_path_for(key)) for key in SOURCE_FILES}
+        context = {f"{key}_path": sql_literal(self.prepared_path_for(key)) for key in SOURCE_FILES}
+
+        for key, metadata in SOURCE_METADATA.items():
+            context[f"{key}_source_file"] = sql_literal(Path(metadata["file"]).name)
+            context[f"{key}_source_version"] = sql_literal(metadata["version"])
+            context[f"{key}_documentation"] = sql_literal(metadata["documentation"])
+
+        return context
 
     def require_inputs(self) -> None:
         missing = [str(self.path_for(key)) for key in SOURCE_FILES if not self.path_for(key).exists()]
@@ -129,18 +152,16 @@ class Pipeline:
         conn.execute(render_sql(name, self.sql_context()))
 
     def drop_relation_if_exists(self, conn: duckdb.DuckDBPyConnection, relation_name: str) -> None:
-        row = conn.execute(
-            """
-            select table_type
-            from information_schema.tables
-            where table_schema = current_schema()
-              and table_name = ?
-            """,
-            [relation_name],
-        ).fetchone()
+        query = """
+        select table_type
+        from information_schema.tables
+        where
+            table_schema = current_schema()
+            and table_name = ?
+        """
+        row = conn.execute(query, [relation_name]).fetchone()
 
         if row is None:
-
             return
 
         relation_type = "view" if row[0] == "VIEW" else "table"
@@ -156,13 +177,8 @@ class Pipeline:
             self.execute_sql(conn, name)
 
     def inspect(self, conn: duckdb.DuckDBPyConnection) -> None:
-        logger.info(
-            "\n%s",
-            "\n".join(
-                f"{table_name}: {row_count:,d}"
-                for table_name, row_count in conn.execute(INSPECT_SQL.read_text()).fetchall()
-            ),
-        )
+        for table_name, row_count in conn.execute(INSPECT_SQL.read_text()).fetchall():
+            logger.info(f"{table_name}: {row_count:,d}")
 
     def query(self, conn: duckdb.DuckDBPyConnection, sql: str) -> None:
         result = conn.execute(sql)
@@ -204,10 +220,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
 
-    Pipeline(
-        csv_dir=args.csv_dir,
-        db_path=args.db_path,
-    ).run(args.step, args.inspect, args.query)
+    Pipeline(csv_dir=args.csv_dir, db_path=args.db_path).run(args.step, args.inspect, args.query)
 
 
 if __name__ == "__main__":

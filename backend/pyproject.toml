@@ -25,3 +25,6 @@ known_first_party = ["pipeline", "utils"]
 [tool.black]
 line-length = 120
 target-version = ["py311"]
+
+[tool.pytest.ini_options]
+addopts = ["--tb=line", "--show-capture=no"]
