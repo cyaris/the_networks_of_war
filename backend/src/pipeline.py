@@ -27,6 +27,7 @@ WORK_CSV_DIR = BACKEND_ROOT / ".work" / "csv"
 DEFAULT_DATA_DIR = BACKEND_ROOT / "data"
 DEFAULT_CSV_DIR = DEFAULT_DATA_DIR
 DEFAULT_DB_PATH = BACKEND_ROOT / "the_networks_of_war.duckdb"
+PARTICIPANT_NAME_REPLACEMENTS_PATH = BACKEND_ROOT / "manual" / "participant_name_replacements.json"
 INSPECT_SQL = SQL_ROOT / "inspect_tables.sql"
 SYSTEM_CA_FILE = Path("/etc/ssl/cert.pem")
 COW_UPLOADS_URL = "https://correlatesofwar.org/wp-content/uploads"
@@ -341,7 +342,10 @@ class Pipeline:
         return path.resolve()
 
     def sql_context(self) -> dict[str, str]:
-        context = {f"{key}_path": sql_literal(self.prepared_path_for(key)) for key in SOURCE_FILES}
+        context = {
+            "participant_name_replacements_path": sql_literal(PARTICIPANT_NAME_REPLACEMENTS_PATH),
+            **{f"{key}_path": sql_literal(self.prepared_path_for(key)) for key in SOURCE_FILES},
+        }
 
         for metadata in SOURCE_METADATA:
             key = metadata["key"]

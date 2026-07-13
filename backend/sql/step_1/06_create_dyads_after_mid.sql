@@ -121,8 +121,8 @@ select
     a.disno,
     a.c_code_a,
     a.c_code_b,
-    clean_participant(c.state_name) participant_a,
-    clean_participant(d.state_name) participant_b,
+    clean_participant(c.state_name, e.replacement_participant) participant_a,
+    clean_participant(d.state_name, f.replacement_participant) participant_b,
     min(a.start_date) start_date,
     max(a.end_date) end_date,
     max(a.start_date_estimated) start_date_estimated,
@@ -135,6 +135,8 @@ from mid_wars_directed a
 left join war_names b on a.war_num = b.war_num
 left join country_codes c on a.c_code_a = c.c_code
 left join country_codes d on a.c_code_b = d.c_code
+left join participant_name_replacements e on clean_text(c.state_name) = e.source_participant
+left join participant_name_replacements f on clean_text(d.state_name) = f.source_participant
 group by 1, 6, 7, 8, 9, 10),
 
 merged_dyads as (

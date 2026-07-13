@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -15,6 +16,7 @@ sys.path.insert(0, str(SRC_ROOT))
 
 from pipeline import (  # noqa: E402
     DEFAULT_CSV_DIR,
+    PARTICIPANT_NAME_REPLACEMENTS_PATH,
     SOURCE_FILES,
     SOURCE_METADATA,
     Pipeline,
@@ -84,64 +86,13 @@ CLEAN_PARTICIPANT_NESTED_REPLACEMENTS = (
     (" tribe", " Tribe"),
 )
 
-CLEAN_PARTICIPANT_SPECIAL_REPLACEMENTS = (
-    ("Baron von Ungern-Sternbergs White army", "Baron von Ungern-Sternberg's White army"),
-    (" Janissaries", "Janissaries"),
-    ("Turkey/Ottoman Empire/Egypt", "Turkey, Ottoman Empire & Egypt"),
-    ("United States", "United States of America"),
-)
+CLEAN_PARTICIPANT_TEXT_ASSUMPTIONS = ((" Janissaries", "Janissaries"),)
 
-CLEAN_PARTICIPANT_SOURCE_REPLACEMENTS = (
-    ("al-Qaeda & Iraqi resistence", "al-Qaeda & Iraqi Resistance"),
-    ("Albanians and Bosnians", "Albanians & Bosnians"),
-    ("Asir and Yemen Rebels", "Asir & Yemen Rebels"),
-    ("Beni Aseer tribe", "Beni Aseer Tribe"),
-    ("Bharatpuran rebels", "Bharatpuran Rebels"),
-    ("Bosnia and Herzegovina", "Bosnia & Herzegovina"),
-    ("Bosnia-Herzegovina and Bulgaria", "Bosnia-Herzegovina & Bulgaria"),
-    ("Bosnian and Montenegrin Beys", "Bosnian & Montenegrin Beys"),
-    ("Damascus and Aleppo", "Damascus & Aleppo"),
-    ("EPLF and ELF", "EPLF & ELF"),
-    ("FNL and FDD", "FNL & FDD"),
-    ("GMD and CCP", "GMD & CCP"),
-    ("Javanese rebels", "Javanese Rebels"),
-    ("Kandyan rebels", "Kandyan Rebels"),
-    ("Karens and Communists", "Karens & Communists"),
-    ("KDP and IMK", "KDP & IMK"),
-    ("Kumuliks and Allies", "Kumuliks & Allies"),
-    ("Lebanese Maronites and Druze", "Lebanese Maronites & Druze"),
-    ("Leftist Rebels and Drug Cartels", "Leftist Rebels & Drug Cartels"),
-    ("Liberals and Radicals", "Liberals & Radicals"),
-    ("Mahdist rebels", "Mahdist Rebels"),
-    ("Montenegro and Hercegovina", "Montenegro & Hercegovina"),
-    ("Monteneros and ERP", "Monteneros & ERP"),
-    ("Ninjas and Cocoye militias", "Ninjas & Cocoye militias"),
-    ("NPFL and INPFL", "NPFL & INPFL"),
-    ("Palestinians and Bedouins", "Palestinians & Bedouins"),
-    ("Pathan tribe", "Pathan Tribe"),
-    ("Pathan tribes", "Pathan Tribes"),
-    ("PUK and INC", "PUK & INC"),
-    ("RCD and MLC", "RCD & MLC"),
-    ("Rif tribes", "Rif Tribes"),
-    ("Sanusi tribe", "Sanusi Tribe"),
-    ("Sao Tome and Principe", "Sao Tome & Principe"),
-    ("Shaanxi and Gansu Muslims", "Shaanxi & Gansu Muslims"),
-    ("Shi'ites and Druzes", "Shi'ites & Druzes"),
-    ("Shiites and SAIRI", "Shiites & SAIRI"),
-    ("Sierra Leone rebels", "Sierra Leone Rebels"),
-    ("SPLA-Nasir and Anya Nya II", "SPLA-Nasir & Anya Nya II"),
-    ("St. Kitts and Nevis", "St. Kitts & Nevis"),
-    ("St. Vincent and the Grenadines", "St. Vincent & the Grenadines"),
-    ("Trinidad and Tobago", "Trinidad & Tobago"),
-    ("Uyghur and Kirghiz", "Uyghur & Kirghiz"),
-    ("Wadai sultanate", "Wadai Sultanate"),
-    ("Waziri tribes", "Waziri Tribes"),
-    ("Workers and Peasants", "Workers & Peasants"),
-    ("Yunnan and Guizhou", "Yunnan & Guizhou"),
-    ("Zailis and Jinden", "Zailis & Jinden"),
-    ("Zhili and Fengtien Factions", "Zhili & Fengtien Factions"),
-    ("Zulu tribe", "Zulu Tribe"),
-)
+
+def participant_name_replacements() -> tuple[tuple[str, str], ...]:
+    rows = json.loads(PARTICIPANT_NAME_REPLACEMENTS_PATH.read_text())
+
+    return tuple((row["source_participant"], row["replacement_participant"]) for row in rows)
 
 
 def clean_text_python(value) -> str | None:
@@ -410,6 +361,11 @@ def test_date_macros_capture_step_1_date_assumptions(conn, expression, expected)
 
 def test_clean_participant_nested_replacement_inventory_matches_current_sources(conn):
     actual_replacements = set()
+    expected_replacements = {
+        (source_participant, replacement_participant)
+        for source_participant, replacement_participant in participant_name_replacements()
+        if apply_legacy_participant_replacements(source_participant) == replacement_participant
+    }
 
     for input_value in participant_input_values(conn):
         before = clean_text_python(input_value)
@@ -418,17 +374,37 @@ def test_clean_participant_nested_replacement_inventory_matches_current_sources(
         if before != after:
             actual_replacements.add((before, after))
 
-    assert actual_replacements == set(CLEAN_PARTICIPANT_SOURCE_REPLACEMENTS)
+    assert actual_replacements == expected_replacements
 
 
 @pytest.mark.parametrize(
     ("input_value", "expected"),
-    [*CLEAN_PARTICIPANT_SPECIAL_REPLACEMENTS, *CLEAN_PARTICIPANT_SOURCE_REPLACEMENTS],
+    [*CLEAN_PARTICIPANT_TEXT_ASSUMPTIONS, *participant_name_replacements()],
 )
 def test_clean_participant_macro_captures_step_1_participant_assumptions(conn, input_value, expected):
-    actual = conn.execute("select clean_participant(?)", [input_value]).fetchone()[0]
+    query = """
+    select clean_participant(a.input_value, b.replacement_participant)
+    from (select ? input_value) a
+    left join participant_name_replacements b on clean_text(a.input_value) = b.source_participant
+    """
+    actual = conn.execute(query, [input_value]).fetchone()[0]
 
     assert actual == expected
+
+
+def test_participant_name_replacements_are_unique_and_materialized(conn):
+    assert len(participant_name_replacements()) == len({source for source, _ in participant_name_replacements()})
+
+    query = """
+    select
+        source_participant,
+        replacement_participant
+    from participant_name_replacements
+    order by 1
+    """
+    actual_replacements = set(conn.execute(query).fetchall())
+
+    assert actual_replacements == set(participant_name_replacements())
 
 
 def test_raw_source_date_components_use_valid_domains(conn):
@@ -934,8 +910,11 @@ def test_source_adjustment_inserts_do_not_duplicate_existing_source_facts(conn):
                                 and a.source_version = b.source_version
     join source_interstate_wars c on a.war_num = c.war_num
                                    and a.c_code = c.c_code
-                                   and clean_participant(a.participant) = clean_participant(c.participant)
-                                   and a.side = c.side)
+    left join participant_name_replacements d on clean_text(a.participant) = d.source_participant
+    left join participant_name_replacements e on clean_text(c.participant) = e.source_participant
+    where
+        clean_participant(a.participant, d.replacement_participant) = clean_participant(c.participant, e.replacement_participant)
+        and a.side = c.side)
 
     select count(*)
     from duplicated_adjustments
