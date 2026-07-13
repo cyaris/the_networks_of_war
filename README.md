@@ -37,6 +37,20 @@ From `the_networks_of_war/backend`:
 python src/pipeline.py
 ```
 
+Pipeline parameters:
+
+| Parameter | Default | Demonstration |
+| --- | --- | --- |
+| `--data-dir PATH` | `backend/data/` | Source-data directory. Use `--data-dir data` for the default relative backend path. |
+| `--csv-dir PATH` | `backend/data/` | Backward-compatible alias for `--data-dir`; use `--csv-dir data` only for older scripts. |
+| `--db-path PATH` | `backend/the_networks_of_war.duckdb` | DuckDB database path. Use `--db-path the_networks_of_war.duckdb` for the default relative backend path. |
+| `--step {none,all,1,2,3}` | `all` | `all` and `1` rebuild Step 1; `none` skips preprocessing. `2` and `3` are accepted placeholders and currently raise `NotImplementedError`. |
+| `--inspect` | off | Print table row counts after the selected step runs. |
+| `--prepare-data` | off | Download and validate missing source-data folders before opening the database. |
+| `--recreate-data` | off | Delete and recreate the full source-data directory before opening the database. |
+| `--query SQL` | none | Execute an inline SQL query after the selected step runs. |
+| `--query-file PATH` | none | Execute SQL read from a local `.sql` file after the selected step runs. Mutually exclusive with `--query`. |
+
 Run or rebuild Step 1:
 
 ```bash
@@ -58,6 +72,12 @@ python src/pipeline.py --step none --query "select count(*) as row_count from dy
 python src/pipeline.py --step none --query "select * from wars limit 10"
 ```
 
+Query from a local SQL file:
+
+```bash
+python src/pipeline.py --step none --query-file queries/war_counts.sql
+```
+
 Run Step 1, then query the freshly rebuilt tables:
 
 ```bash
@@ -68,6 +88,12 @@ Use non-default input or database paths:
 
 ```bash
 python src/pipeline.py --data-dir data --db-path the_networks_of_war.duckdb --step 1
+```
+
+Use the legacy `--csv-dir` alias for older scripts:
+
+```bash
+python src/pipeline.py --csv-dir data --db-path the_networks_of_war.duckdb --step 1
 ```
 
 Create missing source-data subdirectories without running a preprocessing step:
@@ -81,6 +107,15 @@ Recreate the full ignored source-data directory:
 ```bash
 python src/pipeline.py --recreate-data --step none
 ```
+
+Step 2 and Step 3 have not been rebuilt yet:
+
+```bash
+python src/pipeline.py --step 2
+python src/pipeline.py --step 3
+```
+
+Both commands currently stop with `NotImplementedError`.
 
 ## Test Commands
 
