@@ -8,9 +8,9 @@
 
 - Keep SQL statements in `.sql` files instead of embedding transformation SQL in Python.
 - Prefer native DuckDB SQL transformations over Python transformation functions.
-- Keep Step 1 SQL filenames as a numeric sequence without letter suffixes. Use separate numbered files for tightly related create/insert pairs, such as `03_create_source_adjustment_tables.sql` and `04_insert_source_adjustments.sql`.
+- Keep numbered pipeline-stage SQL filenames as a numeric sequence without letter suffixes. Use separate numbered files for tightly related create/insert pairs, such as `03_create_source_adjustment_tables.sql` and `04_insert_source_adjustments.sql`.
 - Keep base compatibility tables separate from derived yearly-expansion tables. For example, `dyads` should hold the base dyad rows, while `dyad_years` should hold one row per dyad-year.
-- When adding or splitting out a Step 1 materialized table, add it as its own `create or replace table ... as` SQL file and update `STEP_1_SQL`, inspection SQL, README table lists/assumptions, and any tests that refer to the old table shape.
+- When adding or splitting out a stage materialized table, add it as its own `create or replace table ... as` SQL file and update the stage SQL manifest, inspection SQL, README table lists/assumptions, and any tests that refer to the old table shape.
 - If the pipeline pre-drops existing relations for `create or replace` compatibility, apply that behavior generically to all table/view targets detected from the SQL file. Do not add one-off Python special cases for individual SQL files or relation names.
 - For source tables, write explicit `create table` column definitions. Do not use `read_csv_auto` in `create table` statements.
 - Source-table insert files may use `read_csv_auto`, but should explicitly select the loaded columns and apply aliases, casts, cleaning macros, and documented source-file data-entry fixes there.
@@ -32,7 +32,6 @@
 - For MID-to-war assignments, prefer explicit `disno`-level source facts over broad transformation fallbacks such as assigning every unmatched pre-1946 MID row to World War II.
 - Keep source adjustment tables lean: store the keys and values needed by downstream joins, and document rationale/facts in the README instead of adding reason, citation, or narrative columns. Do not add generic `adjustment_id` columns unless a downstream relationship explicitly needs them.
 - Keep open-ended lookup/reference data in `backend/manual/*.json` when it is expected to grow or change independently, such as participant name replacements and source metadata. Do not move participant name replacements back to inline SQL solely for consistency with smaller static reference tables.
-- Keep source-specific encoding overrides in `source_metadata.json`; do not maintain parallel Python encoding override dictionaries.
 - Name `backend/data` source subdirectories with the source key directly, such as `backend/data/interstate_mid_dyads/`, without a `source_` prefix. `source_` remains the table-name prefix, not the source-data directory prefix.
 - Treat `backend/data` as pipeline-owned downloaded source state. The default data-preparation behavior should create or refresh only missing source subdirectories; use an explicit recreate option when deleting and rebuilding the entire data directory is intended.
 - Keep small static reference data such as `war_types` inline in SQL, with table creation and row insertion in separate numbered reference files.
@@ -44,7 +43,7 @@
 - Do not use `select distinct`; write row deduplication as `group by` with numeric column positions, such as `group by 1` or `group by 1, 2`. Aggregate forms such as `count(distinct ...)` are acceptable when distinctness belongs inside the aggregate.
 - Keep opposite columns adjacent, such as `c_code_a` immediately followed by `c_code_b` and `participant_a` immediately followed by `participant_b`.
 - Keep battle-death columns at the end of source and transformed select lists. When both actual and estimated/estimate-flag battle-death columns are present, put the actual battle-death columns first and the estimated/estimate-flag columns immediately after them.
-- In Step 1 SQL union blocks, order branches by first-created primary table to last-created primary table. When a primary table contributes mirrored A/B branches, put the original non-flipped branch before the flipped branch for that same table.
+- In numbered pipeline-stage SQL union blocks, order branches by first-created primary table to last-created primary table. When a primary table contributes mirrored A/B branches, put the original non-flipped branch before the flipped branch for that same table.
 - Choose `union all` for additive source stacking when later logic handles deduplication or duplicates are meaningful. Use plain `union` only when set semantics are required at that exact point. Do not write `union distinct`.
 - For repeated date components, keep fields in source order by span and component: `start_day_1`, `start_month_1`, `start_year_1`, then `start_day_2`, `start_month_2`, `start_year_2`, and likewise for end dates.
 - Compute transformed interstate `war_dyads.side_a` and `war_dyads.side_b` from participant-side source data rather than from directed dyad row position. Extra-state and intra-state dyads may use literal A/B sides when the source table's A/B columns are the side definition.
@@ -54,14 +53,14 @@
 - Avoid ordering tables unless deterministic output order is explicitly needed.
 - Avoid CTEs when a direct query is clearer. Minimize CTEs when doing so does not duplicate substantial joins or unions. When the tradeoff is between a CTE and a subselect/derived table, prefer the CTE.
 - Do not use derived-table subselects in `from` or `join` clauses.
-- Prefer explicit `left join ... where matched_key is null` anti-joins over `not exists` filters in Step 1 SQL.
+- Prefer explicit `left join ... where matched_key is null` anti-joins over `not exists` filters in numbered pipeline-stage SQL.
 - Keep anti-join null checks for `left join` patterns in the `where` clause, not inside the `on` clause. For inner joins, placing row filters in `on` is acceptable when it improves locality and does not obscure the join keys.
-- Prefer `if(...)` over a `case` statement with only one `when`; do not add an `iff` macro.
+- Prefer `if(...)` over a `case` statement with only one `when`.
 - Keep `if`, `least`, and `greatest` column calculations on one line, even when the line is long.
 - Avoid nested `case` statements.
 - When manual mappings can be expressed by a stable source identifier instead of enumerating country-code pairs, prefer the source identifier after validating that it yields the same rows.
 - Keep synthetic or fake IDs explicit and deterministic. Prefer meaningful source identifiers when available, and document why the source data lacks the needed ID.
-- Before removing filters, joins, or selected columns after the reference-table steps, compare the downstream Step 1 deliverables or otherwise verify that `participants`, `dyads`, `dyad_years`, and `wars` keep the intended behavior.
+- Before removing filters, joins, or selected columns after the reference-table steps, compare the affected stage deliverables and downstream tables or otherwise verify that the pipeline keeps the intended behavior.
 - Avoid subselect wrappers in test failure SQL unless they are necessary for the query shape.
 - Do not update `.ipynb` files while working on the backend replacement unless explicitly requested.
 
@@ -75,7 +74,7 @@
 
 ## Tests
 
-- Keep Step 1 data-quality and transformation expectations in `tests/test_step_1_expectations.py`; reserve `tests/test_pipeline_query_file.py` for pipeline query-file behavior.
+- Keep stage data-quality and transformation expectations in stage-specific expectation test files, such as `tests/test_step_1_expectations.py`; reserve `tests/test_pipeline_query_file.py` for pipeline query-file behavior.
 - Prefer simple, direct test code over broad abstractions or helper layers unless the duplication is clearly painful.
 - Do not remove, skip, or allowlist away known data-quality failures just to make the suite pass. Expected failures should remain visible until the source data or transformation logic is fixed.
 - Tests for missing source relationships, such as unresolved MID war numbers, should fail in a way that requires an explicit source-data or source-adjustment change.
