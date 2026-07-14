@@ -55,12 +55,12 @@ source_side_adjustments as (
 select
     a.war_num,
     a.c_code,
-    clean_participant(a.participant, c."replacement") participant,
+    clean_participant(a.participant, c.replacement) participant,
     a.side
 from source_participant_side_adjustments a
 join source_file_versions b on a.source_key = b.source_key
                             and a.source_version = b.source_version
-left join participant_name_replacements c on clean_text(a.participant) = c."source")
+left join participant_name_replacements c on clean_text(a.participant) = c.source)
 
 select
     a.war_num,

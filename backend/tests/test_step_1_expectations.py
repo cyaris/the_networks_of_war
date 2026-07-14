@@ -332,28 +332,12 @@ def query_result(conn, sql: str) -> QueryResult:
 
 
 def flagged_row_count(conn, flagged_rows_sql: str) -> int:
-    query = f"""
-    with
-
-    flagged_rows as (
-    {flagged_rows_sql})
-
-    select count(*)
-    from flagged_rows
-    """
-
-    return scalar(conn, query)
+    return conn.sql(flagged_rows_sql).aggregate("count(*)").fetchone()[0]
 
 
 def flagged_rows_query(flagged_rows_sql: str, order_by: str) -> str:
     return f"""
-    with
-
-    flagged_rows as (
-    {flagged_rows_sql})
-
-    select *
-    from flagged_rows
+    {flagged_rows_sql}
     order by {order_by}
     limit 50
     """
@@ -484,11 +468,11 @@ def test_clean_participant_nested_replacement_inventory_matches_current_sources(
 )
 def test_clean_participant_macro_captures_step_1_participant_assumptions(conn, input_value, expected):
     query = """
-    select clean_participant(a.input_value, b."replacement")
-    from (select ? input_value) a
-    left join participant_name_replacements b on clean_text(a.input_value) = b."source"
+    select clean_participant(?, any_value(b.replacement))
+    from participant_name_replacements b
+    where clean_text(?) = b.source
     """
-    actual = conn.execute(query, [input_value]).fetchone()[0]
+    actual = conn.execute(query, [input_value, input_value]).fetchone()[0]
 
     assert actual == expected
 
@@ -498,8 +482,8 @@ def test_participant_name_replacements_are_unique_and_materialized(conn):
 
     query = """
     select
-        "source",
-        "replacement"
+        source,
+        replacement
     from participant_name_replacements
     order by 1
     """
@@ -785,7 +769,6 @@ def test_required_source_battle_death_fields_are_not_null(conn):
     failures = []
 
     for table_name, column_names in checks:
-        label = f"{table_name}.{', '.join(column_names)}"
         null_predicate = " or ".join(f"{column_name} is null" for column_name in column_names)
         count_sql = f"""
         select count(*)
@@ -800,7 +783,7 @@ def test_required_source_battle_death_fields_are_not_null(conn):
         output_columns = non_date_column_csv(conn, table_name)
         detected_rows_sql = f"""
         select
-            '{', '.join(column_names)}' column_name,
+            '{', '.join(column_names)}' checked_columns,
             {output_columns}
         from {table_name}
         where {null_predicate}
@@ -809,7 +792,7 @@ def test_required_source_battle_death_fields_are_not_null(conn):
         """
         detected_rows = query_result(conn, detected_rows_sql)
         problem_cells = null_problem_cells(detected_rows, set(column_names))
-        failures.append(sql_check_failure(label, detected_rows_sql, null_count, detected_rows, problem_cells))
+        failures.append(sql_check_failure(table_name, detected_rows_sql, null_count, detected_rows, problem_cells))
 
     if failures:
         fail_sql_check("Null battle-death source fields:", failures=failures)
@@ -891,18 +874,14 @@ def test_source_adjusted_mid_participant_side_assignments_are_applied(conn):
 
 def test_source_adjustment_inserts_do_not_duplicate_existing_source_facts(conn):
     query = """
-    with
-
-    duplicated_adjustments as (
-
-    select 'source_interstate_mid_war_num_adjustments' adjustment_table
+    select count(*) duplicate_count
     from source_interstate_mid_war_num_adjustments a
     join source_file_versions b on a.source_key = b.source_key
                                 and a.source_version = b.source_version
     join source_interstate_war_dyads c on a.disno = c.disno
                                        and a.war_num = c.war_num
     union all
-    select 'source_interstate_war_metadata_adjustments' adjustment_table
+    select count(*) duplicate_count
     from source_interstate_war_metadata_adjustments a
     join source_file_versions b on a.source_key = b.source_key
                                 and a.source_version = b.source_version
@@ -910,22 +889,21 @@ def test_source_adjustment_inserts_do_not_duplicate_existing_source_facts(conn):
                                   and a.war_name = c.war_name
                                   and a.war_type = c.war_type
     union all
-    select 'source_participant_side_adjustments' adjustment_table
+    select count(*) duplicate_count
     from source_participant_side_adjustments a
     join source_file_versions b on a.source_key = b.source_key
                                 and a.source_version = b.source_version
     join source_interstate_wars c on a.war_num = c.war_num
                                   and a.c_code = c.c_code
-    left join participant_name_replacements d on clean_text(a.participant) = d."source"
-    left join participant_name_replacements e on clean_text(c.participant) = e."source"
+    left join participant_name_replacements d on clean_text(a.participant) = d.source
+    left join participant_name_replacements e on clean_text(c.participant) = e.source
     where
-        clean_participant(a.participant, d."replacement") = clean_participant(c.participant, e."replacement")
-        and a.side = c.side)
-
-    select count(*)
-    from duplicated_adjustments
+        clean_participant(a.participant, d.replacement) = clean_participant(c.participant, e.replacement)
+        and a.side = c.side
     """
-    assert scalar(conn, query) == 0
+    duplicate_count = sum(row[0] for row in conn.execute(query).fetchall())
+
+    assert duplicate_count == 0
 
 
 def test_source_intrastate_war_data_entry_fixes_are_applied(conn):
@@ -952,10 +930,6 @@ def test_source_intrastate_war_data_entry_fixes_are_applied(conn):
 
 def test_source_wars_named_present_or_ongoing_are_marked_ongoing(conn):
     detected_rows_sql = """
-    with
-
-    named_ongoing_wars as (
-
     select
         'source_interstate_wars' source_table,
         war_num,
@@ -964,6 +938,7 @@ def test_source_wars_named_present_or_ongoing_are_marked_ongoing(conn):
     from source_interstate_wars
     where regexp_matches(lower(war_name), '(^|[^a-z])(present|ongoing)([^a-z]|$)')
     group by 1, 2
+    having max(greatest(ongoing_war(end_year_1), ongoing_war(end_year_2))) = 0
     union all
     select
         'source_extrastate_wars' source_table,
@@ -973,6 +948,7 @@ def test_source_wars_named_present_or_ongoing_are_marked_ongoing(conn):
     from source_extrastate_wars
     where regexp_matches(lower(war_name), '(^|[^a-z])(present|ongoing)([^a-z]|$)')
     group by 1, 2
+    having max(greatest(ongoing_war(end_year_1), ongoing_war(end_year_2))) = 0
     union all
     select
         'source_intrastate_wars' source_table,
@@ -981,11 +957,8 @@ def test_source_wars_named_present_or_ongoing_are_marked_ongoing(conn):
         max(greatest(ongoing_war(end_year_1), ongoing_war(end_year_2), ongoing_war(end_year_3), ongoing_war(end_year_4))) ongoing_war
     from source_intrastate_wars
     where regexp_matches(lower(war_name), '(^|[^a-z])(present|ongoing)([^a-z]|$)')
-    group by 1, 2)
-
-    select *
-    from named_ongoing_wars
-    where ongoing_war = 0
+    group by 1, 2
+    having max(greatest(ongoing_war(end_year_1), ongoing_war(end_year_2), ongoing_war(end_year_3), ongoing_war(end_year_4))) = 0
     order by source_table, war_num
     """
     detected_rows = query_result(conn, detected_rows_sql)

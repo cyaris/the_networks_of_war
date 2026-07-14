@@ -109,8 +109,8 @@ select
     any_value(a.war_subtype) war_subtype,
     a.c_code_a,
     a.c_code_b,
-    clean_participant(a.participant_a, b."replacement") participant_a,
-    clean_participant(a.participant_b, c."replacement") participant_b,
+    clean_participant(a.participant_a, b.replacement) participant_a,
+    clean_participant(a.participant_b, c.replacement) participant_b,
     a.start_date,
     a.end_date,
     a.start_date_estimated,
@@ -118,8 +118,8 @@ select
     a.battle_deaths_a,
     a.battle_deaths_b
 from war_dyads a
-left join participant_name_replacements b on clean_text(a.participant_a) = b."source"
-left join participant_name_replacements c on clean_text(a.participant_b) = c."source"
+left join participant_name_replacements b on clean_text(a.participant_a) = b.source
+left join participant_name_replacements c on clean_text(a.participant_b) = c.source
 where
     a.participant_a is not null
     and a.participant_b is not null
@@ -133,8 +133,8 @@ select
     any_value(a.war_subtype) war_subtype,
     a.c_code_b c_code_a,
     a.c_code_a c_code_b,
-    clean_participant(a.participant_b, b."replacement") participant_a,
-    clean_participant(a.participant_a, c."replacement") participant_b,
+    clean_participant(a.participant_b, b.replacement) participant_a,
+    clean_participant(a.participant_a, c.replacement) participant_b,
     a.start_date,
     a.end_date,
     a.start_date_estimated,
@@ -142,8 +142,8 @@ select
     a.battle_deaths_b battle_deaths_a,
     a.battle_deaths_a battle_deaths_b
 from war_dyads a
-left join participant_name_replacements b on clean_text(a.participant_b) = b."source"
-left join participant_name_replacements c on clean_text(a.participant_a) = c."source"
+left join participant_name_replacements b on clean_text(a.participant_b) = b.source
+left join participant_name_replacements c on clean_text(a.participant_a) = c.source
 where
     a.participant_a is not null
     and a.participant_b is not null
