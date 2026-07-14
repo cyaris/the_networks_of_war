@@ -47,9 +47,6 @@ SOURCE_METADATA = load_source_metadata()
 SOURCE_METADATA_BY_KEY = {metadata["key"]: metadata for metadata in SOURCE_METADATA}
 SOURCE_FILES = {metadata["key"]: metadata["file"] for metadata in SOURCE_METADATA}
 
-SOURCE_DEFAULT_ENCODING = None
-SOURCE_ENCODING_OVERRIDES = {"extrastate_wars": "cp1252"}
-
 STEP_1_SQL = [
     "step_1/00_setup.sql",
     "step_1/01_create_source_tables.sql",
@@ -268,7 +265,7 @@ class Pipeline:
             raise RuntimeError("Source data preparation issues:\n" + "\n".join(str(issue) for issue in issues))
 
     def prepared_path_for(self, source_key: str) -> Path:
-        encoding = SOURCE_ENCODING_OVERRIDES.get(source_key, SOURCE_DEFAULT_ENCODING)
+        encoding = SOURCE_METADATA_BY_KEY[source_key].get("encoding")
 
         if encoding is None:
             return self.path_for(source_key)

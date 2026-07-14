@@ -15,6 +15,7 @@
     "key": "extrastate_wars",
     "file": "Extra-StateWarData_v4.0.csv",
     "version": "4.0",
+    "encoding": "cp1252",
     "downloads": [
       {
         "url": "https://correlatesofwar.org/wp-content/uploads/Extra-StateWarData_v4.0.csv",

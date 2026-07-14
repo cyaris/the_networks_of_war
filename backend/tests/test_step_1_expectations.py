@@ -272,6 +272,12 @@ def test_json_config_items_have_unique_source_or_key_values():
     assert duplicate_values(participant_replacement_sources) == []
 
 
+def test_source_encoding_overrides_are_defined_in_metadata():
+    encodings = {metadata["key"]: metadata["encoding"] for metadata in SOURCE_METADATA if metadata.get("encoding")}
+
+    assert encodings == {"extrastate_wars": "cp1252"}
+
+
 @dataclass(frozen=True)
 class SqlCheckFailure:
     label: str
