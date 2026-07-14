@@ -160,20 +160,12 @@ RAW_SOURCE_DATE_COMPONENTS = [
     (
         "interstate_war_dyads",
         ["warnum", "disno", "dyindex", "statea", "stateb", "year"],
-        {
-            "month": ["warstrtmnth", "warendmnth"],
-            "day": ["warstrtday", "warenday"],
-            "year": ["warstrtyr", "warendyr"],
-        },
+        {"month": ["warstrtmnth", "warendmnth"], "day": ["warstrtday", "warenday"], "year": ["warstrtyr", "warendyr"]},
     ),
     (
         "interstate_mid_dyads",
         ["disno", "dyindex", "statea", "stateb", "year"],
-        {
-            "month": ["strtmnth", "endmnth"],
-            "day": ["strtday", "endday"],
-            "year": ["strtyr", "endyear"],
-        },
+        {"month": ["strtmnth", "endmnth"], "day": ["strtday", "endday"], "year": ["strtyr", "endyear"]},
     ),
     (
         "extrastate_wars",
@@ -488,8 +480,7 @@ def test_clean_participant_nested_replacement_inventory_matches_current_sources(
 
 
 @pytest.mark.parametrize(
-    ("input_value", "expected"),
-    [*CLEAN_PARTICIPANT_TEXT_ASSUMPTIONS, *participant_name_replacements()],
+    ("input_value", "expected"), [*CLEAN_PARTICIPANT_TEXT_ASSUMPTIONS, *participant_name_replacements()]
 )
 def test_clean_participant_macro_captures_step_1_participant_assumptions(conn, input_value, expected):
     query = """
@@ -709,8 +700,7 @@ def test_source_transition_war_references_are_positive_or_null(conn):
         """
         detected_rows = query_result(conn, detected_rows_sql)
         problem_cells = problem_cells_matching(
-            detected_rows,
-            lambda column, value: column in {"lagging_war", "leading_war"} and value < 0,
+            detected_rows, lambda column, value: column in {"lagging_war", "leading_war"} and value < 0
         )
         failures.append(sql_check_failure(table_name, detected_rows_sql, flagged_count, detected_rows, problem_cells))
 
@@ -1185,8 +1175,7 @@ def test_final_participant_side_assignments_are_present_and_valid(conn):
     """
     detected_rows = query_result(conn, detected_rows_sql)
     problem_cells = problem_cells_matching(
-        detected_rows,
-        lambda column, value: column == "side" and (value is None or value not in (1, 2, 3)),
+        detected_rows, lambda column, value: column == "side" and (value is None or value not in (1, 2, 3))
     )
 
     fail_sql_check(

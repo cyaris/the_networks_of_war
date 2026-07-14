@@ -34,8 +34,7 @@ SOURCE_METADATA_PATH = BACKEND_ROOT / "manual" / "source_metadata.json"
 INSPECT_SQL = SQL_ROOT / "inspect_tables.sql"
 SYSTEM_CA_FILE = Path("/etc/ssl/cert.pem")
 CREATE_RELATION_PATTERN = re.compile(
-    r"^\s*create\s+or\s+replace\s+(?:table|view)\s+([A-Za-z_][A-Za-z0-9_]*)\b",
-    re.IGNORECASE | re.MULTILINE,
+    r"^\s*create\s+or\s+replace\s+(?:table|view)\s+([A-Za-z_][A-Za-z0-9_]*)\b", re.IGNORECASE | re.MULTILINE
 )
 
 
