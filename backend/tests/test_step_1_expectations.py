@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sys
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -93,6 +94,12 @@ def participant_name_replacements() -> tuple[tuple[str, str], ...]:
     rows = json.loads(PARTICIPANT_NAME_REPLACEMENTS_PATH.read_text())
 
     return tuple((row["source"], row["replacement"]) for row in rows)
+
+
+def duplicate_values(values: list[str]) -> list[str]:
+    counts = Counter(values)
+
+    return sorted(value for value, count in counts.items() if count > 1)
 
 
 def clean_text_python(value) -> str | None:
@@ -262,6 +269,14 @@ def test_source_tables_have_download_urls_or_are_marked_local():
 
     assert missing == []
     assert non_absolute_urls == []
+
+
+def test_json_config_items_have_unique_source_or_key_values():
+    source_metadata_keys = [metadata["key"] for metadata in SOURCE_METADATA]
+    participant_replacement_sources = [source for source, _ in participant_name_replacements()]
+
+    assert duplicate_values(source_metadata_keys) == []
+    assert duplicate_values(participant_replacement_sources) == []
 
 
 @dataclass(frozen=True)
