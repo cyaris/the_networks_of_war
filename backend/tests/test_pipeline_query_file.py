@@ -10,7 +10,7 @@ SRC_ROOT = BACKEND_ROOT / "src"
 
 sys.path.insert(0, str(SRC_ROOT))
 
-from pipeline import Pipeline  # noqa: E402
+from pipeline import Pipeline, format_query_results  # noqa: E402
 
 
 def test_run_executes_query_from_local_sql_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -26,6 +26,18 @@ def test_run_executes_query_from_local_sql_file(tmp_path: Path, monkeypatch: pyt
     Pipeline(db_path=tmp_path / "test.duckdb", csv_dir=tmp_path).run(step="none", query_file=query_file)
 
     assert executed_queries == ["select 42 as answer\n"]
+
+
+def test_format_query_results_can_show_and_style_problem_cells() -> None:
+    def style_problem_cell(row_index: int, column: str, value: object, text: str) -> str:
+        if row_index == 0 and column == "value" and value is None:
+            return f"<red>{text}</red>"
+
+        return text
+
+    formatted = format_query_results(["id", "value"], [(1, None)], null_text="null", cell_style=style_problem_cell)
+
+    assert "<red>null </red>" in formatted
 
 
 def test_run_rejects_query_text_and_query_file_together(tmp_path: Path) -> None:

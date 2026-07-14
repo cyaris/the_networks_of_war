@@ -12,6 +12,7 @@ import tempfile
 import urllib.error
 import urllib.request
 import zipfile
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -83,11 +84,17 @@ def created_relation_names(sql: str) -> list[str]:
     return list(dict.fromkeys(match.group(1) for match in CREATE_RELATION_PATTERN.finditer(sql)))
 
 
-def format_query_results(columns: list[str], rows: list[tuple]) -> str:
+def format_query_results(
+    columns: list[str],
+    rows: list[tuple],
+    *,
+    null_text: str = "",
+    cell_style: Callable[[int, str, object, str], str] | None = None,
+) -> str:
     if not columns:
         return "Query completed; no tabular result."
 
-    values = [[str(value) if value is not None else "" for value in row] for row in rows]
+    values = [[str(value) if value is not None else null_text for value in row] for row in rows]
     widths = [
         max(len(column), *(len(row[index]) for row in values)) if values else len(column)
         for index, column in enumerate(columns)
@@ -98,9 +105,20 @@ def format_query_results(columns: list[str], rows: list[tuple]) -> str:
     if not values:
         return "\n".join([header, divider, "(no rows)"])
 
+    def format_cell(row_index: int, column: str, value: object, text: str, width: int) -> str:
+        padded_text = text.ljust(width)
+
+        return cell_style(row_index, column, value, padded_text) if cell_style else padded_text
+
     return "\n".join(
         [header, divider]
-        + [" | ".join(value.ljust(widths[index]) for index, value in enumerate(row)) for row in values]
+        + [
+            " | ".join(
+                format_cell(row_index, columns[index], raw_value, values[row_index][index], widths[index])
+                for index, raw_value in enumerate(row)
+            )
+            for row_index, row in enumerate(rows)
+        ]
     )
 
 

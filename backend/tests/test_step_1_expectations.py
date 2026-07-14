@@ -287,6 +287,54 @@ class SqlCheckFailure:
     detected_rows: str
 
 
+ProblemCell = tuple[int, str]
+
+
+def problem_cell_style(column: str, value: object, text: str) -> str:
+    return f"{Style.BRIGHT}{Fore.RED}{text}{Style.RESET_ALL}"
+
+
+def highlighted_detected_rows(
+    columns: list[str], rows: list[tuple], problem_cells: set[ProblemCell] | None = None
+) -> str:
+    problem_cells = problem_cells or set()
+
+    def style_problem_cell(row_index: int, column: str, value: object, text: str) -> str:
+        if (row_index, column) in problem_cells:
+            return problem_cell_style(column, value, text)
+
+        return text
+
+    return format_query_results(columns, rows, null_text="null", cell_style=style_problem_cell)
+
+
+def problem_cells_for_columns(rows: list[tuple], columns: list[str], problem_columns: set[str]) -> set[ProblemCell]:
+    return {
+        (row_index, column)
+        for row_index, row in enumerate(rows)
+        for column, _ in zip(columns, row)
+        if column in problem_columns
+    }
+
+
+def null_problem_cells(rows: list[tuple], columns: list[str], nullable_columns: set[str]) -> set[ProblemCell]:
+    return {
+        (row_index, column)
+        for row_index, row in enumerate(rows)
+        for column, value in zip(columns, row)
+        if column in nullable_columns and value is None
+    }
+
+
+def problem_cells_matching(rows: list[tuple], columns: list[str], predicate) -> set[ProblemCell]:
+    return {
+        (row_index, column)
+        for row_index, row in enumerate(rows)
+        for column, value in zip(columns, row)
+        if predicate(column, value)
+    }
+
+
 def failure_summary(check: str, row_count: int) -> str:
     return format_query_results(["check", "row_count"], [(check, row_count)])
 
@@ -469,12 +517,13 @@ def test_raw_source_date_components_use_valid_domains(conn):
         result = conn.execute(detected_rows_sql)
         rows = result.fetchall()
         columns = [column[0] for column in result.description]
+        problem_cells = problem_cells_for_columns(rows, columns, {"raw_value"})
         failures.append(
             SqlCheckFailure(
                 label=source_key,
                 sql=detected_rows_sql,
                 summary=failure_summary(source_key, flagged_count),
-                detected_rows=format_query_results(columns, rows),
+                detected_rows=highlighted_detected_rows(columns, rows, problem_cells),
             )
         )
 
@@ -554,12 +603,13 @@ def test_source_resolved_date_pairs_do_not_start_after_they_end(conn):
         result = conn.execute(detected_rows_sql)
         rows = result.fetchall()
         columns = [column[0] for column in result.description]
+        problem_cells = problem_cells_for_columns(rows, columns, {"start_date", "end_date"})
         failures.append(
             SqlCheckFailure(
                 label=table_name,
                 sql=detected_rows_sql,
                 summary=failure_summary(table_name, flagged_count),
-                detected_rows=format_query_results(columns, rows),
+                detected_rows=highlighted_detected_rows(columns, rows, problem_cells),
             )
         )
 
@@ -625,12 +675,13 @@ def test_source_date_pairs_have_required_year_bounds(conn):
         result = conn.execute(detected_rows_sql)
         rows = result.fetchall()
         columns = [column[0] for column in result.description]
+        problem_cells = null_problem_cells(rows, columns, {"start_year", "end_year"})
         failures.append(
             SqlCheckFailure(
                 label=table_name,
                 sql=detected_rows_sql,
                 summary=failure_summary(table_name, flagged_count),
-                detected_rows=format_query_results(columns, rows),
+                detected_rows=highlighted_detected_rows(columns, rows, problem_cells),
             )
         )
 
@@ -700,12 +751,17 @@ def test_source_transition_war_references_are_positive_or_null(conn):
         result = conn.execute(detected_rows_sql)
         rows = result.fetchall()
         columns = [column[0] for column in result.description]
+        problem_cells = problem_cells_matching(
+            rows,
+            columns,
+            lambda column, value: column in {"lagging_war", "leading_war"} and value < 0,
+        )
         failures.append(
             SqlCheckFailure(
                 label=table_name,
                 sql=detected_rows_sql,
                 summary=failure_summary(table_name, flagged_count),
-                detected_rows=format_query_results(columns, rows),
+                detected_rows=highlighted_detected_rows(columns, rows, problem_cells),
             )
         )
 
@@ -815,12 +871,13 @@ def test_required_source_battle_death_fields_are_not_null(conn):
         result = conn.execute(detected_rows_sql)
         rows = result.fetchall()
         columns = [column[0] for column in result.description]
+        problem_cells = null_problem_cells(rows, columns, set(column_names))
         failures.append(
             SqlCheckFailure(
                 label=label,
                 sql=detected_rows_sql,
                 summary=failure_summary(label, null_count),
-                detected_rows=format_query_results(columns, rows),
+                detected_rows=highlighted_detected_rows(columns, rows, problem_cells),
             )
         )
 
@@ -1006,6 +1063,7 @@ def test_source_wars_named_present_or_ongoing_are_marked_ongoing(conn):
     columns = [column[0] for column in result.description]
 
     if rows:
+        problem_cells = problem_cells_for_columns(rows, columns, {"ongoing_war"})
         fail_sql_check(
             "Source wars named present or ongoing should retain the ongoing end-year marker.",
             failures=[
@@ -1013,7 +1071,7 @@ def test_source_wars_named_present_or_ongoing_are_marked_ongoing(conn):
                     label="named ongoing source wars without ongoing marker",
                     sql=detected_rows_sql,
                     summary=failure_summary("named ongoing source wars without ongoing marker", len(rows)),
-                    detected_rows=format_query_results(columns, rows),
+                    detected_rows=highlighted_detected_rows(columns, rows, problem_cells),
                 )
             ],
         )
@@ -1081,6 +1139,12 @@ def test_interstate_war_source_rows_are_valid(conn):
     result = conn.execute(detected_rows_sql)
     rows = result.fetchall()
     columns = [column[0] for column in result.description]
+    problem_cells = problem_cells_matching(
+        rows,
+        columns,
+        lambda column, value: (column == "c_code" and value is None)
+        or (column == "side" and (value is None or value not in (1, 2))),
+    )
 
     fail_sql_check(
         "Interstate war source rows should have participant codes and valid side assignments:",
@@ -1089,7 +1153,7 @@ def test_interstate_war_source_rows_are_valid(conn):
                 label="source_interstate_wars participant rows",
                 sql=detected_rows_sql,
                 summary=failure_summary("source_interstate_wars participant rows", invalid_count),
-                detected_rows=format_query_results(columns, rows),
+                detected_rows=highlighted_detected_rows(columns, rows, problem_cells),
             )
         ],
     )
@@ -1147,6 +1211,7 @@ def test_interstate_war_dyads_use_semantic_participant_sides(conn):
     if not rows:
         return
 
+    problem_cells = problem_cells_for_columns(rows, columns, {"sides"})
     fail_sql_check(
         "Transformed interstate war dyads should use semantic participant sides.",
         failures=[
@@ -1154,7 +1219,7 @@ def test_interstate_war_dyads_use_semantic_participant_sides(conn):
                 label="interstate war_dyads side conflicts",
                 sql=detected_rows_sql,
                 summary=failure_summary("interstate war_dyads side conflicts", len(rows)),
-                detected_rows=format_query_results(columns, rows),
+                detected_rows=highlighted_detected_rows(columns, rows, problem_cells),
             )
         ],
     )
@@ -1185,6 +1250,11 @@ def test_final_participant_side_assignments_are_present_and_valid(conn):
     result = conn.execute(detected_rows_sql)
     rows = result.fetchall()
     columns = [column[0] for column in result.description]
+    problem_cells = problem_cells_matching(
+        rows,
+        columns,
+        lambda column, value: column == "side" and (value is None or value not in (1, 2, 3)),
+    )
 
     fail_sql_check(
         "Final participant side assignments should be present and in (1, 2, 3):",
@@ -1193,7 +1263,7 @@ def test_final_participant_side_assignments_are_present_and_valid(conn):
                 label="participants missing or invalid side rows",
                 sql=detected_rows_sql,
                 summary=failure_summary("participants missing or invalid side rows", invalid_count),
-                detected_rows=format_query_results(columns, rows),
+                detected_rows=highlighted_detected_rows(columns, rows, problem_cells),
             )
         ],
     )
