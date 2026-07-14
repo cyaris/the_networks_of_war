@@ -41,11 +41,9 @@
 - Prefer DuckDB postfix casts such as `value::integer` over `cast(value as integer)`.
 - Remove unnecessary quoted SQL identifiers. Keep quotes only for source columns or aliases that require them.
 - Do not use `select distinct`; write row deduplication as `group by` with numeric column positions, such as `group by 1` or `group by 1, 2`. Aggregate forms such as `count(distinct ...)` are acceptable when distinctness belongs inside the aggregate.
-- Keep opposite columns adjacent, such as `c_code_a` immediately followed by `c_code_b` and `participant_a` immediately followed by `participant_b`.
-- Keep battle-death columns at the end of source and transformed select lists. When both actual and estimated/estimate-flag battle-death columns are present, put the actual battle-death columns first and the estimated/estimate-flag columns immediately after them.
+- Keep related columns grouped consistently in source and transformed select lists: opposite A/B columns adjacent, repeated date components in source order by span and component, and battle-death columns at the end with actual deaths before estimated values and estimate flags.
 - In numbered pipeline-stage SQL union blocks, order branches by first-created primary table to last-created primary table. When a primary table contributes mirrored A/B branches, put the original non-flipped branch before the flipped branch for that same table.
 - Choose `union all` for additive source stacking when later logic handles deduplication or duplicates are meaningful. Use plain `union` only when set semantics are required at that exact point. Do not write `union distinct`.
-- For repeated date components, keep fields in source order by span and component: `start_day_1`, `start_month_1`, `start_year_1`, then `start_day_2`, `start_month_2`, `start_year_2`, and likewise for end dates.
 - Compute transformed interstate `war_dyads.side_a` and `war_dyads.side_b` from participant-side source data rather than from directed dyad row position. Extra-state and intra-state dyads may use literal A/B sides when the source table's A/B columns are the side definition.
 - Keep interstate participant rows sourced from participant-level interstate war data. Do not use directed interstate dyad rows as participant rows when those rows carry dyad-level dates or deaths.
 - Keep `lagging_war` and `leading_war` nullable when source data does not provide a value; do not coalesce them to sentinel values.
