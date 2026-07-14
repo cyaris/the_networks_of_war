@@ -14,7 +14,7 @@
 - If the pipeline pre-drops existing relations for `create or replace` compatibility, apply that behavior generically to all table/view targets detected from the SQL file. Do not add one-off Python special cases for individual SQL files or relation names.
 - For source tables, write explicit `create table` column definitions. Do not use `read_csv_auto` in `create table` statements.
 - Source-table insert files may use `read_csv_auto`, but should explicitly select the loaded columns and apply aliases, casts, cleaning macros, and documented source-file data-entry fixes there.
-- Ingest all relevant CSV columns in the paired `01_create_source_tables.sql` / `02_insert_source_tables.sql` source-table files unless a column is documented as calculated from other ingested columns or is otherwise intentionally excluded.
+- Ingest all relevant CSV columns in the paired `01_create_source_tables.sql` / `02_insert_source_tables.sql` source-table files unless a column is documented as calculated from other ingested columns or is otherwise intentionally excluded. When treating fields as original source columns, cover only columns that exist in the ingested source files; do not add derived or convenience columns that were never present in the CSVs.
 - `source_` tables should mean direct CSV ingestion. Do not join to other source or derived tables in `02_insert_source_tables.sql`; cross-source enrichment belongs in later transformation SQL.
 - Keep source row-position fields distinct from transformed semantic fields. Do not materialize source-side columns that only restate A/B row position when existing source columns such as `c_code_a` and `c_code_b` already encode that position.
 - Preserve source role fields as role fields with clear aliases, such as `role_a`, `role_b`, `dyad_role_a`, and `dyad_role_b`; do not repurpose source role fields as semantic side fields.
@@ -50,7 +50,7 @@
 - Keep interstate participant rows sourced from participant-level interstate war data. Do not use directed interstate dyad rows as participant rows when those rows carry dyad-level dates or deaths.
 - Keep `lagging_war` and `leading_war` nullable when source data does not provide a value; do not coalesce them to sentinel values.
 - Final `dyads` should contain one row per unordered dyad. Use stable canonical dyad keys for deduplication, and derive `wars.total_dyads` from the resulting dyad row count rather than dividing a directed-row count by two.
-- Avoid ordering tables unless deterministic output order is explicitly needed.
+- Avoid ordering tables or query results unless deterministic output order is explicitly needed. In tests, compare unordered results in Python unless the query prints or asserts on raw rows, where a deterministic `order by` makes diagnostics stable.
 - Avoid CTEs when a direct query is clearer. Minimize CTEs when doing so does not duplicate substantial joins or unions. When the tradeoff is between a CTE and a subselect/derived table, prefer the CTE.
 - Do not use derived-table subselects in `from` or `join` clauses.
 - Prefer explicit `left join ... where matched_key is null` anti-joins over `not exists` filters in numbered pipeline-stage SQL.
@@ -80,7 +80,6 @@
 - Tests for missing source relationships, such as unresolved MID war numbers, should fail in a way that requires an explicit source-data or source-adjustment change.
 - Tests should protect data semantics and pipeline behavior rather than freezing metadata placeholders. For example, do not test that a source remains `unversioned`.
 - Test semantic behavior at the layer that owns it. Do not test source row-position fields as if they were transformed participant-side semantics.
-- Tests about original source columns should only cover columns that exist in the source files being ingested; do not add derived or convenience columns that were never present in the CSVs.
 - For diagnostic failure SQL, select only the columns needed to identify and understand the failing rows.
 - Pytest diagnostic failures should show what failed, the SQL queries that were run, and the detected rows. Avoid Python traceback/code-frame noise for intentional data-quality failures.
 - Structure each diagnostic failure as its own self-contained block instead of grouping many failures under broad sections. Within a block, show the SQL query first, then a concise failure summary, then detected rows.
@@ -91,8 +90,6 @@
 - For broad source-data quality checks, prefer a simple `count(*)` filtered to the failure condition, then run a separate focused query to show flagged rows when the count is nonzero. Avoid large cross-table `union all` diagnostic queries when a loop over table/column checks is clearer.
 - When symmetric A/B fields in the same source table represent one logical expectation, such as paired battle-death fields, prefer one combined diagnostic check over separate A and B failures.
 - When a test is intended to catch unexpected rows, fetch and assert on the raw rows rather than only asserting on `count(*)`, so failures show the offending data.
-- Add deterministic `order by` clauses to diagnostic failure queries that print or assert on raw rows. This is an exception to avoiding `order by` when row order is not itself behavior.
 - Keep diagnostic failure output plain and concise. Avoid formatting choices that make pytest render large failure tables as visually noisy styled blocks.
 - For tests that inspect comparable columns across many source tables, use one cross-table allowlist and include a column only when it exists in the inspected table.
 - When tests generate repeated SQL fragments, prefer a named local helper or explicit loop over dense inline f-string comprehensions.
-- Avoid `order by` in tests when row order is not part of the behavior being tested; compare unordered results in Python instead.
