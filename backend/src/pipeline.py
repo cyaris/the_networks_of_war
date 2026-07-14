@@ -51,16 +51,17 @@ STEP_1_SQL = [
     "step_1/00_setup.sql",
     "step_1/01_create_source_tables.sql",
     "step_1/02_insert_source_tables.sql",
-    "step_1/02a_create_source_adjustment_tables.sql",
-    "step_1/02b_apply_source_adjustments.sql",
-    "step_1/03_create_reference_tables.sql",
-    "step_1/04_create_war_dyads.sql",
-    "step_1/05_create_war_participants.sql",
-    "step_1/06_create_dyads_after_mid.sql",
-    "step_1/07_create_participants.sql",
-    "step_1/08_create_dyads.sql",
-    "step_1/09_create_dyad_years.sql",
-    "step_1/10_create_wars.sql",
+    "step_1/03_create_source_adjustment_tables.sql",
+    "step_1/04_insert_source_adjustments.sql",
+    "step_1/05_create_reference_tables.sql",
+    "step_1/06_insert_reference_tables.sql",
+    "step_1/07_create_war_dyads.sql",
+    "step_1/08_create_war_participants.sql",
+    "step_1/09_create_dyads_after_mid.sql",
+    "step_1/10_create_participants.sql",
+    "step_1/11_create_dyads.sql",
+    "step_1/12_create_dyad_years.sql",
+    "step_1/13_create_wars.sql",
 ]
 
 
@@ -142,9 +143,6 @@ class Pipeline:
     def path_for(self, source_key: str) -> Path:
         relative = SOURCE_FILES[source_key]
 
-        if SOURCE_METADATA_BY_KEY[source_key].get("local"):
-            return (BACKEND_ROOT / relative).resolve()
-
         return (self.source_dir_for(source_key) / relative).resolve()
 
     def download_file(self, url: str, destination: Path) -> None:
@@ -188,9 +186,6 @@ class Pipeline:
     def populate_source_dir(self, source_key: str) -> None:
         metadata = SOURCE_METADATA_BY_KEY[source_key]
 
-        if metadata.get("local"):
-            return
-
         source_dir = self.source_dir_for(source_key)
         source_dir.mkdir(parents=True, exist_ok=True)
         downloads_dir = self.data_dir / "_downloads"
@@ -209,9 +204,6 @@ class Pipeline:
 
     def validate_source_dir(self, source_key: str) -> list[SourceDataIssue]:
         metadata = SOURCE_METADATA_BY_KEY[source_key]
-
-        if metadata.get("local"):
-            return []
 
         source_dir = self.source_dir_for(source_key)
         found = sorted(path.name for path in source_dir.rglob("*") if path.is_file())
@@ -236,7 +228,7 @@ class Pipeline:
         return [
             SourceDataIssue(metadata["key"], "source table has no configured download URL")
             for metadata in SOURCE_METADATA
-            if not metadata.get("local") and not metadata.get("downloads")
+            if not metadata.get("downloads")
         ]
 
     def prepare_data(self, recreate: bool = False) -> None:
@@ -249,9 +241,6 @@ class Pipeline:
 
         for metadata in SOURCE_METADATA:
             source_key = metadata["key"]
-
-            if metadata.get("local"):
-                continue
 
             source_dir = self.source_dir_for(source_key)
             if recreate or not source_dir.exists():

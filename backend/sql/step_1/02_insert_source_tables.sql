@@ -215,11 +215,3 @@ select
     clean_number(SideBPeakTheatForces) side_b_peak_theater_forces,
     clean_number(Version) source_version
 from read_csv_auto({intrastate_wars_path}, normalize_names = false, encoding = 'latin-1');
-
-insert into source_war_types
-
-select
-    clean_int(war_type_code) war_type,
-    clean_text(war_type) war_type_name,
-    clean_text(war_subtype) war_subtype
-from read_csv_auto({war_types_path}, normalize_names = false);

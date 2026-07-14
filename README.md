@@ -20,10 +20,9 @@ pip install -e ".[dev]"
 ## Data Layout
 
 Source data is downloaded into `backend/data/`, which is ignored by git. Each external source table gets its own
-subdirectory named after the source key, such as `backend/data/interstate_mid_dyads/`. The manual
-`war_types.csv` helper lives at `backend/manual/war_types.csv` because it is not tied to an external data version.
-The extra-state CSV is copied to UTF-8 under ignored `backend/.work/` before DuckDB reads it. The generated DuckDB
-database is also ignored:
+subdirectory named after the source key, such as `backend/data/interstate_mid_dyads/`. Source download metadata lives in
+`backend/manual/source_metadata.json`. The extra-state CSV encoding override is also defined there; that CSV is copied
+to UTF-8 under ignored `backend/.work/` before DuckDB reads it. The generated DuckDB database is ignored:
 
 - `the_networks_of_war/backend/data/`
 - `the_networks_of_war/backend/.work/`
@@ -161,10 +160,17 @@ supporting files from each source bundle when available.
 | `source_interstate_war_dyads` | `directed_dyadic_war.csv` | unversioned | [dyadic interstate war dataset ZIP](https://correlatesofwar.org/wp-content/uploads/Dyadic-Interstate-War-Dataset.zip) |
 | `source_interstate_wars` | `Inter-StateWarData_v4.0.csv` | 4.0 | [inter-state wars CSV](https://correlatesofwar.org/wp-content/uploads/Inter-StateWarData_v4.0.csv); [inter-state wars list](https://correlatesofwar.org/wp-content/uploads/Inter-StateWarsList.pdf); [inter-state wars codebook](https://correlatesofwar.org/wp-content/uploads/Inter-StateWars_Codebook.pdf) |
 | `source_intrastate_wars` | `INTRA-STATE_State_participants v5.1 CSV.csv` | 5.1 | [intra-state wars 5.1 ZIP](https://correlatesofwar.org/wp-content/uploads/Intra-State-Wars-v5.1.zip) |
-| `source_war_types` | `backend/manual/war_types.csv` | local | local helper file with no external codebook |
 
 Other files in the legacy ignored `documentation/` directory correspond to datasets that have not yet been incorporated
 and were not used for the current Step 1 assumptions.
+
+Step 1 materializes reference tables:
+
+- `country_codes`
+- `war_types`
+
+`war_types` is maintained as inline SQL reference data: `05_create_reference_tables.sql` creates the table and
+`06_insert_reference_tables.sql` inserts the rows.
 
 Step 1 also materializes transformed tables:
 
@@ -187,11 +193,14 @@ Step 1 also materializes compatibility tables:
   encoding normalization, and the data-entry fixes documented below applied during load.
 - `dyadic_mid_4.03.csv` has no new columns relative to `dyadic_mid_4.02.csv` and no longer includes the 4.02 columns
   `dyad`, `abbreva`, `abbrevb`, `lastobs`, and `newar`.
-- Version-scoped source adjustments live in `backend/sql/step_1/02a_create_source_adjustment_tables.sql` and
-  `backend/sql/step_1/02b_apply_source_adjustments.sql`. The first file creates `source_file_versions` and adjustment
+- Version-scoped source adjustments live in `backend/sql/step_1/03_create_source_adjustment_tables.sql` and
+  `backend/sql/step_1/04_insert_source_adjustments.sql`. The first file creates `source_file_versions` and adjustment
   tables; the second inserts adjustment rows for source facts that are not present in the source CSVs. Downstream
   transformations join adjustment tables to `source_file_versions` when an assignment is version-scoped. Data-entry
   fixes applied while reading source CSVs are documented below.
+- Reference data that is not tied to an external source file, currently `war_types`, is created and inserted in
+  `backend/sql/step_1/05_create_reference_tables.sql` and
+  `backend/sql/step_1/06_insert_reference_tables.sql`.
 
 ### Excluded Calculated Columns
 

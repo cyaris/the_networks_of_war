@@ -6,8 +6,7 @@ values
     ('interstate_mid_dyads', {interstate_mid_dyads_source_file}, {interstate_mid_dyads_source_version}),
     ('interstate_war_dyads', {interstate_war_dyads_source_file}, {interstate_war_dyads_source_version}),
     ('interstate_wars', {interstate_wars_source_file}, {interstate_wars_source_version}),
-    ('intrastate_wars', {intrastate_wars_source_file}, {intrastate_wars_source_version}),
-    ('war_types', {war_types_source_file}, {war_types_source_version});
+    ('intrastate_wars', {intrastate_wars_source_file}, {intrastate_wars_source_version});
 
 insert into source_interstate_mid_war_num_adjustments
 

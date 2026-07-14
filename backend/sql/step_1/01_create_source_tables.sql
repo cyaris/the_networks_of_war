@@ -187,9 +187,3 @@ create or replace table source_intrastate_wars (
     side_b_peak_theater_forces double,
     source_version double
 );
-
-create or replace table source_war_types (
-    war_type integer,
-    war_type_name varchar,
-    war_subtype varchar
-);

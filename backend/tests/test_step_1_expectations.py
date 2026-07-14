@@ -249,10 +249,8 @@ def raw_source_date_component_check_sql(
     """
 
 
-def test_source_tables_have_download_urls_or_are_marked_local():
-    missing = [
-        metadata["key"] for metadata in SOURCE_METADATA if not metadata.get("local") and not metadata.get("downloads")
-    ]
+def test_source_tables_have_download_urls():
+    missing = [metadata["key"] for metadata in SOURCE_METADATA if not metadata.get("downloads")]
     non_absolute_urls = [
         download["url"]
         for metadata in SOURCE_METADATA

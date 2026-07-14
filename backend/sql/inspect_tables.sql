@@ -29,11 +29,6 @@ select
 from source_intrastate_wars
 union all
 select
-    'source_war_types' table_name,
-    count(*) row_count
-from source_war_types
-union all
-select
     'war_participants' table_name,
     count(*) row_count
 from war_participants

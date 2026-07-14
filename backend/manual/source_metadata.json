@@ -86,11 +86,5 @@
         "filename": "Intra-State-Wars-v5.1.zip"
       }
     ]
-  },
-  {
-    "key": "war_types",
-    "file": "manual/war_types.csv",
-    "version": "local",
-    "local": true
   }
 ]
