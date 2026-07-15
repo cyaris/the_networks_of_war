@@ -68,7 +68,7 @@ select
     a.war_num,
     a.c_code,
     a.participant,
-    coalesce(a.side, b.side, c.side) side,
+    coalesce(c.side, a.side, b.side) side,
     a.start_date,
     a.end_date,
     a.start_date_estimated,

@@ -34,5 +34,11 @@ from (
         ('participant_year_descriptives'),
         ('participant_descriptives'),
         ('dyad_year_descriptives'),
-        ('dyadic_descriptives')
+        ('dyadic_descriptives'),
+        ('final_participants'),
+        ('final_dyads'),
+        ('final_wars'),
+        ('d3_war_nodes'),
+        ('d3_war_links'),
+        ('d3_war_json')
 ) tables(table_name);

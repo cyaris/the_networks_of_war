@@ -12,6 +12,7 @@ from duckdb_backend import (
     STEP_1_SQL,
     STEP_2_SOURCE_KEYS,
     STEP_2_SQL,
+    STEP_3_SQL,
     DuckDBProcessesMixin,
     add_duckdb_arguments,
     created_relation_names,
@@ -67,8 +68,8 @@ class Pipeline(SourceDataPreparationMixin, DuckDBProcessesMixin):
             if step in {"all", "2"}:
                 self.run_step_2(conn)
 
-            if step == "3":
-                raise NotImplementedError("Only preprocessing Steps 1 and 2 have been rebuilt in native SQL so far.")
+            if step in {"all", "3"}:
+                self.run_step_3(conn)
 
             if inspect:
                 self.inspect(conn)

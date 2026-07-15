@@ -14,6 +14,7 @@ A study of networks by war using data from the Correlates of War (COW) project.
   - [Source Tables](#source-tables)
     - [Step 1 Source Tables](#step-1-source-tables)
     - [Step 2 Source Tables](#step-2-source-tables)
+  - [Final Outputs](#final-outputs)
   - [Ingestion Assumptions](#ingestion-assumptions)
     - [Source Ingestion Rules](#source-ingestion-rules)
     - [Excluded Calculated Columns](#excluded-calculated-columns)
@@ -70,7 +71,7 @@ Pipeline parameters:
 | `--data-dir PATH` | `backend/data/` | Source-data directory. Use `--data-dir data` for the default relative backend path. |
 | `--csv-dir PATH` | `backend/data/` | Backward-compatible alias for `--data-dir`; use `--csv-dir data` only for older scripts. |
 | `--db-path PATH` | `backend/the_networks_of_war.duckdb` | DuckDB database path. Use `--db-path the_networks_of_war.duckdb` for the default relative backend path. |
-| `--step {none,all,1,2,3}` | `all` | `all` rebuilds Steps 1 and 2; `1` rebuilds Step 1; `2` rebuilds Step 2 source and descriptive tables against existing Step 1 outputs; `3` is an accepted placeholder and currently raises `NotImplementedError`; `none` skips preprocessing. |
+| `--step {none,all,1,2,3}` | `all` | `all` rebuilds Steps 1, 2, and 3; `1` rebuilds Step 1; `2` rebuilds Step 2 source and descriptive tables against existing Step 1 outputs; `3` rebuilds final merge and D3/Svelte graph tables against existing Step 2 outputs; `none` skips preprocessing. |
 | `--inspect` | off | Print table row counts after the selected step runs. |
 | `--prepare-data` | off | Download and validate missing source-data folders before opening the database. |
 | `--recreate-data` | off | Delete and recreate the full source-data directory before opening the database. |
@@ -93,6 +94,12 @@ Run or rebuild Step 2 source and descriptive tables after Step 1 outputs exist:
 
 ```bash
 python src/pipeline.py --step 2
+```
+
+Run or rebuild Step 3 final merge and graph tables after Step 2 outputs exist:
+
+```bash
+python src/pipeline.py --step 3
 ```
 
 Print table row counts after running the selected step:
@@ -145,14 +152,6 @@ Recreate the full ignored source-data directory:
 python src/pipeline.py --recreate-data --step none
 ```
 
-Step 3 has not been rebuilt yet:
-
-```bash
-python src/pipeline.py --step 3
-```
-
-The Step 3 command currently stops with `NotImplementedError`.
-
 ## Test Commands
 
 From `the_networks_of_war/backend`:
@@ -166,6 +165,12 @@ Run the Step 1 expectation tests:
 ```bash
 pytest tests/test_step_1.py
 pytest tests/test_step_1.py -q
+```
+
+Run the Step 3 final-output tests:
+
+```bash
+pytest tests/test_step_3.py
 ```
 
 Run a single test or matching group of tests:
@@ -253,6 +258,22 @@ Step 2 also materializes descriptive compatibility tables:
 - `participant_descriptives`
 - `dyad_year_descriptives`
 - `dyadic_descriptives`
+
+## Final Outputs
+
+Step 3 materializes final merge and graph-export tables:
+
+- `final_participants`
+- `final_dyads`
+- `final_wars`
+- `d3_war_nodes`
+- `d3_war_links`
+- `d3_war_json`
+
+The legacy Step 3 notebook saved `part_df.pkl`, `dyad_df.pkl`, `war_df.pkl`, one JSON file per war, and
+`war_file_list.csv`. The DuckDB rebuild keeps the same final concepts in tables instead of writing many JSON files.
+`d3_war_json` stores one graph payload per `war_num`, while `d3_war_nodes` and `d3_war_links` keep the normalized graph
+shape available for a Svelte app or API route.
 
 ## Ingestion Assumptions
 
@@ -376,7 +397,8 @@ Step 2 also materializes descriptive compatibility tables:
   dyadic side A records.
 - Missing participant sides are inferred from the opposite participant in dyadic data when that inference is unambiguous.
 - Remaining version-specific participant side assignments are stored in `source_participant_side_adjustments` and joined
-  during participant creation.
+  during participant creation. These adjustments are for source facts that cannot be calculated from participant or
+  dyadic rows.
 - Interstate war participant sides are taken from `source_interstate_wars`, either directly in `war_participants` or
   through semantic side values on `war_dyads`, because the directed dyadic source can include reciprocal rows where the
   same state appears as both `c_code_a` and `c_code_b` for the same war or dispute.
@@ -424,6 +446,13 @@ flowchart LR
 - Final dyads are deduplicated to one row per `war_num` and unordered participant pair. When duplicate spans exist, the
   final row keeps the earliest start date and latest end date from the unordered dyad pair.
 - `dyad_years` expands `dyads` into one row per year for years in the range `1500` through `2099`.
+- Step 3 final participant and dyad outputs apply the legacy final-fill rules to `_x`, `_y`, and `_z` descriptor
+  fields. Missing descriptor values are filled as zero for COW-coded states and left `null` for non-state participants
+  or dyads involving non-state participants; COW unknown/not-applicable sentinels `-9` and `-8` become `null`.
+- Step 3 participant outputs convert legacy unit-scaled fields before graph export: trade money flows to dollars,
+  NMC military/population and displacement counts to people, and iron/steel and energy figures to documented base units.
+- Step 3 does not write separate JSON files. `final_wars.file_name` preserves the legacy filename that a static export
+  can use later, and `d3_war_json.graph_json` provides the per-war graph payload directly from DuckDB.
 
 ## Data-Entry Fixes And Assignment Rules
 
