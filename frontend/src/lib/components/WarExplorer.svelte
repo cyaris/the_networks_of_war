@@ -1,7 +1,7 @@
 <script>
   import { Select } from "svelte-lib/components"
 
-  import graphData from "$lib/static/graphData.json"
+  import graphData from "../static/graphData.json"
   import AppShell from "./AppShell.svelte"
   import NetworkGraph from "./NetworkGraph.svelte"
 
@@ -34,7 +34,13 @@
 
   function linkDashFieldCount(war) {
     let graph = graphForWar(war)
-    let fields = Array.from(new Set((graph.links || []).flatMap(link => Object.keys(link).filter(field => field.endsWith("_x") || field.endsWith("_y") || field.endsWith("_z")))))
+    let fields = Array.from(
+      new Set(
+        (graph.links || []).flatMap(link =>
+          Object.keys(link).filter(field => field.endsWith("_x") || field.endsWith("_y") || field.endsWith("_z"))
+        )
+      )
+    )
 
     return fields.filter(field => graph.links.some(link => Number(link[field]) > 0)).length
   }
@@ -75,12 +81,15 @@
   $: totalParticipants = filteredWars.reduce((total, war) => total + Number(war.total_participants || 0), 0)
   $: totalDyads = filteredWars.reduce((total, war) => total + Number(war.total_dyads || 0), 0)
   $: warsWithLinkDashes = filteredWars.filter(war => linkDashFieldCountsByWarNum[String(war.war_num)] > 0).length
-  $: selectedTypeLabel = selectedWarTypeValues.length == warTypeItems.length ? "All war types" : selectedWarTypeValues.join(", ")
+  $: selectedTypeLabel =
+    selectedWarTypeValues.length == warTypeItems.length ? "All war types" : selectedWarTypeValues.join(", ")
 </script>
 
 <AppShell active="browser">
   <main class="mx-auto flex w-full max-w-none flex-col gap-4 px-4 py-5 sm:px-6">
-    <section class="grid gap-4 border border-[#d8d3c4] bg-white p-4 xl:grid-cols-[minmax(260px,360px)_minmax(360px,1fr)_minmax(420px,0.9fr)]">
+    <section
+      class="grid gap-4 border border-[#d8d3c4] bg-white p-4 xl:grid-cols-[minmax(260px,360px)_minmax(360px,1fr)_minmax(420px,0.9fr)]"
+    >
       <div>
         <div class="mb-3">
           <h2 class="text-base font-extrabold">Filters</h2>
@@ -133,7 +142,9 @@
     </section>
 
     {#if selectedWar}
-      <section class="grid gap-3 border border-[#d8d3c4] bg-white p-4 text-sm md:grid-cols-[minmax(260px,1.2fr)_repeat(5,minmax(120px,0.6fr))]">
+      <section
+        class="grid gap-3 border border-[#d8d3c4] bg-white p-4 text-sm md:grid-cols-[minmax(260px,1.2fr)_repeat(5,minmax(120px,0.6fr))]"
+      >
         <div>
           <div class="text-xs font-bold uppercase tracking-[0.14em] text-[#60706a]">Selected War</div>
           <div class="mt-1 text-base font-extrabold">{selectedWar.war_name}</div>

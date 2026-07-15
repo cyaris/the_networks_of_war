@@ -1,6 +1,6 @@
 <script>
-  import AppShell from "$lib/components/AppShell.svelte"
-  import graphData from "$lib/static/graphData.json"
+  import AppShell from "../../lib/components/AppShell.svelte"
+  import graphData from "../../lib/static/graphData.json"
 </script>
 
 <AppShell active="data">

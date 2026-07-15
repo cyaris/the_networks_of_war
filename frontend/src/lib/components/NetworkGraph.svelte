@@ -8,7 +8,6 @@
   export let selectedWar = null
 
   let width = 900
-  let height = 700
   let simulation
   let svg
   let nodes = []
@@ -21,27 +20,30 @@
   let tooltip = null
   let currentGraph = null
   let currentWidth = null
-  let currentHeight = null
   let currentSizingSignature = null
   let linkDashPulseTimer = null
   let linkDashStrokeWidth = 3
   let nodeDescriptiveValues = []
   let maxDomain = 2
   let stdNullRadiusSize = 1
-  let nullRadiusNodes = 0
   let nodeMargins = emptyNodeMargins()
   let primaryNode = null
   let onlyOnePrimaryNode = false
   let radiusScale = scaleLinear([0, maxDomain], [1, 125])
 
   const graphTextSize = 12
+  const height = 700
   const minRadiusSize = 1
   const maxRadiusSize = 125
   const linkNodeSize = 2.5
   const nodeStrokeWidth = 1
   const nodeSizeWarningOffset = 10
+  const graphMenuHeight = height * 0.175
+  const graphHeight = height - graphMenuHeight
+  const graphCenterY = graphMenuHeight + (height - graphMenuHeight) / 2
+  const addedMarginSize = Math.max(linkNodeSize, 10)
 
-  let timeframeItems = [
+  const timeframeItems = [
     { value: "x", label: "First Year" },
     { value: "y", label: "Last Year" },
     { value: "z", label: "All Years" },
@@ -50,7 +52,7 @@
   let nodeDescriptorValue = null
   let linkDescriptorValue = null
 
-  let sideColors = {
+  const sideColors = {
     1: "#2f7f66",
     2: "#b54f72",
     3: "#5f70b8",
@@ -58,11 +60,7 @@
     undefined: "#71717a",
   }
 
-  $: graphMenuHeight = height * 0.175
-  $: graphHeight = height - graphMenuHeight
   $: graphCenterX = width * 0.5
-  $: graphCenterY = graphMenuHeight + (height - graphMenuHeight) / 2
-  $: addedMarginSize = Math.max(linkNodeSize, 10)
 
   function emptyNodeMargins() {
     return {
@@ -94,7 +92,10 @@
   }
 
   function fieldLabel(field) {
-    return field.replace(/_[xyz]$/, "").replaceAll("_", " ").replace(/\b\w/g, value => value.toUpperCase())
+    return field
+      .replace(/_[xyz]$/, "")
+      .replaceAll("_", " ")
+      .replace(/\b\w/g, value => value.toUpperCase())
   }
 
   function getNodeDescriptiveValues(sizeField) {
@@ -112,7 +113,8 @@
         let totalDays = dateDays(node.start_date, Number(node.ongoing_conflict) == 1 ? null : node.end_date)
         let daysAtWar = totalDays == null ? null : totalDays - (numberValue(node.days_not_at_war_z) ?? 0)
         let battleDeaths = numberValue(node.battle_deaths_z) ?? numberValue(node.battle_deaths)
-        sizeValue = daysAtWar && battleDeaths != null ? Math.round((battleDeaths / daysAtWar) * 100) / 100 : NaN
+        sizeValue =
+          Number.isFinite(daysAtWar) && battleDeaths != null ? Math.round((battleDeaths / daysAtWar) * 100) / 100 : NaN
       } else {
         sizeValue = Number.parseFloat(node[sizeField])
       }
@@ -153,7 +155,9 @@
   }
 
   function nodeFieldItems(rows, suffix) {
-    let fields = Array.from(new Set((rows[0] ? Object.keys(rows[0]) : []).filter(field => field.endsWith(`_${suffix}`))))
+    let fields = Array.from(
+      new Set((rows[0] ? Object.keys(rows[0]) : []).filter(field => field.endsWith(`_${suffix}`)))
+    )
 
     if (suffix == "z") {
       fields = [...fields, "days_at_war_z", "battle_deaths_per_day_z"]
@@ -182,19 +186,46 @@
         if (field == "days_at_war_z" && coalescedUniqueValues(daysAtWarValues).length == 1) return false
         if (field == "days_not_at_war_z" && coalescedUniqueValues(daysNotAtWarValues).length == 1) return false
         if (
-          ["land_mass_exchange_gain_x", "land_mass_exchange_gain_y", "land_mass_exchange_gain_z", "population_exchange_gain_x", "population_exchange_gain_y", "population_exchange_gain_z"].includes(field) &&
+          [
+            "land_mass_exchange_gain_x",
+            "land_mass_exchange_gain_y",
+            "land_mass_exchange_gain_z",
+            "population_exchange_gain_x",
+            "population_exchange_gain_y",
+            "population_exchange_gain_z",
+          ].includes(field) &&
           maxLandMassLoss == 0
         )
           return false
         if (
-          ["land_mass_exchange_loss_x", "land_mass_exchange_loss_y", "land_mass_exchange_loss_z", "population_exchange_loss_x", "population_exchange_loss_y", "population_exchange_loss_z"].includes(field) &&
+          [
+            "land_mass_exchange_loss_x",
+            "land_mass_exchange_loss_y",
+            "land_mass_exchange_loss_z",
+            "population_exchange_loss_x",
+            "population_exchange_loss_y",
+            "population_exchange_loss_z",
+          ].includes(field) &&
           maxLandMassGain == 0
         )
           return false
-        if (["concurrent_wars_x", "concurrent_wars_y", "concurrent_wars_z"].includes(field) && sumConcurrentWars <= 3) return false
-        if (["allied_countries_x", "allied_countries_y", "allied_countries_z"].includes(field) && sumAlliedCountries / 2 <= 3) return false
-        if (["terrorism_deaths_x", "terrorism_deaths_y", "terrorism_deaths_z"].includes(field) && sumTerrorismDeaths <= 100) return false
-        if (["trade_countries_x", "trade_countries_y", "trade_countries_z"].includes(field) && sumTradeCountries / 2 <= 10) return false
+        if (["concurrent_wars_x", "concurrent_wars_y", "concurrent_wars_z"].includes(field) && sumConcurrentWars <= 3)
+          return false
+        if (
+          ["allied_countries_x", "allied_countries_y", "allied_countries_z"].includes(field) &&
+          sumAlliedCountries / 2 <= 3
+        )
+          return false
+        if (
+          ["terrorism_deaths_x", "terrorism_deaths_y", "terrorism_deaths_z"].includes(field) &&
+          sumTerrorismDeaths <= 100
+        )
+          return false
+        if (
+          ["trade_countries_x", "trade_countries_y", "trade_countries_z"].includes(field) &&
+          sumTradeCountries / 2 <= 10
+        )
+          return false
         if (
           [
             "mid_dyads_x",
@@ -213,9 +244,21 @@
           sumMidDyads / 2 <= descriptorLinks.length
         )
           return false
-        if (["mid_dyads_initiated_x", "mid_dyads_initiated_y", "mid_dyads_initiated_z"].includes(field) && sumMidDyadsInitiated / 2 <= descriptorLinks.length + 1) return false
-        if (["mid_dyads_joined_x", "mid_dyads_joined_y", "mid_dyads_joined_z"].includes(field) && sumMidDyadsJoined / 2 <= descriptorLinks.length + 1) return false
-        if (["mid_dyads_targeted_x", "mid_dyads_targeted_y", "mid_dyads_targeted_z"].includes(field) && sumMidDyadsTargeted / 2 <= descriptorLinks.length + 1) return false
+        if (
+          ["mid_dyads_initiated_x", "mid_dyads_initiated_y", "mid_dyads_initiated_z"].includes(field) &&
+          sumMidDyadsInitiated / 2 <= descriptorLinks.length + 1
+        )
+          return false
+        if (
+          ["mid_dyads_joined_x", "mid_dyads_joined_y", "mid_dyads_joined_z"].includes(field) &&
+          sumMidDyadsJoined / 2 <= descriptorLinks.length + 1
+        )
+          return false
+        if (
+          ["mid_dyads_targeted_x", "mid_dyads_targeted_y", "mid_dyads_targeted_z"].includes(field) &&
+          sumMidDyadsTargeted / 2 <= descriptorLinks.length + 1
+        )
+          return false
         if (field == "battle_deaths_per_day_z" && coalescedUniqueValues(daysAtWarValues).length == 1) return false
 
         return true
@@ -239,10 +282,6 @@
       : [{ value: null, label: "None Available", selectable: false }]
   }
 
-  function fieldItems(rows, suffix, type) {
-    return type == "node" ? nodeFieldItems(rows, suffix) : linkFieldItems(rows, suffix)
-  }
-
   function dateDays(startDate, endDate) {
     let start = new Date(`${startDate}T00:00:00`)
     let end = endDate ? new Date(`${endDate}T00:00:00`) : new Date()
@@ -259,13 +298,12 @@
       return {
         ...node,
         days_at_war_z: daysAtWar,
-        battle_deaths_per_day_z: daysAtWar && battleDeaths != null ? Math.round((battleDeaths / daysAtWar) * 100) / 100 : null,
+        battle_deaths_per_day_z:
+          Number.isFinite(daysAtWar) && battleDeaths != null
+            ? Math.round((battleDeaths / daysAtWar) * 100) / 100
+            : null,
       }
     })
-  }
-
-  function selectedFieldValue(row, descriptor) {
-    return descriptor?.value ? numberValue(row[descriptor.value]) : null
   }
 
   function textWidth(value) {
@@ -291,7 +329,9 @@
 
     nodes.forEach(node => {
       let nodeValue = nodeDescriptiveValues[node.id]
-      let currentRadiusSize = Number.isNaN(Number.parseFloat(nodeValue)) ? radiusScale(stdNullRadiusSize) : radiusScale(nodeValue)
+      let currentRadiusSize = Number.isNaN(Number.parseFloat(nodeValue))
+        ? radiusScale(stdNullRadiusSize)
+        : radiusScale(nodeValue)
       let currentNameLength = textWidth(node.participant)
       let currentNameLengthHalf = currentNameLength / 2
       let currentVerticalShift = verticalNameShift(currentRadiusSize, node.participant)
@@ -330,13 +370,19 @@
   function getXAdjusted(id, xLoc) {
     if (id == primaryNode && nodes.length > 2) return graphCenterX
 
-    return Math.max(nodeMargins.added_left_margin[id] ?? addedMarginSize, Math.min(width - (nodeMargins.added_right_margin[id] ?? addedMarginSize), xLoc ?? graphCenterX))
+    return Math.max(
+      nodeMargins.added_left_margin[id] ?? addedMarginSize,
+      Math.min(width - (nodeMargins.added_right_margin[id] ?? addedMarginSize), xLoc ?? graphCenterX)
+    )
   }
 
   function getYAdjusted(id, yLoc) {
     if (id == primaryNode && nodes.length > 2) return graphCenterY
 
-    return Math.max(nodeMargins.added_top_margin[id] ?? addedMarginSize, Math.min(height - (nodeMargins.added_bottom_margin[id] ?? addedMarginSize), yLoc ?? graphCenterY))
+    return Math.max(
+      nodeMargins.added_top_margin[id] ?? addedMarginSize,
+      Math.min(height - (nodeMargins.added_bottom_margin[id] ?? addedMarginSize), yLoc ?? graphCenterY)
+    )
   }
 
   function linkSourceId(link) {
@@ -422,12 +468,10 @@
     return linkDescriptorValue?.value && Number(link[linkDescriptorValue.value] || 0) > 0
   }
 
-  function linkDashStroke(link) {
-    return linkHasDescriptor(link) ? "blue" : "transparent"
-  }
-
   function identifyPrimaryNode() {
-    let linkCombinations = links.map(link => [Number.parseInt(linkSourceId(link)), Number.parseInt(linkTargetId(link))].sort((a, b) => a - b))
+    let linkCombinations = links.map(link =>
+      [Number.parseInt(linkSourceId(link)), Number.parseInt(linkTargetId(link))].sort((a, b) => a - b)
+    )
     let linkCount = linkCombinations.length
     let linkedNodeCount = new Set(linkCombinations.flat()).size
     let floatingNodeCount = nodes.length - linkedNodeCount
@@ -444,7 +488,9 @@
   }
 
   function applyLegacySizing() {
-    ;[nodeDescriptiveValues, maxDomain, stdNullRadiusSize, nullRadiusNodes] = getNodeDescriptiveValues(nodeDescriptorValue?.value || null)
+    ;[nodeDescriptiveValues, maxDomain, stdNullRadiusSize] = getNodeDescriptiveValues(
+      nodeDescriptorValue?.value || null
+    )
     nodeMargins = getNodeMargins()
     primaryNode = identifyPrimaryNode()
     onlyOnePrimaryNode = primaryNode != null
@@ -472,16 +518,25 @@
         forceManyBody().strength(() => (onlyOnePrimaryNode ? -7500 : -1000))
       )
       .force("center", forceCenter(graphCenterX, graphCenterY))
-      .force("x", forceX(graphCenterX).strength(() => (onlyOnePrimaryNode ? 0.75 : 0.15)))
-      .force("y", forceY(graphHeight - addedMarginSize * 2).strength(() => (onlyOnePrimaryNode ? 0.75 : 0.5)))
+      .force(
+        "x",
+        forceX(graphCenterX).strength(() => (onlyOnePrimaryNode ? 0.75 : 0.15))
+      )
+      .force(
+        "y",
+        forceY(graphHeight - addedMarginSize * 2).strength(() => (onlyOnePrimaryNode ? 0.75 : 0.5))
+      )
       .force(
         "collision",
         forceCollide()
           .radius(d => {
-            if (d.source !== "undefined") return Math.max(linkNodeSize, addedMarginSize)
+            if (d.source !== undefined) return Math.max(linkNodeSize, addedMarginSize)
 
             return Math.max(
-              (nodeMargins.radius_size[d.id] ?? 0) + Math.abs(nodeMargins.horizontal_name_shift[d.id] ?? 0) + Math.abs(nodeMargins.vertical_name_shift[d.id] ?? 0) + addedMarginSize,
+              (nodeMargins.radius_size[d.id] ?? 0) +
+                Math.abs(nodeMargins.horizontal_name_shift[d.id] ?? 0) +
+                Math.abs(nodeMargins.vertical_name_shift[d.id] ?? 0) +
+                addedMarginSize,
               stdNullRadiusSize + addedMarginSize,
               addedMarginSize
             )
@@ -492,13 +547,24 @@
         "link",
         forceLink(links)
           .id(d => Number.parseInt(d.id))
-          .distance(d => (nodeMargins.radius_size[d.source.id] ?? linkNodeSize) + (nodeMargins.radius_size[d.target.id] ?? linkNodeSize) + Math.max(maxRadiusSize, addedMarginSize, 15))
+          .distance(
+            d =>
+              (nodeMargins.radius_size[d.source.id] ?? linkNodeSize) +
+              (nodeMargins.radius_size[d.target.id] ?? linkNodeSize) +
+              Math.max(maxRadiusSize, addedMarginSize, 15)
+          )
           .strength(0.75)
       )
       .on("tick", () => {
         linkNodes.forEach(linkNode => {
-          linkNode.x = (getXAdjusted(linkNode.source.id, linkNode.source.x) + getXAdjusted(linkNode.target.id, linkNode.target.x)) * 0.5
-          linkNode.y = (getYAdjusted(linkNode.source.id, linkNode.source.y) + getYAdjusted(linkNode.target.id, linkNode.target.y)) * 0.5
+          linkNode.x =
+            (getXAdjusted(linkNode.source.id, linkNode.source.x) +
+              getXAdjusted(linkNode.target.id, linkNode.target.x)) *
+            0.5
+          linkNode.y =
+            (getYAdjusted(linkNode.source.id, linkNode.source.y) +
+              getYAdjusted(linkNode.target.id, linkNode.target.y)) *
+            0.5
         })
         nodes = nodes
         links = links
@@ -586,16 +652,15 @@
     hoverNode = null
     dragNode = null
     currentSizingSignature = null
-
-    if (!nodes.length || !width || !height) {
-      return
-    }
   }
 
-  $: if (graph !== currentGraph || width !== currentWidth || height !== currentHeight) {
+  function resetLinkDashStrokeWidth() {
+    linkDashStrokeWidth = 3
+  }
+
+  $: if (graph !== currentGraph || width !== currentWidth) {
     currentGraph = graph
     currentWidth = width
-    currentHeight = height
     resetSimulation()
   }
 
@@ -612,8 +677,8 @@
   $: if (!availableTimeframeItems.some(item => item.value == timeframeValue?.value)) {
     timeframeValue = availableTimeframeItems[availableTimeframeItems.length - 1] || timeframeItems[2]
   }
-  $: nodeDescriptorItems = fieldItems(descriptorNodes, timeframeValue?.value || "z", "node")
-  $: linkDescriptorItems = fieldItems(descriptorLinks, timeframeValue?.value || "z", "link")
+  $: nodeDescriptorItems = nodeFieldItems(descriptorNodes, timeframeValue?.value || "z")
+  $: linkDescriptorItems = linkFieldItems(descriptorLinks, timeframeValue?.value || "z")
   $: if (!nodeDescriptorItems.some(item => item.value == nodeDescriptorValue?.value)) {
     nodeDescriptorValue = nodeDescriptorItems[0]
   }
@@ -630,9 +695,7 @@
   $: if (linkDescriptorSignature) {
     clearTimeout(linkDashPulseTimer)
     linkDashStrokeWidth = 7
-    linkDashPulseTimer = setTimeout(() => {
-      linkDashStrokeWidth = 3
-    }, 1050)
+    linkDashPulseTimer = setTimeout(resetLinkDashStrokeWidth, 1050)
   }
 
   $: timeframe = selectedWar
@@ -702,7 +765,7 @@
           }
         }}
       >
-        <rect width={width} height={height} fill="#fbfcf9" />
+        <rect {width} {height} fill="#fbfcf9" />
         <g>
           {#each links as link, i (i)}
             <line
@@ -719,7 +782,7 @@
               y1={linkSourceY(link)}
               x2={linkTargetX(link)}
               y2={linkTargetY(link)}
-              stroke={linkDashStroke(link)}
+              stroke={linkHasDescriptor(link) ? "blue" : "transparent"}
               stroke-opacity="0.9"
               stroke-width={linkDashStrokeWidth}
               stroke-dasharray="2.5 15"
@@ -794,7 +857,9 @@
           <div class="text-[#50615b]">Battle deaths: {Number(tooltip.node.battle_deaths || 0).toLocaleString()}</div>
           {#if nodeDescriptorValue?.value}
             <div class="text-[#50615b]">
-              {nodeDescriptorValue.label}: {Number(selectedFieldValue(tooltip.node, nodeDescriptorValue) || 0).toLocaleString()}
+              {nodeDescriptorValue.label}: {Number(
+                numberValue(tooltip.node[nodeDescriptorValue.value]) || 0
+              ).toLocaleString()}
             </div>
           {/if}
         </div>
