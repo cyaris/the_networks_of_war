@@ -5,7 +5,7 @@ with
 node_json as (
 
 select
-    war_num,
+    war_id,
     to_json(array_agg(a order by id)) payload
 from final_participants a
 group by 1),
@@ -13,16 +13,16 @@ group by 1),
 link_json as (
 
 select
-    war_num,
+    war_id,
     to_json(array_agg(a order by source, target)) payload
 from final_dyads a
 group by 1)
 
 select
-    a.war_num,
+    a.war_id,
     a.war_name,
-    a.war_type war_type_code,
-    a.war_type_name war_type,
+    a.war_type_id,
+    a.war_type,
     a.war_subtype,
     a.total_participants,
     a.total_dyads,
@@ -30,7 +30,7 @@ select
     a.end_date,
     extract(year from a.start_date)::integer start_year,
     extract(year from a.end_date)::integer end_year,
-    a.ongoing_war ongoing_conflict,
+    a.ongoing_war,
     a.start_date_estimated,
     a.end_date_estimated,
     a.lagging_war,
@@ -39,10 +39,10 @@ select
     json_object(
         'war',
         json(to_json([struct_pack(
-            war_num := a.war_num,
+            war_id := a.war_id,
             war_name := a.war_name,
-            war_type_code := a.war_type,
-            war_type := a.war_type_name,
+            war_type_id := a.war_type_id,
+            war_type := a.war_type,
             war_subtype := a.war_subtype,
             total_participants := a.total_participants,
             total_dyads := a.total_dyads,
@@ -50,7 +50,7 @@ select
             end_date := a.end_date,
             start_year := extract(year from a.start_date)::integer,
             end_year := extract(year from a.end_date)::integer,
-            ongoing_conflict := a.ongoing_war,
+            ongoing_war := a.ongoing_war,
             start_date_estimated := a.start_date_estimated,
             end_date_estimated := a.end_date_estimated,
             lagging_war := a.lagging_war,
@@ -63,5 +63,5 @@ select
         json(coalesce(c.payload, '[]'))
     ) graph_json
 from wars a
-left join node_json b on a.war_num = b.war_num
-left join link_json c on a.war_num = c.war_num;
+left join node_json b on a.war_id = b.war_id
+left join link_json c on a.war_id = c.war_id;

@@ -1,7 +1,7 @@
 create or replace table dyad_years as
 
 select
-    a.war_num,
+    a.war_id,
     a.c_code_a,
     a.c_code_b,
     a.participant_a,

@@ -5,7 +5,7 @@ with
 final_dyad_rows as (
 
 select
-    a.war_num,
+    a.war_id,
     a.war_name,
     a.c_code_a,
     a.c_code_b,
@@ -25,7 +25,7 @@ select
     b.id as source,
     c.id as target
 from final_dyad_rows a
-join final_participants b on a.war_num = b.war_num
-                         and if(a.c_code_a > 0, a.c_code_a::varchar, a.participant_a) = b.node_key
-join final_participants c on a.war_num = c.war_num
-                         and if(a.c_code_b > 0, a.c_code_b::varchar, a.participant_b) = c.node_key;
+join final_participants b on a.war_id = b.war_id
+                          and if(a.c_code_a > 0, a.c_code_a::varchar, a.participant_a) = b.node_key
+join final_participants c on a.war_id = c.war_id
+                          and if(a.c_code_b > 0, a.c_code_b::varchar, a.participant_b) = c.node_key;

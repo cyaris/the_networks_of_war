@@ -5,7 +5,7 @@ with
 base_dyads as (
 
 select
-    a.war_num,
+    a.war_id,
     b.war_name,
     a.c_code_a,
     a.c_code_b,
@@ -18,13 +18,13 @@ select
     a.start_date_estimated,
     a.end_date_estimated
 from dyads a
-join wars b on a.war_num = b.war_num),
+join wars b on a.war_id = b.war_id),
 
 dyad_descriptor_summaries as (
 
 select
     'x' timeframe,
-    war_num,
+    war_id,
     war_name,
     c_code_a,
     c_code_b,
@@ -74,7 +74,7 @@ group by 1, 2, 3, 4, 5, 6, 7
 union all
 select
     'y' timeframe,
-    war_num,
+    war_id,
     war_name,
     c_code_a,
     c_code_b,
@@ -124,7 +124,7 @@ group by 1, 2, 3, 4, 5, 6, 7
 union all
 select
     'z' timeframe,
-    war_num,
+    war_id,
     war_name,
     c_code_a,
     c_code_b,
@@ -172,7 +172,7 @@ from dyad_year_descriptives
 group by 1, 2, 3, 4, 5, 6, 7)
 
 select
-    a.war_num,
+    a.war_id,
     a.war_name,
     a.c_code_a,
     a.c_code_b,
@@ -299,21 +299,21 @@ select
     d.atop atop_z,
     d.mtops mtops_z
 from base_dyads a
-left join dyad_descriptor_summaries b on a.war_num = b.war_num
+left join dyad_descriptor_summaries b on a.war_id = b.war_id
                                       and a.war_name = b.war_name
                                       and a.c_code_a = b.c_code_a
                                       and a.c_code_b = b.c_code_b
                                       and a.participant_a = b.participant_a
                                       and a.participant_b = b.participant_b
                                       and b.timeframe = 'x'
-left join dyad_descriptor_summaries c on a.war_num = c.war_num
+left join dyad_descriptor_summaries c on a.war_id = c.war_id
                                       and a.war_name = c.war_name
                                       and a.c_code_a = c.c_code_a
                                       and a.c_code_b = c.c_code_b
                                       and a.participant_a = c.participant_a
                                       and a.participant_b = c.participant_b
                                       and c.timeframe = 'y'
-left join dyad_descriptor_summaries d on a.war_num = d.war_num
+left join dyad_descriptor_summaries d on a.war_id = d.war_id
                                       and a.war_name = d.war_name
                                       and a.c_code_a = d.c_code_a
                                       and a.c_code_b = d.c_code_b

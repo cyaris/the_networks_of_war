@@ -9,7 +9,7 @@ from read_csv_auto({country_codes_path}, normalize_names = false);
 insert into source_interstate_war_dyads
 
 select
-    clean_number(warnum) war_num,
+    clean_number(warnum) war_id,
     clean_number(disno) disno,
     clean_number(dyindex) dyindex,
     clean_int(statea) c_code_a,
@@ -107,9 +107,9 @@ from read_csv_auto({interstate_mid_dyads_path}, normalize_names = false, encodin
 insert into source_extrastate_wars
 
 select
-    clean_number(WarNum) war_num,
+    clean_number(WarNum) war_id,
     clean_text(WarName) war_name,
-    clean_war_type(WarType) war_type,
+    clean_war_type(WarType) war_type_id,
     clean_int(ccode1) c_code_a,
     clean_int(ccode2) c_code_b,
     clean_text(SideA) participant_a,
@@ -140,9 +140,9 @@ from read_csv_auto({extrastate_wars_path}, normalize_names = false);
 insert into source_interstate_wars
 
 select
-    clean_number(WarNum) war_num,
+    clean_number(WarNum) war_id,
     clean_text(WarName) war_name,
-    clean_war_type(WarType) war_type,
+    clean_war_type(WarType) war_type_id,
     clean_int(ccode) c_code,
     clean_text(StateName) participant,
     clean_int(Side) side,
@@ -170,10 +170,10 @@ from read_csv_auto({interstate_wars_path}, normalize_names = false, encoding = '
 insert into source_intrastate_wars
 
 select
-    if(clean_number(WarNum) = 977, 979, clean_number(WarNum)) war_num,
+    if(clean_number(WarNum) = 977, 979, clean_number(WarNum)) war_id,
     clean_text(WarName) war_name,
     clean_int(V5Region) v5_region,
-    clean_war_type(WarType) war_type,
+    clean_war_type(WarType) war_type_id,
     clean_int(CcodeA) c_code_a,
     clean_int(CcodeB) c_code_b,
     clean_text(SideA) participant_a,

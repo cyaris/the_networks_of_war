@@ -12,7 +12,7 @@
         <code>final_wars</code>, <code>d3_war_nodes</code>, and <code>d3_war_links</code> so the UI stays normalized and compact.
       </p>
       <p class="mt-3 text-[#465750]">
-        For an API-backed version, <code>d3_war_json</code> can serve one graph payload by <code>war_num</code> while
+        For an API-backed version, <code>d3_war_json</code> can serve one graph payload by <code>war_id</code> while
         <code>final_wars</code> continues to power selectors and filters.
       </p>
       <div class="mt-5 grid gap-3 sm:grid-cols-3">

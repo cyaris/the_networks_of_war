@@ -160,7 +160,7 @@ python src/pipeline.py --step none --query-file queries/war_counts.sql
 Run Step 1, then query the freshly rebuilt tables:
 
 ```bash
-python src/pipeline.py --step 1 --query "select war_num, war_name from wars limit 10"
+python src/pipeline.py --step 1 --query "select war_id, war_name from wars limit 10"
 ```
 
 Use non-default input or database paths:
@@ -304,7 +304,7 @@ Step 3 materializes final merge and graph-export tables:
 
 The legacy Step 3 notebook saved `part_df.pkl`, `dyad_df.pkl`, `war_df.pkl`, one JSON file per war, and
 `war_file_list.csv`. The DuckDB rebuild keeps the same final concepts in tables instead of writing many JSON files.
-`final_wars.graph_json` stores one graph payload per `war_num`, while `final_participants` and `final_dyads` keep the
+`final_wars.graph_json` stores one graph payload per `war_id`, while `final_participants` and `final_dyads` keep the
 normalized graph shape available for a Svelte app or API route. `pipeline.py` writes the single frontend payload after
 Step 3 completes. The frontend payload keeps base node/link fields for each graph and adds `_x`, `_y`, and `_z`
 descriptor fields only when they pass per-war availability checks.
@@ -375,7 +375,7 @@ descriptor fields only when they pass per-war availability checks.
 
 ### Table Shape
 
-- Directed dyadic interstate war records get war name and war type metadata from `source_interstate_wars` by `war_num`;
+- Directed dyadic interstate war records get war name and war type metadata from `source_interstate_wars` by `war_id`;
   synthetic MID-only wars get metadata from source adjustment tables.
 - Transformed tables do not carry source-only identifiers and outcome fields (`disno`, `dyindex`, `outcome_a`,
   `outcome_b`, and `outcome`) after they are no longer needed as table outputs. MID matching still uses `disno`
@@ -416,10 +416,10 @@ descriptor fields only when they pass per-war availability checks.
 - Existing battle-death values take precedence over MID fatality estimates for remaining merged rows. MID estimates are
   used when summed source battle deaths are `null` or zero and summed estimates are positive.
 - MID dyads are assigned to known wars by `disno` from `source_interstate_war_dyads` and version-scoped rows in
-  `source_interstate_mid_war_num_adjustments`.
-- Missing MID `disno` to `war_num` relationships are stored in the Step 1 source adjustment tables when the current CSV
+  `source_interstate_mid_war_id_adjustments`.
+- Missing MID `disno` to `war_id` relationships are stored in the Step 1 source adjustment tables when the current CSV
   version still needs them. If a future CSV version introduces a new unmatched MID war,
-  `test_mid_dyads_resolve_all_mid_war_numbers` should fail until the source adjustment file is updated or the new source
+  `test_mid_dyads_resolve_all_mid_war_ids` should fail until the source adjustment file is updated or the new source
   data is accepted as authoritative.
 - Synthetic war metadata, such as the Lebanon-Israel MID conflict (`disno = 4182`) named
   `Israeli–Hezbollah Conflict (South Lebanon)`, is stored in `source_interstate_war_metadata_adjustments` and joined
@@ -444,7 +444,7 @@ descriptor fields only when they pass per-war availability checks.
 - Named non-state participants with COW code `-8` are retained in `dyads`. Unnamed or literal aggregate
   placeholders are excluded.
 
-For example, in the Third Somalia War (`war_num = 940.8`), the source intra-state participant file lists six side 1
+For example, in the Third Somalia War (`war_id = 940.8`), the source intra-state participant file lists six side 1
 states and two side 2 participants. Side 2 has exactly one named non-state participant, ICU (`c_code = -8`), and exactly
 one state participant, Eritrea (`c_code = 531`), so both become anchors.
 
@@ -477,7 +477,7 @@ flowchart LR
   if `c_code_a = -8`, side B is treated as having fought each source participant on side A for that conflict.
 - Unnamed aggregate dyads are excluded from `dyads` after those rows are used for named-participant expansion.
 - Inferred dyads are only created where the anchor and opposing participant date ranges overlap.
-- Final dyads are deduplicated to one row per `war_num` and unordered participant pair. When duplicate spans exist, the
+- Final dyads are deduplicated to one row per `war_id` and unordered participant pair. When duplicate spans exist, the
   final row keeps the earliest start date and latest end date from the unordered dyad pair.
 - `dyad_years` expands `dyads` into one row per year for years in the range `1500` through `2099`.
 - Step 3 final participant and dyad outputs apply the legacy final-fill rules to `_x`, `_y`, and `_z` descriptor
@@ -498,19 +498,19 @@ flowchart LR
   - Start month value `24` is treated as invalid and loaded as `null`; resolved start dates use the standard missing
     start-month default.
   - End year is corrected from original value `19118` to `1918`.
-  - The World War II Thailand dyad (`war_num = 139`, `statea = 800`, `stateb = 710`) is loaded with Thailand battle
+  - The World War II Thailand dyad (`war_id = 139`, `statea = 800`, `stateb = 710`) is loaded with Thailand battle
     deaths corrected from original blank `batdtha` to `5,569`. The Thailand death count comes from Wikipedia's summary
     of [Thailand in World War II](https://en.wikipedia.org/wiki/Thailand_in_World_War_II).
 - `dyadic_mid_4.03.csv`
   - The source does not include COW war numbers, so rows are assigned to known wars by matching `disno` to
     `directed_dyadic_war.csv` where possible.
-  - Unmatched MID disputes `3582`, `3583`, and `3585` are assigned from original missing `war_num` to World War II
-    (`war_num = 139`) after manual review.
-  - Unmatched MID dispute `4339` is assigned from original missing `war_num` to Africa's World War (`war_num = 905`)
+  - Unmatched MID disputes `3582`, `3583`, and `3585` are assigned from original missing `war_id` to World War II
+    (`war_id = 139`) after manual review.
+  - Unmatched MID dispute `4339` is assigned from original missing `war_id` to Africa's World War (`war_id = 905`)
     after manual review.
-  - Unmatched MID dispute `4182` between Lebanon (`660`) and Israel (`666`) is assigned synthetic `war_num = 4182` and
+  - Unmatched MID dispute `4182` between Lebanon (`660`) and Israel (`666`) is assigned synthetic `war_id = 4182` and
     named `Israeli–Hezbollah Conflict (South Lebanon)`. This fake war id uses the MID `disno` because the conflict
-    appears in the dyadic MID records with `war = 1`, but no corresponding `war_num` exists for it in the interstate
+    appears in the dyadic MID records with `war = 1`, but no corresponding `war_id` exists for it in the interstate
     war data. Lebanon is assigned participant side `1`, and Israel is assigned participant side `2`.
   - These assignments are implemented as version-scoped source adjustments, not as transformation-time fallback logic.
 - `INTRA-STATE_State_participants v5.1.csv`

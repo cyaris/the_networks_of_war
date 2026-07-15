@@ -126,12 +126,12 @@
       let sizeValue
 
       if (sizeField == "days_at_war_z") {
-        let totalDays = dateDays(node.start_date, Number(node.ongoing_conflict) == 1 ? null : node.end_date)
+        let totalDays = dateDays(node.start_date, Number(node.ongoing_war) == 1 ? null : node.end_date)
         sizeValue = totalDays == null ? NaN : totalDays - (numberValue(node.days_not_at_war_z) ?? 0)
       } else if (sizeField == "battle_deaths_z") {
         sizeValue = numberValue(node.battle_deaths) ?? NaN
       } else if (sizeField == "battle_deaths_per_day_z") {
-        let totalDays = dateDays(node.start_date, Number(node.ongoing_conflict) == 1 ? null : node.end_date)
+        let totalDays = dateDays(node.start_date, Number(node.ongoing_war) == 1 ? null : node.end_date)
         let daysAtWar = totalDays == null ? null : totalDays - (numberValue(node.days_not_at_war_z) ?? 0)
         let battleDeaths = numberValue(node.battle_deaths_z) ?? numberValue(node.battle_deaths)
         sizeValue =
@@ -218,7 +218,7 @@
 
   function enrichedNodes(rawNodes) {
     return rawNodes.map(node => {
-      let daysAtWar = dateDays(node.start_date, node.ongoing_conflict ? null : node.end_date)
+      let daysAtWar = dateDays(node.start_date, node.ongoing_war ? null : node.end_date)
       let battleDeaths = numberValue(node.battle_deaths)
 
       return {
@@ -616,7 +616,7 @@
   }
 
   $: timeframe = selectedWar
-    ? selectedWar.ongoing_conflict
+    ? selectedWar.ongoing_war
       ? `${selectedWar.start_year}-Present`
       : selectedWar.start_year == selectedWar.end_year
         ? selectedWar.start_year

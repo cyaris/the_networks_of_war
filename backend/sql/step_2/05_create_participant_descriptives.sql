@@ -5,7 +5,7 @@ with
 base_participants as (
 
 select
-    a.war_num,
+    a.war_id,
     b.war_name,
     a.c_code,
     a.participant,
@@ -19,13 +19,13 @@ select
     a.battle_deaths,
     a.battle_deaths_estimated
 from participants a
-join wars b on a.war_num = b.war_num),
+join wars b on a.war_id = b.war_id),
 
 participant_descriptor_summaries as (
 
 select
     'x' timeframe,
-    war_num,
+    war_id,
     war_name,
     c_code,
     round(avg(terrorism_deaths), 2) terrorism_deaths,
@@ -61,7 +61,7 @@ group by 1, 2, 3, 4
 union all
 select
     'y' timeframe,
-    war_num,
+    war_id,
     war_name,
     c_code,
     round(avg(terrorism_deaths), 2) terrorism_deaths,
@@ -97,7 +97,7 @@ group by 1, 2, 3, 4
 union all
 select
     'z' timeframe,
-    war_num,
+    war_id,
     war_name,
     c_code,
     round(avg(terrorism_deaths), 2) terrorism_deaths,
@@ -131,7 +131,7 @@ from participant_year_descriptives
 group by 1, 2, 3, 4)
 
 select
-    a.war_num,
+    a.war_id,
     a.war_name,
     a.c_code,
     a.participant,
@@ -226,15 +226,15 @@ select
     d.internally_displaced_persons internally_displaced_persons_z,
     d.concurrent_wars concurrent_wars_z
 from base_participants a
-left join participant_descriptor_summaries b on a.war_num = b.war_num
+left join participant_descriptor_summaries b on a.war_id = b.war_id
                                              and a.war_name = b.war_name
                                              and a.c_code = b.c_code
                                              and b.timeframe = 'x'
-left join participant_descriptor_summaries c on a.war_num = c.war_num
+left join participant_descriptor_summaries c on a.war_id = c.war_id
                                              and a.war_name = c.war_name
                                              and a.c_code = c.c_code
                                              and c.timeframe = 'y'
-left join participant_descriptor_summaries d on a.war_num = d.war_num
+left join participant_descriptor_summaries d on a.war_id = d.war_id
                                              and a.war_name = d.war_name
                                              and a.c_code = d.c_code
                                              and d.timeframe = 'z';

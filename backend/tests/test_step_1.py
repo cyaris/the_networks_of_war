@@ -308,7 +308,7 @@ def test_coded_participant_names_come_from_country_codes(conn):
     query = """
     select
         'war_participants' table_name,
-        a.war_num,
+        a.war_id,
         a.c_code,
         a.participant,
         b.state_name
@@ -320,7 +320,7 @@ def test_coded_participant_names_come_from_country_codes(conn):
     union all
     select
         'participants' table_name,
-        a.war_num,
+        a.war_id,
         a.c_code,
         a.participant,
         b.state_name
@@ -332,7 +332,7 @@ def test_coded_participant_names_come_from_country_codes(conn):
     union all
     select
         'dyads_a' table_name,
-        a.war_num,
+        a.war_id,
         a.c_code_a c_code,
         a.participant_a participant,
         b.state_name
@@ -344,7 +344,7 @@ def test_coded_participant_names_come_from_country_codes(conn):
     union all
     select
         'dyads_b' table_name,
-        a.war_num,
+        a.war_id,
         a.c_code_b c_code,
         a.participant_b participant,
         b.state_name
@@ -392,11 +392,11 @@ def test_raw_source_date_components_use_valid_domains(conn):
 def test_source_resolved_date_pairs_do_not_start_after_they_end(conn):
     failures = []
     output_column_allowlist = [
-        "war_num",
+        "war_id",
         "disno",
         "dyindex",
         "war_name",
-        "war_type",
+        "war_type_id",
         "c_code",
         "c_code_a",
         "c_code_b",
@@ -497,7 +497,7 @@ def test_calculated_and_transient_source_columns_are_not_materialized(conn):
     assert {"role_a", "role_b", "dyad_role_a", "dyad_role_b"}.issubset(
         column_names(conn, "source_interstate_war_dyads")
     )
-    assert {"durindx", "duration", "cumdurat", "war_num"}.isdisjoint(column_names(conn, "source_interstate_mid_dyads"))
+    assert {"durindx", "duration", "cumdurat", "war_id"}.isdisjoint(column_names(conn, "source_interstate_mid_dyads"))
     assert {"wduratdays", "wduratmo", "totalbdeaths", "battle_deaths_total"}.isdisjoint(
         column_names(conn, "source_intrastate_wars")
     )
@@ -535,14 +535,14 @@ def test_war_type_ids_are_populated_when_required_and_exist_in_reference_table(c
     failures = []
 
     for table_name, require_war_type in checks:
-        missing_war_type_sql = "a.war_type is null or" if require_war_type else ""
+        missing_war_type_sql = "a.war_type_id is null or" if require_war_type else ""
         flagged_rows_sql = f"""
         select a.*
         from {table_name} a
-        left join war_types b on a.war_type = b.war_type
+        left join war_types b on a.war_type_id = b.war_type_id
         where
             {missing_war_type_sql}
-            (a.war_type is not null and b.war_type is null)
+            (a.war_type_id is not null and b.war_type_id is null)
         """
         flagged_count = flagged_row_count(conn, flagged_rows_sql)
 
@@ -551,7 +551,7 @@ def test_war_type_ids_are_populated_when_required_and_exist_in_reference_table(c
 
         detected_rows_sql = flagged_rows_query(flagged_rows_sql, "all")
         detected_rows = query_result(conn, detected_rows_sql)
-        problem_cells = problem_cells_for_columns(detected_rows, {"war_type"})
+        problem_cells = problem_cells_for_columns(detected_rows, {"war_type_id"})
         failures.append(sql_check_failure(table_name, detected_rows_sql, flagged_count, detected_rows, problem_cells))
 
     if failures:
@@ -605,7 +605,7 @@ def test_source_interstate_war_dyad_data_entry_fixes_are_applied(conn):
         start_year_1
     from source_interstate_war_dyads
     where
-        war_num = 106
+        war_id = 106
         and dyindex = 257.03
         and c_code_a = 2
         and c_code_b = 300
@@ -616,7 +616,7 @@ def test_source_interstate_war_dyad_data_entry_fixes_are_applied(conn):
     select end_year_1
     from source_interstate_war_dyads
     where
-        war_num = 106
+        war_id = 106
         and dyindex = 257.24
         and c_code_a = 325
         and c_code_b = 355
@@ -628,7 +628,7 @@ def test_source_interstate_war_dyad_data_entry_fixes_are_applied(conn):
     select battle_deaths_a
     from source_interstate_war_dyads
     where
-        war_num = 139
+        war_id = 139
         and dyindex = 1694.001
         and c_code_a = 800
         and c_code_b = 710
@@ -704,7 +704,7 @@ def test_required_source_battle_death_fields_are_not_null(conn):
         fail_sql_check("Null battle-death source fields:", failures=failures)
 
 
-def test_source_adjusted_mid_war_number_relationships_are_applied(conn):
+def test_source_adjusted_mid_war_id_relationships_are_applied(conn):
     query = """
     select
         source_file,
@@ -719,8 +719,8 @@ def test_source_adjusted_mid_war_number_relationships_are_applied(conn):
     query = """
     select
         a.disno,
-        a.war_num
-    from source_interstate_mid_war_num_adjustments a
+        a.war_id
+    from source_interstate_mid_war_id_adjustments a
     join source_file_versions b on a.source_key = b.source_key
                                 and a.source_version = b.source_version
     order by 1, 2
@@ -734,17 +734,17 @@ def test_source_adjusted_mid_war_number_relationships_are_applied(conn):
         a.source_key,
         a.source_version,
         a.war_name,
-        a.war_type
+        a.war_type_id
     from source_interstate_war_metadata_adjustments a
     join source_file_versions b on a.source_key = b.source_key
                                 and a.source_version = b.source_version
-    where a.war_num = 4182
+    where a.war_id = 4182
     """
     actual_war_metadata = conn.execute(query).fetchone()
 
     assert actual_war_metadata == ("interstate_mid_dyads", "4.03", "Israeli–Hezbollah Conflict (South Lebanon)", 1)
 
-    assert scalar(conn, "select count(*) from source_interstate_wars where war_num = 4182") == 0
+    assert scalar(conn, "select count(*) from source_interstate_wars where war_id = 4182") == 0
 
     count_sql = """
     select count(*)
@@ -759,11 +759,11 @@ def test_source_adjusted_mid_war_number_relationships_are_applied(conn):
     query = """
     select
         war_name,
-        war_type,
+        war_type_id,
         total_participants,
         total_dyads
     from wars
-    where war_num = 4182
+    where war_id = 4182
     """
     actual_war = conn.execute(query).fetchone()
 
@@ -777,7 +777,7 @@ def test_source_adjusted_mid_participant_side_assignments_are_applied(conn):
         participant,
         side
     from participants
-    where war_num = 4182
+    where war_id = 4182
     order by 1, 2
     """
     actual_sides = set(conn.execute(query).fetchall())
@@ -788,25 +788,25 @@ def test_source_adjusted_mid_participant_side_assignments_are_applied(conn):
 def test_source_adjustment_inserts_do_not_duplicate_existing_source_facts(conn):
     query = """
     select count(*) duplicate_count
-    from source_interstate_mid_war_num_adjustments a
+    from source_interstate_mid_war_id_adjustments a
     join source_file_versions b on a.source_key = b.source_key
                                 and a.source_version = b.source_version
     join source_interstate_war_dyads c on a.disno = c.disno
-                                       and a.war_num = c.war_num
+                                       and a.war_id = c.war_id
     union all
     select count(*) duplicate_count
     from source_interstate_war_metadata_adjustments a
     join source_file_versions b on a.source_key = b.source_key
                                 and a.source_version = b.source_version
-    join source_interstate_wars c on a.war_num = c.war_num
+    join source_interstate_wars c on a.war_id = c.war_id
                                   and a.war_name = c.war_name
-                                  and a.war_type = c.war_type
+                                  and a.war_type_id = c.war_type_id
     union all
     select count(*) duplicate_count
     from source_participant_side_adjustments a
     join source_file_versions b on a.source_key = b.source_key
                                 and a.source_version = b.source_version
-    join source_interstate_wars c on a.war_num = c.war_num
+    join source_interstate_wars c on a.war_id = c.war_id
                                   and a.c_code = c.c_code
     left join participant_name_replacements d on clean_text(a.participant) = d.source
     left join participant_name_replacements e on clean_text(c.participant) = e.source
@@ -820,12 +820,12 @@ def test_source_adjustment_inserts_do_not_duplicate_existing_source_facts(conn):
 
 
 def test_source_intrastate_war_data_entry_fixes_are_applied(conn):
-    assert scalar(conn, "select count(*) from source_intrastate_wars where war_num = 977") == 0
+    assert scalar(conn, "select count(*) from source_intrastate_wars where war_id = 977") == 0
 
     query = """
     select start_year_1
     from source_intrastate_wars
-    where war_num = 976
+    where war_id = 976
     """
     actual_start_years = {row[0] for row in conn.execute(query).fetchall()}
 
@@ -833,10 +833,10 @@ def test_source_intrastate_war_data_entry_fixes_are_applied(conn):
 
     query = """
     select
-        war_num,
+        war_id,
         end_year_1
     from source_intrastate_wars
-    where war_num in (942, 990.4, 991, 991.4, 992.5)
+    where war_id in (942, 990.4, 991, 991.4, 992.5)
     order by 1
     """
     actual_end_years = set(conn.execute(query).fetchall())
@@ -848,7 +848,7 @@ def test_source_wars_named_present_or_ongoing_are_marked_ongoing(conn):
     detected_rows_sql = """
     select
         'source_interstate_wars' source_table,
-        war_num,
+        war_id,
         any_value(war_name) war_name,
         max(greatest(ongoing_war(end_year_1), ongoing_war(end_year_2))) ongoing_war
     from source_interstate_wars
@@ -858,7 +858,7 @@ def test_source_wars_named_present_or_ongoing_are_marked_ongoing(conn):
     union all
     select
         'source_extrastate_wars' source_table,
-        war_num,
+        war_id,
         any_value(war_name) war_name,
         max(greatest(ongoing_war(end_year_1), ongoing_war(end_year_2))) ongoing_war
     from source_extrastate_wars
@@ -868,14 +868,14 @@ def test_source_wars_named_present_or_ongoing_are_marked_ongoing(conn):
     union all
     select
         'source_intrastate_wars' source_table,
-        war_num,
+        war_id,
         any_value(war_name) war_name,
         max(greatest(ongoing_war(end_year_1), ongoing_war(end_year_2), ongoing_war(end_year_3), ongoing_war(end_year_4))) ongoing_war
     from source_intrastate_wars
     where regexp_matches(lower(war_name), '(^|[^a-z])(present|ongoing)([^a-z]|$)')
     group by 1, 2
     having max(greatest(ongoing_war(end_year_1), ongoing_war(end_year_2), ongoing_war(end_year_3), ongoing_war(end_year_4))) = 0
-    order by source_table, war_num
+    order by source_table, war_id
     """
     detected_rows = query_result(conn, detected_rows_sql)
 
@@ -899,7 +899,7 @@ def test_mid_dyads_do_not_duplicate_source_dyad_overlaps(conn):
     count_sql = """
     select count(*)
     from dyads_after_mid a
-    join dyads_after_sources b on a.war_num = b.war_num
+    join dyads_after_sources b on a.war_id = b.war_id
                                and a.c_code_a = b.c_code_a
                                and a.c_code_b = b.c_code_b
                                and least(a.end_date, b.end_date) >= greatest(a.start_date, b.start_date)
@@ -982,29 +982,29 @@ def test_interstate_war_dyads_use_semantic_participant_sides(conn):
     side_rows as (
 
     select
-        war_num,
+        war_id,
         c_code_a c_code,
         participant_a participant,
         side_a side
     from war_dyads
     where
-        war_type = 1
+        war_type_id = 1
         and c_code_a is not null
         and side_a is not null
     union all
     select
-        war_num,
+        war_id,
         c_code_b c_code,
         participant_b participant,
         side_b side
     from war_dyads
     where
-        war_type = 1
+        war_type_id = 1
         and c_code_b is not null
         and side_b is not null)
 
     select
-        war_num,
+        war_id,
         c_code,
         participant,
         list(distinct side order by side) sides,
@@ -1012,7 +1012,7 @@ def test_interstate_war_dyads_use_semantic_participant_sides(conn):
     from side_rows
     group by 1, 2, 3
     having count(distinct side) > 1
-    order by war_num, c_code, participant
+    order by war_id, c_code, participant
     limit 50
     """
     detected_rows = query_result(conn, detected_rows_sql)
@@ -1054,7 +1054,7 @@ def test_final_participant_side_assignments_are_present_and_valid(conn):
     where
         side is null
         or side not in (1, 2, 3)
-    order by war_num, c_code, participant
+    order by war_id, c_code, participant
     limit 50
     """
     detected_rows = query_result(conn, detected_rows_sql)
@@ -1076,24 +1076,24 @@ def test_final_participant_side_assignments_are_present_and_valid(conn):
     )
 
 
-def test_mid_dyads_resolve_all_mid_war_numbers(conn):
+def test_mid_dyads_resolve_all_mid_war_ids(conn):
     count_sql = """
     select count(*)
     from dyads_after_mid
-    where war_num = -1
+    where war_id = -1
     """
     assert scalar(conn, count_sql) == 0
 
     query = """
     select
-        war_num,
+        war_id,
         war_name,
         c_code_a,
         c_code_b,
         participant_a,
         participant_b
     from dyads_after_mid
-    where war_num = 4182
+    where war_id = 4182
     order by 1, 2, 3, 4, 5, 6
     """
     actual_dyads = set(conn.execute(query).fetchall())
@@ -1136,7 +1136,7 @@ def test_dyads_apply_final_transformation_assumptions(conn):
 
     query = """
     select
-        war_num,
+        war_id,
         c_code_a,
         participant_a,
         c_code_b,
@@ -1151,7 +1151,7 @@ def test_dyads_apply_final_transformation_assumptions(conn):
     count_sql = """
     select count(*)
     from dyads a
-    join dyads b on a.war_num = b.war_num
+    join dyads b on a.war_id = b.war_id
                  and a.c_code_a = b.c_code_b
                  and a.participant_a = b.participant_b
                  and a.c_code_b = b.c_code_a
@@ -1168,7 +1168,7 @@ def test_dyads_retain_named_non_state_anchor_dyads(conn):
         greatest(participant_a, participant_b)
     from dyads
     where
-        war_num = 940.8
+        war_id = 940.8
         and (participant_a in ('ICU', 'Eritrea') or participant_b in ('ICU', 'Eritrea'))
     group by 1, 2
     order by 1, 2

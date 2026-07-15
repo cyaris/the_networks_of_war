@@ -5,16 +5,16 @@ with
 interstate_wars as (
 
 select
-    war_num,
+    war_id,
     any_value(war_name) war_name,
-    any_value(war_type) war_type
+    any_value(war_type_id) war_type_id
 from source_interstate_wars
 group by 1),
 
 interstate_participant_sides as (
 
 select
-    war_num,
+    war_id,
     c_code,
     if(min(side) = 1 and max(side) = 2, 3, max(side)) side
 from source_interstate_wars
@@ -22,10 +22,10 @@ where c_code is not null
 group by 1, 2)
 
 select
-    a.war_num,
+    a.war_id,
     b.war_name,
-    b.war_type,
-    c.war_type_name,
+    b.war_type_id,
+    c.war_type,
     c.war_subtype,
     a.c_code_a,
     a.c_code_b,
@@ -40,20 +40,20 @@ select
     a.battle_deaths_a,
     a.battle_deaths_b
 from source_interstate_war_dyads a
-left join interstate_wars b on a.war_num = b.war_num
-left join war_types c on b.war_type = c.war_type
+left join interstate_wars b on a.war_id = b.war_id
+left join war_types c on b.war_type_id = c.war_type_id
 left join country_codes d on a.c_code_a = d.c_code
 left join country_codes e on a.c_code_b = e.c_code
-left join interstate_participant_sides f on a.war_num = f.war_num
+left join interstate_participant_sides f on a.war_id = f.war_id
                                          and a.c_code_a = f.c_code
-left join interstate_participant_sides g on a.war_num = g.war_num
+left join interstate_participant_sides g on a.war_id = g.war_id
                                          and a.c_code_b = g.c_code
 union all
 select
-    a.war_num,
+    a.war_id,
     a.war_name,
-    a.war_type,
-    c.war_type_name,
+    a.war_type_id,
+    c.war_type,
     c.war_subtype,
     a.c_code_a,
     a.c_code_b,
@@ -68,15 +68,15 @@ select
     a.battle_deaths_a,
     a.battle_deaths_b
 from source_extrastate_wars a
-left join war_types c on a.war_type = c.war_type
+left join war_types c on a.war_type_id = c.war_type_id
 left join country_codes d on a.c_code_a = d.c_code
 left join country_codes e on a.c_code_b = e.c_code
 union all
 select
-    a.war_num,
+    a.war_id,
     a.war_name,
-    a.war_type,
-    c.war_type_name,
+    a.war_type_id,
+    c.war_type,
     c.war_subtype,
     a.c_code_a,
     a.c_code_b,
@@ -91,7 +91,7 @@ select
     a.battle_deaths_a,
     a.battle_deaths_b
 from source_intrastate_wars a
-left join war_types c on a.war_type = c.war_type
+left join war_types c on a.war_type_id = c.war_type_id
 left join country_codes d on a.c_code_a = d.c_code
 left join country_codes e on a.c_code_b = e.c_code;
 
@@ -102,10 +102,10 @@ with
 cleaned_war_dyads as (
 
 select
-    a.war_num,
+    a.war_id,
     any_value(a.war_name) war_name,
+    any_value(a.war_type_id) war_type_id,
     any_value(a.war_type) war_type,
-    any_value(a.war_type_name) war_type_name,
     any_value(a.war_subtype) war_subtype,
     a.c_code_a,
     a.c_code_b,
@@ -130,10 +130,10 @@ where
 group by 1, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
 union all
 select
-    a.war_num,
+    a.war_id,
     any_value(a.war_name) war_name,
+    any_value(a.war_type_id) war_type_id,
     any_value(a.war_type) war_type,
-    any_value(a.war_type_name) war_type_name,
     any_value(a.war_subtype) war_subtype,
     a.c_code_b c_code_a,
     a.c_code_a c_code_b,
@@ -158,10 +158,10 @@ where
 group by 1, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)
 
 select
-    war_num,
+    war_id,
     any_value(war_name) war_name,
+    any_value(war_type_id) war_type_id,
     any_value(war_type) war_type,
-    any_value(war_type_name) war_type_name,
     any_value(war_subtype) war_subtype,
     c_code_a,
     c_code_b,

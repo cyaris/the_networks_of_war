@@ -111,8 +111,8 @@ def test_step_3_exports_frontend_graph_data(step_3_outputs: tuple[Path, Path]):
 
     assert payload["source"]["tables"] == ["final_wars", "final_participants", "final_dyads"]
     assert len(payload["wars"]) > 0
-    assert len(payload["graphsByWarNum"]) > 0
-    assert all(js_war_num_key(war["war_num"]) in payload["graphsByWarNum"] for war in payload["wars"])
+    assert len(payload["graphsByWarId"]) > 0
+    assert all(js_war_id_key(war["war_id"]) in payload["graphsByWarId"] for war in payload["wars"])
 
     with duckdb.connect(str(db_path), read_only=True) as conn:
         assert scalar(conn, "select count(*) from final_wars where graph_json is not null") > 0
@@ -122,7 +122,7 @@ def test_step_3_frontend_graph_data_prunes_unavailable_descriptor_fields(step_3_
     _, frontend_data_path = step_3_outputs
     payload = json.loads(frontend_data_path.read_text())
 
-    for graph in payload["graphsByWarNum"].values():
+    for graph in payload["graphsByWarId"].values():
         nodes = graph["nodes"]
         links = graph["links"]
         node_fields = sorted({field for node in nodes for field in node if is_timeframe_field(field)})
@@ -147,7 +147,7 @@ def test_step_3_applies_legacy_participant_fill_and_conversion_rules(conn):
     state_null_fill_sql = """
     select count(*)
     from participant_descriptives a
-    join final_participants b on a.war_num = b.war_num
+    join final_participants b on a.war_id = b.war_id
                               and a.c_code = b.c_code
                               and a.participant = b.participant
     where
@@ -160,7 +160,7 @@ def test_step_3_applies_legacy_participant_fill_and_conversion_rules(conn):
     population_conversion_sql = """
     select count(*)
     from participant_descriptives a
-    join final_participants b on a.war_num = b.war_num
+    join final_participants b on a.war_id = b.war_id
                               and a.c_code = b.c_code
                               and a.participant = b.participant
     where
@@ -174,7 +174,7 @@ def test_step_3_applies_legacy_participant_fill_and_conversion_rules(conn):
     non_state_null_sql = """
     select count(*)
     from participant_descriptives a
-    join final_participants b on a.war_num = b.war_num
+    join final_participants b on a.war_id = b.war_id
                               and a.c_code = b.c_code
                               and a.participant = b.participant
     where
@@ -189,9 +189,9 @@ def test_step_3_final_dyad_links_resolve_all_final_participants(conn):
     missing_nodes_sql = """
     select count(*)
     from final_dyads a
-    left join final_participants b on a.war_num = b.war_num
+    left join final_participants b on a.war_id = b.war_id
                                    and a.source = b.id
-    left join final_participants c on a.war_num = c.war_num
+    left join final_participants c on a.war_id = c.war_id
                                    and a.target = c.id
     where
         a.source is null
@@ -206,18 +206,18 @@ def test_step_3_materializes_valid_per_war_graph_json(conn):
     query = """
     select graph_json
     from final_wars
-    where war_num = 419
+    where war_id = 419
     """
     graph_json = conn.execute(query).fetchone()[0]
     graph = json.loads(graph_json)
 
     assert set(graph) == {"war", "nodes", "links"}
     assert len(graph["war"]) == 1
-    assert len(graph["nodes"]) == scalar(conn, "select count(*) from final_participants where war_num = 419")
-    assert len(graph["links"]) == scalar(conn, "select count(*) from final_dyads where war_num = 419")
+    assert len(graph["nodes"]) == scalar(conn, "select count(*) from final_participants where war_id = 419")
+    assert len(graph["links"]) == scalar(conn, "select count(*) from final_dyads where war_id = 419")
 
 
-def js_war_num_key(value: float) -> str:
+def js_war_id_key(value: float) -> str:
     return str(int(value)) if value == int(value) else str(value)
 
 

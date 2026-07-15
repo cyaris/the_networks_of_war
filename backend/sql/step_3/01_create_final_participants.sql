@@ -1,11 +1,11 @@
 create or replace table final_participants as
 
 select
-    row_number() over (partition by a.war_num order by a.side nulls last, a.c_code, a.participant) - 1 id,
-    a.war_num,
+    row_number() over (partition by a.war_id order by a.side nulls last, a.c_code, a.participant) - 1 id,
+    a.war_id,
     b.war_name,
-    b.war_type war_type_code,
-    b.war_type_name war_type,
+    b.war_type_id,
+    b.war_type,
     b.war_subtype,
     a.c_code,
     a.participant,
@@ -17,7 +17,7 @@ select
     if(b.ongoing_war = 1, null, a.end_date) end_date,
     a.start_year,
     if(b.ongoing_war = 1, null, a.end_year) end_year,
-    b.ongoing_war ongoing_conflict,
+    b.ongoing_war,
     a.start_date_estimated,
     a.end_date_estimated,
     b.lagging_war,
@@ -27,4 +27,4 @@ select
     if(columns('^(military_expenditure|military_personnel|population|urban_population|refugees_originated|refugees_hosted|internally_displaced_persons)_[xyz]$') in (-9, -8) or (columns('^(military_expenditure|military_personnel|population|urban_population|refugees_originated|refugees_hosted|internally_displaced_persons)_[xyz]$') is null and a.c_code <= 0), null, coalesce(columns('^(military_expenditure|military_personnel|population|urban_population|refugees_originated|refugees_hosted|internally_displaced_persons)_[xyz]$'), 0) * 1000),
     if(columns('^(iron_steel_production|energy_consumption)_[xyz]$') in (-9, -8) or (columns('^(iron_steel_production|energy_consumption)_[xyz]$') is null and a.c_code <= 0), null, coalesce(columns('^(iron_steel_production|energy_consumption)_[xyz]$'), 0) * 2000000)
 from participant_descriptives a
-join wars b on a.war_num = b.war_num;
+join wars b on a.war_id = b.war_id;

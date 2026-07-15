@@ -6,7 +6,7 @@
   import NetworkGraph from "./NetworkGraph.svelte"
 
   let wars = graphData.wars
-  let graphsByWarNum = graphData.graphsByWarNum
+  let graphsByWarId = graphData.graphsByWarId
 
   function plural(value, noun) {
     return `${Number(value || 0).toLocaleString()} ${noun}${Number(value || 0) == 1 ? "" : "s"}`
@@ -15,21 +15,21 @@
   function timeframe(war) {
     if (!war) return ""
 
-    if (war.ongoing_conflict) return `${war.start_year}-Present`
+    if (war.ongoing_war) return `${war.start_year}-Present`
     if (war.start_year == war.end_year) return String(war.start_year)
 
     return `${war.start_year}-${war.end_year}`
   }
 
   function warSecondaryLabel(war) {
-    let dashCount = linkDashFieldCountsByWarNum[String(war.war_num)] || 0
+    let dashCount = linkDashFieldCountsByWarId[String(war.war_id)] || 0
     let dashLabel = dashCount ? ` | ${plural(dashCount, "dash field")}` : ""
 
     return `${plural(war.total_participants, "participant")} | ${plural(war.total_dyads, "dyad")} | ${timeframe(war)}${dashLabel}`
   }
 
   function graphForWar(war) {
-    return graphsByWarNum[String(war?.war_num)] || { nodes: [], links: [] }
+    return graphsByWarId[String(war?.war_id)] || { nodes: [], links: [] }
   }
 
   function linkDashFieldCount(war) {
@@ -49,7 +49,7 @@
     return items.find(item => item.linkDashFieldCount > 0) || items[0]
   }
 
-  let linkDashFieldCountsByWarNum = Object.fromEntries(wars.map(war => [String(war.war_num), linkDashFieldCount(war)]))
+  let linkDashFieldCountsByWarId = Object.fromEntries(wars.map(war => [String(war.war_id), linkDashFieldCount(war)]))
   let warTypeItems = Array.from(new Set(wars.map(war => war.war_type)))
     .sort()
     .map(warType => ({
@@ -66,12 +66,12 @@
     ? wars.filter(war => selectedWarTypeValues.includes(war.war_type))
     : wars
   $: warItems = filteredWars.map(war => ({
-    value: String(war.war_num),
+    value: String(war.war_id),
     label: war.war_name,
     selectedLabel: `${war.war_name} (${timeframe(war)})`,
     secondaryLabel: warSecondaryLabel(war),
     war_type: war.war_type,
-    linkDashFieldCount: linkDashFieldCountsByWarNum[String(war.war_num)] || 0,
+    linkDashFieldCount: linkDashFieldCountsByWarId[String(war.war_id)] || 0,
     war,
   }))
   $: if (warItems.length && !warItems.some(item => item.value == selectedWarItem?.value)) {
@@ -79,10 +79,10 @@
   }
   $: selectedWar = selectedWarItem?.war
   $: selectedGraph = selectedWar ? graphForWar(selectedWar) : null
-  $: selectedLinkDashFieldCount = selectedWar ? linkDashFieldCountsByWarNum[String(selectedWar.war_num)] || 0 : 0
+  $: selectedLinkDashFieldCount = selectedWar ? linkDashFieldCountsByWarId[String(selectedWar.war_id)] || 0 : 0
   $: totalParticipants = filteredWars.reduce((total, war) => total + Number(war.total_participants || 0), 0)
   $: totalDyads = filteredWars.reduce((total, war) => total + Number(war.total_dyads || 0), 0)
-  $: warsWithLinkDashes = filteredWars.filter(war => linkDashFieldCountsByWarNum[String(war.war_num)] > 0).length
+  $: warsWithLinkDashes = filteredWars.filter(war => linkDashFieldCountsByWarId[String(war.war_id)] > 0).length
   $: selectedTypeLabel =
     selectedWarTypeValues.length == warTypeItems.length ? "All war types" : selectedWarTypeValues.join(", ")
   $: toolViewportWidth = width ? width * 0.7 : 0

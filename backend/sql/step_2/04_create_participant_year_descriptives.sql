@@ -5,7 +5,7 @@ with
 participant_years as (
 
 select
-    a.war_num,
+    a.war_id,
     b.war_name,
     a.c_code,
     a.participant,
@@ -20,7 +20,7 @@ select
     a.battle_deaths_estimated,
     c.range::integer "year"
 from participants a
-join wars b on a.war_num = b.war_num
+join wars b on a.war_id = b.war_id
 join range(1500, 2100) c on c.range between extract(year from a.start_date)::integer and extract(year from a.end_date)::integer),
 
 concurrent_wars as (
@@ -28,14 +28,14 @@ concurrent_wars as (
 select
     year,
     c_code,
-    count(distinct war_num) - 1 concurrent_wars
+    count(distinct war_id) - 1 concurrent_wars
 from participant_years
 where c_code > 0
 group by 1, 2
-having count(distinct war_num) - 1 > 0)
+having count(distinct war_id) - 1 > 0)
 
 select
-    a.war_num,
+    a.war_id,
     a.war_name,
     a.c_code,
     a.participant,
