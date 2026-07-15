@@ -9,9 +9,11 @@ A study of networks by war using data from the Correlates of War (COW) project.
 - [Data Layout](#data-layout)
 - [Pipeline Commands](#pipeline-commands)
 - [Test Commands](#test-commands)
-- [Step 1 Sources And Tables](#step-1-sources-and-tables)
+- [Source Tables](#source-tables)
+  - [Step 1 Source Tables](#step-1-source-tables)
+  - [Step 2 Source Tables](#step-2-source-tables)
 - [Ingestion Assumptions](#ingestion-assumptions)
-  - [Source Tables](#source-tables)
+  - [Source Ingestion Rules](#source-ingestion-rules)
   - [Excluded Calculated Columns](#excluded-calculated-columns)
   - [Date Values](#date-values)
   - [Encoding And Deduplication](#encoding-and-deduplication)
@@ -27,8 +29,8 @@ A study of networks by war using data from the Correlates of War (COW) project.
 
 ## Backend
 
-The DuckDB backend rebuilds the first preprocessing notebook with native SQL. Python only resolves file paths,
-normalizes the extra-state CSV encoding, and runs the SQL files in order.
+The DuckDB backend rebuilds preprocessing steps with native SQL. Python resolves file paths, prepares downloaded source
+files, normalizes configured CSV encodings, and runs the SQL files in order.
 
 ## Setup
 
@@ -66,7 +68,7 @@ Pipeline parameters:
 | `--data-dir PATH` | `backend/data/` | Source-data directory. Use `--data-dir data` for the default relative backend path. |
 | `--csv-dir PATH` | `backend/data/` | Backward-compatible alias for `--data-dir`; use `--csv-dir data` only for older scripts. |
 | `--db-path PATH` | `backend/the_networks_of_war.duckdb` | DuckDB database path. Use `--db-path the_networks_of_war.duckdb` for the default relative backend path. |
-| `--step {none,all,1,2,3}` | `all` | `all` and `1` rebuild Step 1; `none` skips preprocessing. `2` and `3` are accepted placeholders and currently raise `NotImplementedError`. |
+| `--step {none,all,1,2,3}` | `all` | `all` rebuilds Steps 1 and 2; `1` rebuilds Step 1; `2` rebuilds Step 2 source tables; `3` is an accepted placeholder and currently raises `NotImplementedError`; `none` skips preprocessing. |
 | `--inspect` | off | Print table row counts after the selected step runs. |
 | `--prepare-data` | off | Download and validate missing source-data folders before opening the database. |
 | `--recreate-data` | off | Delete and recreate the full source-data directory before opening the database. |
@@ -77,7 +79,18 @@ Run or rebuild Step 1:
 
 ```bash
 python src/pipeline.py --step 1
+```
+
+Run all rebuilt steps:
+
+```bash
 python src/pipeline.py --step all
+```
+
+Run or rebuild Step 2 source tables:
+
+```bash
+python src/pipeline.py --step 2
 ```
 
 Print table row counts after running the selected step:
@@ -130,14 +143,13 @@ Recreate the full ignored source-data directory:
 python src/pipeline.py --recreate-data --step none
 ```
 
-Step 2 and Step 3 have not been rebuilt yet:
+Step 3 has not been rebuilt yet:
 
 ```bash
-python src/pipeline.py --step 2
 python src/pipeline.py --step 3
 ```
 
-Both commands currently stop with `NotImplementedError`.
+The Step 3 command currently stops with `NotImplementedError`.
 
 ## Test Commands
 
@@ -150,42 +162,67 @@ pytest
 Run the Step 1 expectation tests:
 
 ```bash
-pytest tests/test_step_1_expectations.py
-pytest tests/test_step_1_expectations.py -q
+pytest tests/test_step_1.py
+pytest tests/test_step_1.py -q
 ```
 
 Run a single test or matching group of tests:
 
 ```bash
-pytest tests/test_step_1_expectations.py -k "negative_date_sentinels"
-pytest tests/test_step_1_expectations.py -k "date_macros or dyads"
+pytest tests/test_step_1.py -k "negative_date_sentinels"
+pytest tests/test_step_1.py -k "date_macros or dyads"
 ```
 
 Show verbose test names and failures:
 
 ```bash
-pytest tests/test_step_1_expectations.py -vv
+pytest tests/test_step_1.py -vv
 ```
 
 The Step 1 expectation tests rebuild Step 1 into a temporary DuckDB database. They skip automatically if the ignored
 source files in `backend/data/` are not available locally.
 
-## Step 1 Sources And Tables
+## Source Tables
 
 The current backend ingests the following source files. Downloaded source subdirectories include the relevant PDFs and
-supporting files from each source bundle when available.
+supporting files from each source bundle when available. When a source has multiple downloads, the download cell is
+split with line breaks so each source file or documentation link remains visible.
+
+### Step 1 Source Tables
 
 | Table | Source CSV | Version | Download source |
 | --- | --- | --- | --- |
 | `source_country_codes` | `COW-country-codes.csv` | unversioned | [COW country codes CSV](https://correlatesofwar.org/wp-content/uploads/COW-country-codes.csv) |
-| `source_extrastate_wars` | `Extra-StateWarData_v4.0.csv` | 4.0 | [Extra-state wars CSV](https://correlatesofwar.org/wp-content/uploads/Extra-StateWarData_v4.0.csv); [extra-state wars codebook](https://correlatesofwar.org/wp-content/uploads/Extra-StateWars_Codebook.pdf) |
+| `source_extrastate_wars` | `Extra-StateWarData_v4.0.csv` | 4.0 | [Extra-state wars CSV](https://correlatesofwar.org/wp-content/uploads/Extra-StateWarData_v4.0.csv)<br>[extra-state wars codebook](https://correlatesofwar.org/wp-content/uploads/Extra-StateWars_Codebook.pdf) |
 | `source_interstate_mid_dyads` | `dyadic_mid_4.03.csv` | 4.03 | [dyadic MID 4.03 update ZIP](https://correlatesofwar.org/wp-content/uploads/dyadic_mid_4.03_update.zip) |
 | `source_interstate_war_dyads` | `directed_dyadic_war.csv` | unversioned | [dyadic interstate war dataset ZIP](https://correlatesofwar.org/wp-content/uploads/Dyadic-Interstate-War-Dataset.zip) |
-| `source_interstate_wars` | `Inter-StateWarData_v4.0.csv` | 4.0 | [inter-state wars CSV](https://correlatesofwar.org/wp-content/uploads/Inter-StateWarData_v4.0.csv); [inter-state wars list](https://correlatesofwar.org/wp-content/uploads/Inter-StateWarsList.pdf); [inter-state wars codebook](https://correlatesofwar.org/wp-content/uploads/Inter-StateWars_Codebook.pdf) |
+| `source_interstate_wars` | `Inter-StateWarData_v4.0.csv` | 4.0 | [inter-state wars CSV](https://correlatesofwar.org/wp-content/uploads/Inter-StateWarData_v4.0.csv)<br>[inter-state wars list](https://correlatesofwar.org/wp-content/uploads/Inter-StateWarsList.pdf)<br>[inter-state wars codebook](https://correlatesofwar.org/wp-content/uploads/Inter-StateWars_Codebook.pdf) |
 | `source_intrastate_wars` | `INTRA-STATE_State_participants v5.1 CSV.csv` | 5.1 | [intra-state wars 5.1 ZIP](https://correlatesofwar.org/wp-content/uploads/Intra-State-Wars-v5.1.zip) |
 
+### Step 2 Source Tables
+
+| Table | Source CSV | Version | Download source |
+| --- | --- | --- | --- |
+| `source_global_terrorism_database` | `globalterrorismdb_0522dist.csv`<br>`globalterrorismdb_2021Jan-June_1222dist.csv` | 0522 + 2021 Jan-June 1222 | [GTD codebook](https://www.start.umd.edu/sites/default/files/2024-10/Codebook.pdf)<br>[GTD 0522 workbook](https://www.start.umd.edu/system/files/globalterrorismdb_0522dist.xlsx)<br>[GTD 2021 Jan-June workbook](https://www.start.umd.edu/system/files/globalterrorismdb_2021Jan-June_1222dist.xlsx) |
+| `source_formal_alliances_directed_yearly` | `alliance_v4.1_by_directed_yearly.csv` | 4.1 | [COW formal alliances 4.1 ZIP](https://correlatesofwar.org/wp-content/uploads/version4.1_csv.zip) |
+| `source_territorial_changes` | `tc2018.csv` | 6 | [territorial changes v6 ZIP](https://correlatesofwar.org/wp-content/uploads/terr-changes-v6.zip) |
+| `source_forcibly_displaced_populations` | `FDP2008a.csv` | 2008a | [FDP workbook](http://www.systemicpeace.org/inscr/FDP2008a.xls)<br>[FDP codebook](http://www.systemicpeace.org/inscr/FDPCodebook2008.pdf) |
+| `source_colonial_dependency_contiguity` | `contcold.csv` | 3.1 | [colonial/dependency contiguity 3.1 ZIP](https://correlatesofwar.org/wp-content/uploads/ColonialContiguity310.zip) |
+| `source_direct_contiguity` | `contdird.csv` | 3.2 | [direct contiguity 3.2 ZIP](https://correlatesofwar.org/wp-content/uploads/DirectContiguity320.zip) |
+| `source_defense_cooperation_agreements` | `DCAD-v1.0-dyadic.csv` | 1.0 | [defense cooperation agreements ZIP](https://correlatesofwar.org/wp-content/uploads/kinne_dca.zip) |
+| `source_intergovernmental_organizations_dyadic` | `dyadic_formatv3.csv` | 3 | [IGO dyadic format v3 ZIP](https://correlatesofwar.org/wp-content/uploads/dyadic_formatv3.zip)<br>[IGO codebook](https://correlatesofwar.org/wp-content/uploads/IGO-Codebook_v3_short-copy.pdf) |
+| `source_diplomatic_exchange` | `Diplomatic_Exchange_2006v1.csv` | 2006.1 | [diplomatic exchange 2006.1 ZIP](https://correlatesofwar.org/wp-content/uploads/Diplomatic_Exchange_2006.1.zip) |
+| `source_dd_revisited` | `ddrevisited_data_v1.csv` | 1 | [DD revisited data](https://github.com/cyaris/the_networks_of_war/releases/download/source-data-dd-revisited-v1/ddrevisited_data_v1.csv)<br>[DD revisited codebook](https://rforpoliticalscience.com/wp-content/uploads/2022/04/ddrevisited-codebook.pdf) |
+| `source_co_emissions_per_capita` | `co-emissions-per-capita.csv` | 1 | [OWID CO2 emissions per capita CSV](https://ourworldindata.org/grapher/co-emissions-per-capita.csv?v=1&csvType=full&useColumnShortNames=true) |
+| `source_arms_technology` | `cow_arms_tech_long.csv` | 1.1 | [COW arms technology 1.1 ZIP](https://correlatesofwar.org/wp-content/uploads/Arms-TechnologyV1.1.zip) |
+| `source_atop_dyadic_years` | `atop5_1ddyr.csv` | 5.1 | [ATOP 5.1 dyadic-years ZIP](http://www.atopdata.org/uploads/6/9/1/3/69134503/atop_5.1__.csv_.zip)<br>[ATOP 5.1 codebook](http://www.atopdata.org/uploads/6/9/1/3/69134503/atop_5_1_codebook.pdf) |
+| `source_mtops_dyadic` | `mtopsd150.csv` | 1.5 | [MTOPS 1.5 ZIP](https://www.paulhensel.org/Data/mtops.zip) |
+| `source_cow_trade_dyadic` | `Dyadic_COW_4.0.csv` | 4.0 | [COW trade 4.0 ZIP](https://correlatesofwar.org/wp-content/uploads/COW_Trade_4.0.zip) |
+| `source_cow_trade_national` | `National_COW_4.0.csv` | 4.0 | [COW trade 4.0 ZIP](https://correlatesofwar.org/wp-content/uploads/COW_Trade_4.0.zip) |
+| `source_national_material_capabilities` | `NMC-70-wsupplementary.csv` | 7.0 | [NMC v7 ZIP](https://correlatesofwar.org/wp-content/uploads/NMCv7.zip) |
+
 Other files in the legacy ignored `documentation/` directory correspond to datasets that have not yet been incorporated
-and were not used for the current Step 1 assumptions.
+and were not used for the current Step 1 or Step 2 assumptions.
 
 Step 1 materializes reference tables:
 
@@ -210,10 +247,12 @@ Step 1 also materializes compatibility tables:
 
 ## Ingestion Assumptions
 
-### Source Tables
+### Source Ingestion Rules
 
-- The primary source tables listed above come directly from one CSV file, with only type coercion, column renaming,
-  encoding normalization, and the data-entry fixes documented below applied during load.
+- The primary source tables listed above come directly from their source CSV files, with only type coercion, column
+  renaming, encoding normalization, and the data-entry fixes documented below applied during load.
+- `source_global_terrorism_database` stacks two prepared GTD CSVs with `union all` after confirming the two files do
+  not overlap on `eventid`.
 - `dyadic_mid_4.03.csv` has no new columns relative to `dyadic_mid_4.02.csv` and no longer includes the 4.02 columns
   `dyad`, `abbreva`, `abbrevb`, `lastobs`, and `newar`.
 - Version-scoped source adjustments live in `backend/sql/step_1/03_create_source_adjustment_tables.sql` and

@@ -12,7 +12,7 @@ import tempfile
 import urllib.error
 import urllib.request
 import zipfile
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -44,10 +44,17 @@ def load_source_metadata() -> list[dict]:
 
 SOURCE_METADATA = load_source_metadata()
 
+
+def source_prepared_files(metadata: dict) -> list[str]:
+    return list(dict.fromkeys([metadata["file"], *metadata.get("prepared_files", [])]))
+
+
 SOURCE_METADATA_BY_KEY = {metadata["key"]: metadata for metadata in SOURCE_METADATA}
 SOURCE_FILES = {metadata["key"]: metadata["file"] for metadata in SOURCE_METADATA}
+SOURCE_PREPARED_FILES = {metadata["key"]: source_prepared_files(metadata) for metadata in SOURCE_METADATA}
 
 STEP_1_SQL = [
+    "00_setup.sql",
     "step_1/00_setup.sql",
     "step_1/01_create_source_tables.sql",
     "step_1/02_insert_source_tables.sql",
@@ -62,6 +69,37 @@ STEP_1_SQL = [
     "step_1/11_create_dyads.sql",
     "step_1/12_create_dyad_years.sql",
     "step_1/13_create_wars.sql",
+]
+
+STEP_2_SQL = ["00_setup.sql", "step_2/01_create_source_tables.sql", "step_2/02_insert_source_tables.sql"]
+
+STEP_1_SOURCE_KEYS = [
+    "country_codes",
+    "extrastate_wars",
+    "interstate_mid_dyads",
+    "interstate_war_dyads",
+    "interstate_wars",
+    "intrastate_wars",
+]
+
+STEP_2_SOURCE_KEYS = [
+    "global_terrorism_database",
+    "formal_alliances_directed_yearly",
+    "territorial_changes",
+    "forcibly_displaced_populations",
+    "colonial_dependency_contiguity",
+    "direct_contiguity",
+    "defense_cooperation_agreements",
+    "intergovernmental_organizations_dyadic",
+    "diplomatic_exchange",
+    "dd_revisited",
+    "co_emissions_per_capita",
+    "arms_technology",
+    "atop_dyadic_years",
+    "mtops_dyadic",
+    "cow_trade_dyadic",
+    "cow_trade_national",
+    "national_material_capabilities",
 ]
 
 
@@ -141,9 +179,13 @@ class Pipeline:
         return self.data_dir / source_key
 
     def path_for(self, source_key: str) -> Path:
-        relative = SOURCE_FILES[source_key]
+        return self.path_for_file(source_key, SOURCE_FILES[source_key])
 
+    def path_for_file(self, source_key: str, relative: str) -> Path:
         return (self.source_dir_for(source_key) / relative).resolve()
+
+    def paths_for(self, source_key: str) -> list[Path]:
+        return [self.path_for_file(source_key, relative) for relative in SOURCE_PREPARED_FILES[source_key]]
 
     def download_file(self, url: str, destination: Path) -> None:
         destination.parent.mkdir(parents=True, exist_ok=True)
@@ -183,6 +225,41 @@ class Pipeline:
                         target.unlink()
                 shutil.move(str(path), target)
 
+    def extracted_file_path(self, source_dir: Path, filename: str) -> Path:
+        direct_path = source_dir / filename
+        if direct_path.exists():
+            return direct_path
+
+        matches = sorted(path for path in source_dir.rglob(filename) if path.is_file())
+        if not matches:
+            raise FileNotFoundError(f"Expected extracted file {filename!r} in {source_dir}")
+
+        return matches[0]
+
+    def convert_excel_to_csv(self, source_path: Path, destination_path: Path) -> None:
+        excel_engines = {".xls": "xlrd", ".xlsx": "openpyxl"}
+        engine = excel_engines.get(source_path.suffix.lower())
+
+        if engine is None:
+            raise ValueError(f"Excel conversion is only supported for .xls/.xlsx files: {source_path}")
+
+        try:
+            import pandas as pd
+        except ImportError as exc:
+            raise RuntimeError("Excel source conversion requires pandas, openpyxl, and xlrd to be installed.") from exc
+
+        logger.info("Converting %s to %s", source_path, destination_path)
+        prefix = source_path.read_bytes()[:256].lstrip().lower()
+        if prefix.startswith(b"<!doctype html") or prefix.startswith(b"<html"):
+            raise RuntimeError(f"Downloaded file looks like HTML, not Excel: {source_path}")
+
+        destination_path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            dataframe = pd.read_excel(source_path, sheet_name=0, engine=engine)
+        except ImportError as exc:
+            raise RuntimeError("Excel source conversion requires pandas, openpyxl, and xlrd to be installed.") from exc
+        dataframe.to_csv(destination_path, index=False)
+
     def populate_source_dir(self, source_key: str) -> None:
         metadata = SOURCE_METADATA_BY_KEY[source_key]
 
@@ -191,14 +268,23 @@ class Pipeline:
         downloads_dir = self.data_dir / "_downloads"
 
         for download in metadata["downloads"]:
-            download_path = downloads_dir / download["filename"]
-            logger.info("Downloading %s", download["url"])
-            self.download_file(download["url"], download_path)
-
             if download["kind"] == "zip":
+                download_path = downloads_dir / download["filename"]
+                logger.info("Downloading %s", download["url"])
+                self.download_file(download["url"], download_path)
                 self.extract_zip(download_path, source_dir)
+
+                for nested_zip in download.get("nested_zips", []):
+                    self.extract_zip(self.extracted_file_path(source_dir, nested_zip), source_dir)
             elif download["kind"] == "file":
-                shutil.copy2(download_path, source_dir / download["filename"])
+                download_path = downloads_dir / download["filename"]
+                logger.info("Downloading %s", download["url"])
+                self.download_file(download["url"], download_path)
+                source_path = source_dir / download["filename"]
+                shutil.copy2(download_path, source_path)
+
+                if converted_filename := download.get("converted_filename"):
+                    self.convert_excel_to_csv(source_path, source_dir / converted_filename)
             else:
                 raise ValueError(f"Unsupported download kind: {download['kind']}")
 
@@ -207,7 +293,7 @@ class Pipeline:
 
         source_dir = self.source_dir_for(source_key)
         found = sorted(path.name for path in source_dir.rglob("*") if path.is_file())
-        expected_files = {metadata["file"]}
+        expected_files = set(SOURCE_PREPARED_FILES[source_key])
         expected_files.update(
             download["filename"] for download in metadata.get("downloads", []) if download["kind"] == "file"
         )
@@ -231,37 +317,52 @@ class Pipeline:
             if not metadata.get("downloads")
         ]
 
-    def prepare_data(self, recreate: bool = False) -> None:
+    def prepare_data(self, recreate: bool = False, source_keys: Iterable[str] | None = None) -> None:
         if recreate and self.data_dir.exists():
             logger.info("Recreating data directory: %s", self.data_dir)
             shutil.rmtree(self.data_dir)
 
         self.data_dir.mkdir(parents=True, exist_ok=True)
         issues = self.missing_download_url_issues()
+        source_keys = list(source_keys) if source_keys is not None else list(SOURCE_FILES)
 
-        for metadata in SOURCE_METADATA:
-            source_key = metadata["key"]
-
+        for source_key in source_keys:
             source_dir = self.source_dir_for(source_key)
-            if recreate or not source_dir.exists():
-                self.populate_source_dir(source_key)
-            else:
-                logger.info("Source directory already exists: %s", source_dir)
+            try:
+                if recreate or not source_dir.exists():
+                    self.populate_source_dir(source_key)
+                else:
+                    logger.info("Source directory already exists: %s", source_dir)
 
-            issues.extend(self.validate_source_dir(source_key))
+                source_issues = self.validate_source_dir(source_key)
+                if source_issues and not recreate:
+                    logger.info("Source directory is incomplete; refreshing: %s", source_dir)
+                    self.populate_source_dir(source_key)
+                    source_issues = self.validate_source_dir(source_key)
+            except Exception as exc:
+                issues.append(SourceDataIssue(source_key, str(exc)))
+                logger.error("Failed to prepare source directory %s: %s", source_key, exc)
+                continue
+
+            issues.extend(source_issues)
 
         if issues:
             raise RuntimeError("Source data preparation issues:\n" + "\n".join(str(issue) for issue in issues))
 
     def prepared_path_for(self, source_key: str) -> Path:
+        return self.prepared_path_for_file(source_key, SOURCE_FILES[source_key])
+
+    def prepared_path_for_file(self, source_key: str, relative: str) -> Path:
         encoding = SOURCE_METADATA_BY_KEY[source_key].get("encoding")
+        source_path = self.path_for_file(source_key, relative)
 
-        if encoding is None:
-            return self.path_for(source_key)
+        if encoding is None or not source_path.exists():
+            return source_path
 
-        WORK_CSV_DIR.mkdir(parents=True, exist_ok=True)
-        path = WORK_CSV_DIR / self.path_for(source_key).name
-        path.write_text(self.path_for(source_key).read_text(encoding=encoding), encoding="utf-8")
+        work_source_dir = WORK_CSV_DIR / source_key
+        work_source_dir.mkdir(parents=True, exist_ok=True)
+        path = work_source_dir / Path(relative).name
+        path.write_text(source_path.read_text(encoding=encoding), encoding="utf-8")
 
         return path.resolve()
 
@@ -275,11 +376,14 @@ class Pipeline:
             key = metadata["key"]
             context[f"{key}_source_file"] = sql_literal(Path(metadata["file"]).name)
             context[f"{key}_source_version"] = sql_literal(metadata["version"])
+            for index, relative in enumerate(SOURCE_PREPARED_FILES[key], start=1):
+                context[f"{key}_path_{index}"] = sql_literal(self.prepared_path_for_file(key, relative))
 
         return context
 
-    def require_inputs(self) -> None:
-        missing = [str(self.path_for(key)) for key in SOURCE_FILES if not self.path_for(key).exists()]
+    def require_inputs(self, source_keys: Iterable[str] | None = None) -> None:
+        source_keys = list(source_keys) if source_keys is not None else list(SOURCE_FILES)
+        missing = [str(path) for key in source_keys for path in self.paths_for(key) if not path.exists()]
 
         if missing:
             raise FileNotFoundError("Missing required CSV inputs:\n" + "\n".join(missing))
@@ -315,15 +419,36 @@ class Pipeline:
         conn.execute(sql)
 
     def run_step_1(self, conn: duckdb.DuckDBPyConnection) -> None:
-        self.prepare_data(recreate=False)
-        self.require_inputs()
+        self.prepare_data(recreate=False, source_keys=STEP_1_SOURCE_KEYS)
+        self.require_inputs(STEP_1_SOURCE_KEYS)
 
         for name in STEP_1_SQL:
             logger.info("Running %s", name)
             self.execute_sql(conn, name)
 
+    def run_step_2(self, conn: duckdb.DuckDBPyConnection) -> None:
+        self.prepare_data(recreate=False, source_keys=STEP_2_SOURCE_KEYS)
+        self.require_inputs(STEP_2_SOURCE_KEYS)
+
+        for name in STEP_2_SQL:
+            logger.info("Running %s", name)
+            self.execute_sql(conn, name)
+
     def inspect(self, conn: duckdb.DuckDBPyConnection) -> None:
-        for table_name, row_count in conn.execute(INSPECT_SQL.read_text()).fetchall():
+        query = """
+        select 1
+        from information_schema.tables
+        where
+            table_schema = current_schema()
+            and table_name = ?
+        """
+        table_names = [table_name for (table_name,) in conn.execute(INSPECT_SQL.read_text()).fetchall()]
+
+        for table_name in table_names:
+            if conn.execute(query, [table_name]).fetchone() is None:
+                continue
+
+            row_count = conn.execute(f"select count(*) from {sql_identifier(table_name)}").fetchone()[0]
             logger.info(f"{table_name}: {row_count:,d}")
 
     def query(self, conn: duckdb.DuckDBPyConnection, sql: str) -> None:
@@ -351,8 +476,11 @@ class Pipeline:
             if step in {"all", "1"}:
                 self.run_step_1(conn)
 
-            if step in {"2", "3"}:
-                raise NotImplementedError("Only preprocessing Step 1 has been rebuilt in native SQL so far.")
+            if step in {"all", "2"}:
+                self.run_step_2(conn)
+
+            if step == "3":
+                raise NotImplementedError("Only preprocessing Steps 1 and 2 have been rebuilt in native SQL so far.")
 
             if inspect:
                 self.inspect(conn)

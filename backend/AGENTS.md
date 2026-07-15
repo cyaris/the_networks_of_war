@@ -18,13 +18,13 @@
 - Keep table grain explicit and separated by purpose: base compatibility tables hold base rows, yearly expansion tables hold one row per entity-year or dyad-year, and final dyad tables use stable canonical dyad keys with one row per unordered dyad.
 - Do not add row identifiers unless a downstream transformation explicitly needs them.
 - Store open-ended lookup/reference data that is expected to grow independently in `backend/manual/*.json`, such as participant name replacements and source metadata. Keep small static reference data such as `war_types` inline in SQL, with table creation and row insertion in separate numbered reference files.
-- Keep related columns grouped consistently in source and transformed select lists: opposite A/B columns adjacent, repeated date components in source order by span and component, and battle-death columns at the end with actual deaths before estimated values and estimate flags.
+- Keep related columns grouped consistently in source and transformed select lists. For dyadic A/B fields, put the same field for A and B adjacent before moving to the next field: for example, `c_code_a`, `c_code_b`, then `country_name_a`, `country_name_b`, rather than interleaving all A fields before all B fields. Keep repeated date components in source order by span and component, and battle-death columns at the end with actual deaths before estimated values and estimate flags.
 - Prefer stable source identifiers for manual mappings and generated values after validating that they identify the intended rows. Use synthetic/manual IDs only when needed, keep them explicit and deterministic, and document the source-data gap or deviation in the README.
 
 ## SQL Style
 
 - For SQL `insert into ... values` statements, omit the target column list when inserting into tables created immediately nearby with an obvious column order, and collapse small inline `values` inserts to one row per tuple when that remains readable.
-- Prefer compact DuckDB SQL idioms: concise aliases, postfix casts, unquoted identifiers unless required, and `group by`-based row deduplication instead of `select distinct`. Aggregate forms such as `count(distinct ...)` are acceptable when distinctness belongs inside the aggregate.
+- Prefer compact DuckDB SQL idioms: concise aliases without `as` unless the grammar requires it, postfix casts, unquoted identifiers unless required, and `group by`-based row deduplication instead of `select distinct`. When an alias is a reserved word such as `year`, prefer a quoted alias without `as`, such as `clean_int(year) "year"`, if that is accepted by DuckDB. Aggregate forms such as `count(distinct ...)` are acceptable when distinctness belongs inside the aggregate.
 - In numbered pipeline-stage SQL union blocks, order branches by the stage's source/table construction order. When a source or table contributes mirrored A/B branches, put the original non-flipped branch before the flipped branch for that same source or table.
 - Choose `union all` for additive source stacking when later logic handles deduplication or duplicates are meaningful. Use plain `union` only when set semantics are required at that exact point. Do not write `union distinct`.
 - Avoid ordering tables or query results unless deterministic output order is explicitly needed. In tests, compare unordered results in Python unless the query prints or asserts on raw rows, where a deterministic `order by` makes diagnostics stable.
@@ -47,8 +47,11 @@
 
 ## Tests
 
-- Keep stage data-quality and transformation expectations in stage-specific expectation test files; reserve pipeline query-file tests for pipeline query-file behavior.
+- Keep test module names short and target-oriented while preserving pytest discovery, such as `test_pipeline.py`, `test_step_1.py`, and `test_step_2.py`. Keep stage data-quality and transformation expectations in stage-specific test files; reserve pipeline behavior tests for `test_pipeline.py`.
 - Prefer simple, direct test code over broad abstractions or helper layers unless the duplication is clearly painful.
+- In tests, define multi-line SQL in a named variable before passing it to `conn.execute` or helper functions. Do not embed triple-quoted SQL directly inside execute calls.
+- Stage expectation tests should query created pipeline tables when checking ingested or transformed behavior. Read raw CSV files directly only for pre-ingestion checks, such as source metadata, download conversion, or validating source files before a table exists.
+- Avoid CTEs in test SQL when a direct join or filtered query is clearer.
 - Do not remove, skip, or allowlist away known data-quality failures just to make the suite pass. Expected failures, including missing source relationships such as unresolved MID war numbers, should remain visible until an explicit source-data, source-adjustment, or transformation fix resolves them.
 - Tests should protect data semantics and pipeline behavior at the layer that owns them rather than freezing metadata placeholders or treating source row-position fields as transformed participant-side semantics.
 - Diagnostic SQL should be focused and readable: select only columns needed to identify failing rows, avoid unnecessary subselect wrappers, use simple `count(*)` checks plus focused detail queries for broad source-data quality checks, and prefer loops or named helpers over dense inline repeated SQL fragments.
