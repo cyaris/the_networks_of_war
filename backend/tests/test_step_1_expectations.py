@@ -1145,9 +1145,7 @@ def test_interstate_war_dyads_use_semantic_participant_sides(conn):
     where
         war_type = 1
         and c_code_b is not null
-        and side_b is not null),
-
-    side_conflicts as (
+        and side_b is not null)
 
     select
         war_num,
@@ -1157,10 +1155,7 @@ def test_interstate_war_dyads_use_semantic_participant_sides(conn):
         count(*) row_count
     from side_rows
     group by 1, 2, 3
-    having count(distinct side) > 1)
-
-    select *
-    from side_conflicts
+    having count(distinct side) > 1
     order by war_num, c_code, participant
     limit 50
     """
