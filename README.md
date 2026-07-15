@@ -187,41 +187,41 @@ source files in `backend/data/` are not available locally.
 ## Source Tables
 
 The current backend ingests the following source files. Downloaded source subdirectories include the relevant PDFs and
-supporting files from each source bundle when available. Cells with multiple files or downloads use compact lists so
+supporting files from each source bundle when available. Source and download cells use compact bullet lines so
 each source file or documentation link remains visible.
 
 ### Step 1 Source Tables
 
 | Table | Source CSV | Version | Download source |
 | --- | --- | --- | --- |
-| `source_country_codes` | `COW-country-codes.csv` | unversioned | [COW country codes CSV](https://correlatesofwar.org/wp-content/uploads/COW-country-codes.csv) |
-| `source_extrastate_wars` | `Extra-StateWarData_v4.0.csv` | 4.0 | <ul><li>[Extra-state wars CSV](https://correlatesofwar.org/wp-content/uploads/Extra-StateWarData_v4.0.csv)</li><li>[extra-state wars codebook](https://correlatesofwar.org/wp-content/uploads/Extra-StateWars_Codebook.pdf)</li></ul> |
-| `source_interstate_mid_dyads` | `dyadic_mid_4.03.csv` | 4.03 | [dyadic MID 4.03 update ZIP](https://correlatesofwar.org/wp-content/uploads/dyadic_mid_4.03_update.zip) |
-| `source_interstate_war_dyads` | `directed_dyadic_war.csv` | unversioned | [dyadic interstate war dataset ZIP](https://correlatesofwar.org/wp-content/uploads/Dyadic-Interstate-War-Dataset.zip) |
-| `source_interstate_wars` | `Inter-StateWarData_v4.0.csv` | 4.0 | <ul><li>[inter-state wars CSV](https://correlatesofwar.org/wp-content/uploads/Inter-StateWarData_v4.0.csv)</li><li>[inter-state wars list](https://correlatesofwar.org/wp-content/uploads/Inter-StateWarsList.pdf)</li><li>[inter-state wars codebook](https://correlatesofwar.org/wp-content/uploads/Inter-StateWars_Codebook.pdf)</li></ul> |
-| `source_intrastate_wars` | `INTRA-STATE_State_participants v5.1 CSV.csv` | 5.1 | [intra-state wars 5.1 ZIP](https://correlatesofwar.org/wp-content/uploads/Intra-State-Wars-v5.1.zip) |
+| `source_country_codes` | <div>&#8226; <code>COW-country-codes.csv</code></div> | unversioned | <div>&#8226; <a href="https://correlatesofwar.org/wp-content/uploads/COW-country-codes.csv">COW country codes CSV</a></div> |
+| `source_extrastate_wars` | <div>&#8226; <code>Extra-StateWarData_v4.0.csv</code></div> | 4.0 | <div>&#8226; <a href="https://correlatesofwar.org/wp-content/uploads/Extra-StateWarData_v4.0.csv">Extra-state wars CSV</a></div><div>&#8226; <a href="https://correlatesofwar.org/wp-content/uploads/Extra-StateWars_Codebook.pdf">extra-state wars codebook</a></div> |
+| `source_interstate_mid_dyads` | <div>&#8226; <code>dyadic_mid_4.03.csv</code></div> | 4.03 | <div>&#8226; <a href="https://correlatesofwar.org/wp-content/uploads/dyadic_mid_4.03_update.zip">dyadic MID 4.03 update ZIP</a></div> |
+| `source_interstate_war_dyads` | <div>&#8226; <code>directed_dyadic_war.csv</code></div> | unversioned | <div>&#8226; <a href="https://correlatesofwar.org/wp-content/uploads/Dyadic-Interstate-War-Dataset.zip">dyadic interstate war dataset ZIP</a></div> |
+| `source_interstate_wars` | <div>&#8226; <code>Inter-StateWarData_v4.0.csv</code></div> | 4.0 | <div>&#8226; <a href="https://correlatesofwar.org/wp-content/uploads/Inter-StateWarData_v4.0.csv">inter-state wars CSV</a></div><div>&#8226; <a href="https://correlatesofwar.org/wp-content/uploads/Inter-StateWarsList.pdf">inter-state wars list</a></div><div>&#8226; <a href="https://correlatesofwar.org/wp-content/uploads/Inter-StateWars_Codebook.pdf">inter-state wars codebook</a></div> |
+| `source_intrastate_wars` | <div>&#8226; <code>INTRA-STATE_State_participants v5.1 CSV.csv</code></div> | 5.1 | <div>&#8226; <a href="https://correlatesofwar.org/wp-content/uploads/Intra-State-Wars-v5.1.zip">intra-state wars 5.1 ZIP</a></div> |
 
 ### Step 2 Source Tables
 
 | Table | Source CSV | Version | Download source |
 | --- | --- | --- | --- |
-| `source_global_terrorism_database` | <ul><li>`globalterrorismdb_0522dist.csv`</li><li>`globalterrorismdb_2021Jan-June_1222dist.csv`</li></ul> | 0522 + 2021 Jan-June 1222 | <ul><li>[GTD codebook](https://www.start.umd.edu/sites/default/files/2024-10/Codebook.pdf)</li><li>[GTD 0522 workbook](https://www.start.umd.edu/system/files/globalterrorismdb_0522dist.xlsx)</li><li>[GTD 2021 Jan-June workbook](https://www.start.umd.edu/system/files/globalterrorismdb_2021Jan-June_1222dist.xlsx)</li></ul> |
-| `source_formal_alliances_directed_yearly` | `alliance_v4.1_by_directed_yearly.csv` | 4.1 | [COW formal alliances 4.1 ZIP](https://correlatesofwar.org/wp-content/uploads/version4.1_csv.zip) |
-| `source_territorial_changes` | `tc2018.csv` | 6 | [territorial changes v6 ZIP](https://correlatesofwar.org/wp-content/uploads/terr-changes-v6.zip) |
-| `source_forcibly_displaced_populations` | `FDP2008a.csv` | 2008a | <ul><li>[FDP workbook](http://www.systemicpeace.org/inscr/FDP2008a.xls)</li><li>[FDP codebook](http://www.systemicpeace.org/inscr/FDPCodebook2008.pdf)</li></ul> |
-| `source_colonial_dependency_contiguity` | `contcold.csv` | 3.1 | [colonial/dependency contiguity 3.1 ZIP](https://correlatesofwar.org/wp-content/uploads/ColonialContiguity310.zip) |
-| `source_direct_contiguity` | `contdird.csv` | 3.2 | [direct contiguity 3.2 ZIP](https://correlatesofwar.org/wp-content/uploads/DirectContiguity320.zip) |
-| `source_defense_cooperation_agreements` | `DCAD-v1.0-dyadic.csv` | 1.0 | [defense cooperation agreements ZIP](https://correlatesofwar.org/wp-content/uploads/kinne_dca.zip) |
-| `source_intergovernmental_organizations_dyadic` | `dyadic_formatv3.csv` | 3 | <ul><li>[IGO dyadic format v3 ZIP](https://correlatesofwar.org/wp-content/uploads/dyadic_formatv3.zip)</li><li>[IGO codebook](https://correlatesofwar.org/wp-content/uploads/IGO-Codebook_v3_short-copy.pdf)</li></ul> |
-| `source_diplomatic_exchange` | `Diplomatic_Exchange_2006v1.csv` | 2006.1 | [diplomatic exchange 2006.1 ZIP](https://correlatesofwar.org/wp-content/uploads/Diplomatic_Exchange_2006.1.zip) |
-| `source_dd_revisited` | `ddrevisited_data_v1.csv` | 1 | <ul><li>[DD revisited data](https://github.com/cyaris/the_networks_of_war/releases/download/source-data-dd-revisited-v1/ddrevisited_data_v1.csv)</li><li>[DD revisited codebook](https://rforpoliticalscience.com/wp-content/uploads/2022/04/ddrevisited-codebook.pdf)</li></ul> |
-| `source_co_emissions_per_capita` | `co-emissions-per-capita.csv` | 1 | [OWID CO2 emissions per capita CSV](https://ourworldindata.org/grapher/co-emissions-per-capita.csv?v=1&csvType=full&useColumnShortNames=true) |
-| `source_arms_technology` | `cow_arms_tech_long.csv` | 1.1 | [COW arms technology 1.1 ZIP](https://correlatesofwar.org/wp-content/uploads/Arms-TechnologyV1.1.zip) |
-| `source_atop_dyadic_years` | `atop5_1ddyr.csv` | 5.1 | <ul><li>[ATOP 5.1 dyadic-years ZIP](http://www.atopdata.org/uploads/6/9/1/3/69134503/atop_5.1__.csv_.zip)</li><li>[ATOP 5.1 codebook](http://www.atopdata.org/uploads/6/9/1/3/69134503/atop_5_1_codebook.pdf)</li></ul> |
-| `source_mtops_dyadic` | `mtopsd150.csv` | 1.5 | [MTOPS 1.5 ZIP](https://www.paulhensel.org/Data/mtops.zip) |
-| `source_cow_trade_dyadic` | `Dyadic_COW_4.0.csv` | 4.0 | [COW trade 4.0 ZIP](https://correlatesofwar.org/wp-content/uploads/COW_Trade_4.0.zip) |
-| `source_cow_trade_national` | `National_COW_4.0.csv` | 4.0 | [COW trade 4.0 ZIP](https://correlatesofwar.org/wp-content/uploads/COW_Trade_4.0.zip) |
-| `source_national_material_capabilities` | `NMC-70-wsupplementary.csv` | 7.0 | [NMC v7 ZIP](https://correlatesofwar.org/wp-content/uploads/NMCv7.zip) |
+| `source_global_terrorism_database` | <div>&#8226; <code>globalterrorismdb_0522dist.csv</code></div><div>&#8226; <code>globalterrorismdb_2021Jan-June_1222dist.csv</code></div> | 0522 + 2021 Jan-June 1222 | <div>&#8226; <a href="https://www.start.umd.edu/sites/default/files/2024-10/Codebook.pdf">GTD codebook</a></div><div>&#8226; <a href="https://www.start.umd.edu/system/files/globalterrorismdb_0522dist.xlsx">GTD 0522 workbook</a></div><div>&#8226; <a href="https://www.start.umd.edu/system/files/globalterrorismdb_2021Jan-June_1222dist.xlsx">GTD 2021 Jan-June workbook</a></div> |
+| `source_formal_alliances_directed_yearly` | <div>&#8226; <code>alliance_v4.1_by_directed_yearly.csv</code></div> | 4.1 | <div>&#8226; <a href="https://correlatesofwar.org/wp-content/uploads/version4.1_csv.zip">COW formal alliances 4.1 ZIP</a></div> |
+| `source_territorial_changes` | <div>&#8226; <code>tc2018.csv</code></div> | 6 | <div>&#8226; <a href="https://correlatesofwar.org/wp-content/uploads/terr-changes-v6.zip">territorial changes v6 ZIP</a></div> |
+| `source_forcibly_displaced_populations` | <div>&#8226; <code>FDP2008a.csv</code></div> | 2008a | <div>&#8226; <a href="http://www.systemicpeace.org/inscr/FDP2008a.xls">FDP workbook</a></div><div>&#8226; <a href="http://www.systemicpeace.org/inscr/FDPCodebook2008.pdf">FDP codebook</a></div> |
+| `source_colonial_dependency_contiguity` | <div>&#8226; <code>contcold.csv</code></div> | 3.1 | <div>&#8226; <a href="https://correlatesofwar.org/wp-content/uploads/ColonialContiguity310.zip">colonial/dependency contiguity 3.1 ZIP</a></div> |
+| `source_direct_contiguity` | <div>&#8226; <code>contdird.csv</code></div> | 3.2 | <div>&#8226; <a href="https://correlatesofwar.org/wp-content/uploads/DirectContiguity320.zip">direct contiguity 3.2 ZIP</a></div> |
+| `source_defense_cooperation_agreements` | <div>&#8226; <code>DCAD-v1.0-dyadic.csv</code></div> | 1.0 | <div>&#8226; <a href="https://correlatesofwar.org/wp-content/uploads/kinne_dca.zip">defense cooperation agreements ZIP</a></div> |
+| `source_intergovernmental_organizations_dyadic` | <div>&#8226; <code>dyadic_formatv3.csv</code></div> | 3 | <div>&#8226; <a href="https://correlatesofwar.org/wp-content/uploads/dyadic_formatv3.zip">IGO dyadic format v3 ZIP</a></div><div>&#8226; <a href="https://correlatesofwar.org/wp-content/uploads/IGO-Codebook_v3_short-copy.pdf">IGO codebook</a></div> |
+| `source_diplomatic_exchange` | <div>&#8226; <code>Diplomatic_Exchange_2006v1.csv</code></div> | 2006.1 | <div>&#8226; <a href="https://correlatesofwar.org/wp-content/uploads/Diplomatic_Exchange_2006.1.zip">diplomatic exchange 2006.1 ZIP</a></div> |
+| `source_dd_revisited` | <div>&#8226; <code>ddrevisited_data_v1.csv</code></div> | 1 | <div>&#8226; <a href="https://github.com/cyaris/the_networks_of_war/releases/download/source-data-dd-revisited-v1/ddrevisited_data_v1.csv">DD revisited data</a></div><div>&#8226; <a href="https://rforpoliticalscience.com/wp-content/uploads/2022/04/ddrevisited-codebook.pdf">DD revisited codebook</a></div> |
+| `source_co_emissions_per_capita` | <div>&#8226; <code>co-emissions-per-capita.csv</code></div> | 1 | <div>&#8226; <a href="https://ourworldindata.org/grapher/co-emissions-per-capita.csv?v=1&csvType=full&useColumnShortNames=true">OWID CO2 emissions per capita CSV</a></div> |
+| `source_arms_technology` | <div>&#8226; <code>cow_arms_tech_long.csv</code></div> | 1.1 | <div>&#8226; <a href="https://correlatesofwar.org/wp-content/uploads/Arms-TechnologyV1.1.zip">COW arms technology 1.1 ZIP</a></div> |
+| `source_atop_dyadic_years` | <div>&#8226; <code>atop5_1ddyr.csv</code></div> | 5.1 | <div>&#8226; <a href="http://www.atopdata.org/uploads/6/9/1/3/69134503/atop_5.1__.csv_.zip">ATOP 5.1 dyadic-years ZIP</a></div><div>&#8226; <a href="http://www.atopdata.org/uploads/6/9/1/3/69134503/atop_5_1_codebook.pdf">ATOP 5.1 codebook</a></div> |
+| `source_mtops_dyadic` | <div>&#8226; <code>mtopsd150.csv</code></div> | 1.5 | <div>&#8226; <a href="https://www.paulhensel.org/Data/mtops.zip">MTOPS 1.5 ZIP</a></div> |
+| `source_cow_trade_dyadic` | <div>&#8226; <code>Dyadic_COW_4.0.csv</code></div> | 4.0 | <div>&#8226; <a href="https://correlatesofwar.org/wp-content/uploads/COW_Trade_4.0.zip">COW trade 4.0 ZIP</a></div> |
+| `source_cow_trade_national` | <div>&#8226; <code>National_COW_4.0.csv</code></div> | 4.0 | <div>&#8226; <a href="https://correlatesofwar.org/wp-content/uploads/COW_Trade_4.0.zip">COW trade 4.0 ZIP</a></div> |
+| `source_national_material_capabilities` | <div>&#8226; <code>NMC-70-wsupplementary.csv</code></div> | 7.0 | <div>&#8226; <a href="https://correlatesofwar.org/wp-content/uploads/NMCv7.zip">NMC v7 ZIP</a></div> |
 
 Other files in the legacy ignored `documentation/` directory correspond to datasets that have not yet been incorporated
 and were not used for the current Step 1 or Step 2 assumptions.
