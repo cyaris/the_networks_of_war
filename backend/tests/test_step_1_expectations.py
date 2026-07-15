@@ -888,17 +888,18 @@ def test_source_adjusted_mid_war_number_relationships_are_applied(conn):
     """
     assert scalar(conn, count_sql) == 0
 
-    count_sql = """
-    select count(*)
+    query = """
+    select
+        war_name,
+        war_type,
+        total_participants,
+        total_dyads
     from wars
-    where
-        war_num = 4182
-        and war_name = 'Israeli–Hezbollah Conflict (South Lebanon)'
-        and war_type = 1
-        and total_participants = 2
-        and total_dyads = 1
+    where war_num = 4182
     """
-    assert scalar(conn, count_sql) == 1
+    actual_war = conn.execute(query).fetchone()
+
+    assert actual_war == ("Israeli–Hezbollah Conflict (South Lebanon)", 1, 2, 1)
 
 
 def test_source_adjusted_mid_participant_side_assignments_are_applied(conn):
