@@ -23,7 +23,7 @@ packages = []
 [tool.isort]
 profile = "black"
 line_length = 120
-known_first_party = ["pipeline", "utils"]
+known_first_party = ["_duckdb_pipeline", "_source", "pipeline", "utils"]
 
 [tool.black]
 line-length = 120
