@@ -172,16 +172,6 @@
 
     let daysAtWarValues = getNodeDescriptiveValues("days_at_war_z")[0]
     let daysNotAtWarValues = getNodeDescriptiveValues("days_not_at_war_z")[0]
-    let maxLandMassGain = maxValue(coalescedUniqueValues(getNodeDescriptiveValues("land_mass_exchange_gain_z")[0]))
-    let maxLandMassLoss = maxValue(coalescedUniqueValues(getNodeDescriptiveValues("land_mass_exchange_loss_z")[0]))
-    let sumAlliedCountries = maxValue(getNodeDescriptiveValues("allied_countries_z")[0])
-    let sumTerrorismDeaths = maxValue(getNodeDescriptiveValues("terrorism_deaths_z")[0])
-    let sumConcurrentWars = maxValue(getNodeDescriptiveValues("concurrent_wars_z")[0])
-    let sumTradeCountries = maxValue(getNodeDescriptiveValues("trade_countries_z")[0])
-    let sumMidDyads = maxValue(getNodeDescriptiveValues("mid_dyads_z")[0])
-    let sumMidDyadsInitiated = maxValue(getNodeDescriptiveValues("mid_dyads_initiated_z")[0])
-    let sumMidDyadsJoined = maxValue(getNodeDescriptiveValues("mid_dyads_joined_z")[0])
-    let sumMidDyadsTargeted = maxValue(getNodeDescriptiveValues("mid_dyads_targeted_z")[0])
 
     let items = fields
       .filter(field => {
@@ -189,83 +179,10 @@
         let uniqueValues = coalescedUniqueValues(values)
 
         if (maxValue(uniqueValues) == 0) return false
+        if (uniqueValues.length == 1) return false
         if (fieldNullRadiusNodes / values.length >= 0.5) return false
         if (field == "days_at_war_z" && coalescedUniqueValues(daysAtWarValues).length == 1) return false
         if (field == "days_not_at_war_z" && coalescedUniqueValues(daysNotAtWarValues).length == 1) return false
-        if (
-          [
-            "land_mass_exchange_gain_x",
-            "land_mass_exchange_gain_y",
-            "land_mass_exchange_gain_z",
-            "population_exchange_gain_x",
-            "population_exchange_gain_y",
-            "population_exchange_gain_z",
-          ].includes(field) &&
-          maxLandMassLoss == 0
-        )
-          return false
-        if (
-          [
-            "land_mass_exchange_loss_x",
-            "land_mass_exchange_loss_y",
-            "land_mass_exchange_loss_z",
-            "population_exchange_loss_x",
-            "population_exchange_loss_y",
-            "population_exchange_loss_z",
-          ].includes(field) &&
-          maxLandMassGain == 0
-        )
-          return false
-        if (["concurrent_wars_x", "concurrent_wars_y", "concurrent_wars_z"].includes(field) && sumConcurrentWars <= 3)
-          return false
-        if (
-          ["allied_countries_x", "allied_countries_y", "allied_countries_z"].includes(field) &&
-          sumAlliedCountries / 2 <= 3
-        )
-          return false
-        if (
-          ["terrorism_deaths_x", "terrorism_deaths_y", "terrorism_deaths_z"].includes(field) &&
-          sumTerrorismDeaths <= 100
-        )
-          return false
-        if (
-          ["trade_countries_x", "trade_countries_y", "trade_countries_z"].includes(field) &&
-          sumTradeCountries / 2 <= 10
-        )
-          return false
-        if (
-          [
-            "mid_dyads_x",
-            "mid_dyads_initiated_x",
-            "mid_dyads_joined_x",
-            "mid_dyads_targeted_x",
-            "mid_dyads_y",
-            "mid_dyads_initiated_y",
-            "mid_dyads_joined_y",
-            "mid_dyads_targeted_y",
-            "mid_dyads_z",
-            "mid_dyads_initiated_z",
-            "mid_dyads_joined_z",
-            "mid_dyads_targeted_z",
-          ].includes(field) &&
-          sumMidDyads / 2 <= descriptorLinks.length
-        )
-          return false
-        if (
-          ["mid_dyads_initiated_x", "mid_dyads_initiated_y", "mid_dyads_initiated_z"].includes(field) &&
-          sumMidDyadsInitiated / 2 <= descriptorLinks.length + 1
-        )
-          return false
-        if (
-          ["mid_dyads_joined_x", "mid_dyads_joined_y", "mid_dyads_joined_z"].includes(field) &&
-          sumMidDyadsJoined / 2 <= descriptorLinks.length + 1
-        )
-          return false
-        if (
-          ["mid_dyads_targeted_x", "mid_dyads_targeted_y", "mid_dyads_targeted_z"].includes(field) &&
-          sumMidDyadsTargeted / 2 <= descriptorLinks.length + 1
-        )
-          return false
         if (field == "battle_deaths_per_day_z" && coalescedUniqueValues(daysAtWarValues).length == 1) return false
 
         return true

@@ -118,6 +118,30 @@ def test_step_3_exports_frontend_graph_data(step_3_outputs: tuple[Path, Path]):
         assert scalar(conn, "select count(*) from final_wars where graph_json is not null") > 0
 
 
+def test_step_3_frontend_graph_data_prunes_unavailable_descriptor_fields(step_3_outputs: tuple[Path, Path]):
+    _, frontend_data_path = step_3_outputs
+    payload = json.loads(frontend_data_path.read_text())
+
+    for graph in payload["graphsByWarNum"].values():
+        nodes = graph["nodes"]
+        links = graph["links"]
+        node_fields = sorted({field for node in nodes for field in node if is_timeframe_field(field)})
+        link_fields = sorted({field for link in links for field in link if is_timeframe_field(field)})
+
+        for field in node_fields:
+            values = [number_or_none(node.get(field)) for node in nodes]
+            coalesced_values = [max(value if value is not None else 0, 0) for value in values]
+
+            assert max(coalesced_values, default=0) > 0
+            assert len(set(coalesced_values)) > 1
+            assert sum(value is None for value in values) / len(values) < 0.5
+
+        for field in link_fields:
+            values = [number_or_none(link.get(field)) for link in links]
+
+            assert any(value is not None and value > 0 for value in values)
+
+
 def test_step_3_applies_legacy_participant_fill_and_conversion_rules(conn):
 
     state_null_fill_sql = """
@@ -195,3 +219,16 @@ def test_step_3_materializes_valid_per_war_graph_json(conn):
 
 def js_war_num_key(value: float) -> str:
     return str(int(value)) if value == int(value) else str(value)
+
+
+def is_timeframe_field(field: str) -> bool:
+    return field.endswith(("_x", "_y", "_z"))
+
+
+def number_or_none(value):
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, (int, float)):
+        return value
+
+    return None

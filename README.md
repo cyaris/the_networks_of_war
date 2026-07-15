@@ -54,6 +54,8 @@ The app is available at `/the_networks_of_war` in development. The root route al
 
 The frontend consumes ignored generated data at `frontend/src/lib/static/graphData.json`. Do not commit this file. Step
 3 writes it from `backend/sql/step_3/04_export_frontend_graph_data.sql` after the final Step 3 tables are built.
+The export omits per-war descriptor fields that are not objectively available for the graph dropdowns, so the frontend
+does not need to receive fields that cannot be selected.
 
 Regenerate the frontend data snapshot from an already-built backend database:
 
@@ -304,7 +306,8 @@ The legacy Step 3 notebook saved `part_df.pkl`, `dyad_df.pkl`, `war_df.pkl`, one
 `war_file_list.csv`. The DuckDB rebuild keeps the same final concepts in tables instead of writing many JSON files.
 `final_wars.graph_json` stores one graph payload per `war_num`, while `final_participants` and `final_dyads` keep the
 normalized graph shape available for a Svelte app or API route. `pipeline.py` writes the single frontend payload after
-Step 3 completes.
+Step 3 completes. The frontend payload keeps base node/link fields for each graph and adds `_x`, `_y`, and `_z`
+descriptor fields only when they pass per-war availability checks.
 
 ## Ingestion Assumptions
 
@@ -482,6 +485,9 @@ flowchart LR
   or dyads involving non-state participants; COW unknown/not-applicable sentinels `-9` and `-8` become `null`.
 - Step 3 participant outputs convert legacy unit-scaled fields before graph export: trade money flows to dollars,
   NMC military/population and displacement counts to people, and iron/steel and energy figures to documented base units.
+- Step 3 frontend export prunes unavailable graph descriptor fields per war. Node descriptor fields are exported only
+  when they have a positive maximum value, fewer than half null values, and more than one coalesced value after treating
+  nulls as zero. Link descriptor fields are exported only when at least one dyad has a positive value.
 - Step 3 does not write separate JSON files. `final_wars.graph_json` provides the per-war graph payload directly from
   DuckDB, and `pipeline.py` writes the single frontend payload from
   `backend/sql/step_3/04_export_frontend_graph_data.sql`.
