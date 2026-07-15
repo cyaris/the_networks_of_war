@@ -9,7 +9,7 @@ from pathlib import Path
 
 import duckdb
 
-from _source import BACKEND_ROOT
+from source import BACKEND_ROOT
 from utils import initialize_logger
 
 logger = initialize_logger(__name__)

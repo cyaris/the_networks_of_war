@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from _duckdb_pipeline import (
+from duckdb_backend import (
     DEFAULT_DB_PATH,
     SQL_ROOT,
     STEP_1_SOURCE_KEYS,
@@ -20,7 +20,7 @@ from _duckdb_pipeline import (
     render_sql,
     sql_identifier,
 )
-from _source import (
+from source import (
     DEFAULT_CSV_DIR,
     DEFAULT_DATA_DIR,
     PARTICIPANT_NAME_REPLACEMENTS_PATH,
