@@ -21,14 +21,13 @@
   let currentGraph = null
   let currentWidth = null
   let currentSizingSignature = null
+  let currentLinkDescriptorSignature = null
   let linkDashPulseTimer = null
   let linkDashStrokeWidth = 3
   let nodeDescriptiveValues = []
   let maxDomain = 2
   let stdNullRadiusSize = 1
   let nodeMargins = emptyNodeMargins()
-  let primaryNode = null
-  let onlyOnePrimaryNode = false
   let radiusScale = scaleLinear([0, maxDomain], [1, 125])
 
   const graphTextSize = 12
@@ -89,6 +88,12 @@
 
   function maxValue(values) {
     return Math.max(...values.map(value => (Number.isFinite(value) ? value : 0)), 0)
+  }
+
+  function averageValue(values) {
+    let finiteValues = values.filter(Number.isFinite)
+
+    return finiteValues.length ? finiteValues.reduce((total, value) => total + value, 0) / finiteValues.length : 0
   }
 
   function fieldLabel(field) {
@@ -371,8 +376,6 @@
   }
 
   function getXAdjusted(id, xLoc) {
-    if (id == primaryNode && nodes.length > 2) return graphCenterX
-
     return Math.max(
       nodeMargins.added_left_margin[id] ?? addedMarginSize,
       Math.min(width - (nodeMargins.added_right_margin[id] ?? addedMarginSize), xLoc ?? graphCenterX)
@@ -380,8 +383,6 @@
   }
 
   function getYAdjusted(id, yLoc) {
-    if (id == primaryNode && nodes.length > 2) return graphCenterY
-
     return Math.max(
       nodeMargins.added_top_margin[id] ?? addedMarginSize,
       Math.min(height - (nodeMargins.added_bottom_margin[id] ?? addedMarginSize), yLoc ?? graphCenterY)
@@ -479,32 +480,11 @@
     return linkDescriptorValue?.value && Number(link[linkDescriptorValue.value] || 0) > 0
   }
 
-  function identifyPrimaryNode() {
-    let linkCombinations = links.map(link =>
-      [Number.parseInt(linkSourceId(link)), Number.parseInt(linkTargetId(link))].sort((a, b) => a - b)
-    )
-    let linkCount = linkCombinations.length
-    let linkedNodeCount = new Set(linkCombinations.flat()).size
-    let floatingNodeCount = nodes.length - linkedNodeCount
-
-    if (linkCount <= 1) return null
-
-    if (linkCount == nodes.length - floatingNodeCount - 1) {
-      let firstLinkCombination = [linkCombinations[0][0], linkCombinations[0][1]]
-
-      return firstLinkCombination.includes(linkCombinations[1][0]) ? linkCombinations[1][0] : linkCombinations[1][1]
-    }
-
-    return null
-  }
-
   function applyLegacySizing() {
     ;[nodeDescriptiveValues, maxDomain, stdNullRadiusSize] = getNodeDescriptiveValues(
       nodeDescriptorValue?.value || null
     )
     nodeMargins = getNodeMargins()
-    primaryNode = identifyPrimaryNode()
-    onlyOnePrimaryNode = primaryNode != null
   }
 
   function createLegacySimulation() {
@@ -523,20 +503,14 @@
       }))
       .filter(linkNode => linkNode.source && linkNode.target)
 
+    let averageNodeRadius = averageValue(Object.values(nodeMargins.radius_size))
+    let averageHorizontalNameShift = averageValue(Object.values(nodeMargins.horizontal_name_shift))
+
     simulation = forceSimulation(nodes.concat(linkNodes))
-      .force(
-        "charge",
-        forceManyBody().strength(() => (onlyOnePrimaryNode ? -7500 : -1000))
-      )
+      .force("charge", forceManyBody().strength(-1000))
       .force("center", forceCenter(graphCenterX, graphCenterY))
-      .force(
-        "x",
-        forceX(graphCenterX).strength(() => (onlyOnePrimaryNode ? 0.75 : 0.15))
-      )
-      .force(
-        "y",
-        forceY(graphHeight - addedMarginSize * 2).strength(() => (onlyOnePrimaryNode ? 0.75 : 0.5))
-      )
+      .force("x", forceX(graphCenterX).strength(0.15))
+      .force("y", forceY(graphHeight - addedMarginSize * 2).strength(0.5))
       .force(
         "collision",
         forceCollide()
@@ -548,7 +522,7 @@
                 Math.abs(nodeMargins.horizontal_name_shift[d.id] ?? 0) +
                 Math.abs(nodeMargins.vertical_name_shift[d.id] ?? 0) +
                 addedMarginSize,
-              stdNullRadiusSize + addedMarginSize,
+              averageNodeRadius + averageHorizontalNameShift + addedMarginSize,
               addedMarginSize
             )
           })
@@ -663,10 +637,23 @@
     hoverNode = null
     dragNode = null
     currentSizingSignature = null
+    currentLinkDescriptorSignature = null
   }
 
   function resetLinkDashStrokeWidth() {
     linkDashStrokeWidth = 3
+  }
+
+  function triggerLinkDashPulse() {
+    clearTimeout(linkDashPulseTimer)
+    linkDashStrokeWidth = 7
+    linkDashPulseTimer = setTimeout(resetLinkDashStrokeWidth, 1050)
+  }
+
+  function updateLinkDescriptorValue(event) {
+    linkDescriptorValue = event.detail.d
+    triggerLinkDashPulse()
+    links = links
   }
 
   $: if (graph !== currentGraph || width !== currentWidth) {
@@ -703,10 +690,9 @@
     createLegacySimulation()
   }
   $: linkDescriptorSignature = linkDescriptorValue?.value || "none"
-  $: if (linkDescriptorSignature) {
-    clearTimeout(linkDashPulseTimer)
-    linkDashStrokeWidth = 7
-    linkDashPulseTimer = setTimeout(resetLinkDashStrokeWidth, 1050)
+  $: if (linkDescriptorSignature != currentLinkDescriptorSignature) {
+    currentLinkDescriptorSignature = linkDescriptorSignature
+    triggerLinkDashPulse()
   }
 
   $: timeframe = selectedWar
@@ -754,7 +740,12 @@
         </div>
         <div>
           <div class="mb-1 text-xs font-extrabold uppercase tracking-[0.16em] text-[#596b64]">Link Dashes</div>
-          <Select items={linkDescriptorItems} bind:value={linkDescriptorValue} clearable={false} />
+          <Select
+            items={linkDescriptorItems}
+            bind:value={linkDescriptorValue}
+            clearable={false}
+            on:valueChange={updateLinkDescriptorValue}
+          />
         </div>
       </div>
     {/if}
@@ -826,7 +817,7 @@
                 style="transition: r 3000ms ease 500ms, stroke-width 150ms ease;"
               />
               <text
-                class="pointer-events-none text-[12px] font-bold"
+                class="text-[12px] font-bold"
                 x={labelPosition(node).x}
                 y={labelPosition(node).y}
                 text-anchor={labelPosition(node).anchor}
@@ -840,7 +831,7 @@
               </text>
               {#if showNodeSizeWarning(node)}
                 <text
-                  class="pointer-events-none text-[12px] font-bold"
+                  class="text-[12px] font-bold"
                   x={nodeSizeWarningPosition(node).x}
                   y={nodeSizeWarningPosition(node).y}
                   text-anchor="middle"
