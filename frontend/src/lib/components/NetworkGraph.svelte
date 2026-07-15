@@ -240,14 +240,6 @@
     return nodeRadiusValue * 2 > textWidth(nameInput) + 15
   }
 
-  function verticalNameShift(nodeRadiusValue, participantName) {
-    return nameFitsInNode(nodeRadiusValue, participantName) ? 5 : nodeRadiusValue + 22.5
-  }
-
-  function horizontalNameShift(nodeRadiusValue, participantName) {
-    return nameFitsInNode(nodeRadiusValue, participantName) ? 0 : 30
-  }
-
   function getNodeMargins() {
     let margins = emptyNodeMargins()
 
@@ -261,11 +253,11 @@
           ? minRadiusSize
           : radiusScale(stdNullRadiusSize)
         : radiusScale(nodeValue)
+      let nameFits = nameFitsInNode(currentRadiusSize, node.participant)
       let currentNameLength = textWidth(node.participant)
       let currentNameLengthHalf = currentNameLength / 2
-      let currentVerticalShift = verticalNameShift(currentRadiusSize, node.participant)
-      let currentHorizontalShift = horizontalNameShift(currentRadiusSize, node.participant)
-      let nameFits = nameFitsInNode(currentRadiusSize, node.participant)
+      let currentVerticalShift = nameFits ? 5 : currentRadiusSize + 22.5
+      let currentHorizontalShift = nameFits ? 0 : 30
 
       margins.radius_size[node.id] = currentRadiusSize
       margins.name[node.id] = node.participant
@@ -310,28 +302,16 @@
     )
   }
 
-  function linkSourceId(link) {
-    return typeof link.source == "object" ? link.source.id : link.source
+  function linkEndpointId(link, endpoint) {
+    return typeof link[endpoint] == "object" ? link[endpoint].id : link[endpoint]
   }
 
-  function linkTargetId(link) {
-    return typeof link.target == "object" ? link.target.id : link.target
+  function linkX(link, endpoint) {
+    return getXAdjusted(linkEndpointId(link, endpoint), link[endpoint]?.x)
   }
 
-  function linkSourceX(link) {
-    return getXAdjusted(linkSourceId(link), link.source?.x)
-  }
-
-  function linkSourceY(link) {
-    return getYAdjusted(linkSourceId(link), link.source?.y)
-  }
-
-  function linkTargetX(link) {
-    return getXAdjusted(linkTargetId(link), link.target?.x)
-  }
-
-  function linkTargetY(link) {
-    return getYAdjusted(linkTargetId(link), link.target?.y)
+  function linkY(link, endpoint) {
+    return getYAdjusted(linkEndpointId(link, endpoint), link[endpoint]?.y)
   }
 
   function labelPosition(node) {
@@ -372,8 +352,7 @@
     }
   }
 
-  function nodeSizeWarningPosition(node) {
-    let label = labelPosition(node)
+  function nodeSizeWarningPosition(node, label = labelPosition(node)) {
     let offset = Math.max(nodeMargins.horizontal_name_shift[node.id] ?? 0, nodeRadius(node) + nodeSizeWarningOffset)
     let outsideXOperator = label.x < 0 ? 1 : -1
     let outsideYOperator = label.y < 0 ? 1 : -1
@@ -412,9 +391,7 @@
   }
 
   function createLegacySimulation() {
-    if (simulation) {
-      simulation.stop()
-    }
+    stopSimulation()
 
     if (!nodes.length || !width || !height) return
 
@@ -422,8 +399,8 @@
 
     linkNodes = links
       .map(link => ({
-        source: nodeById.get(linkSourceId(link)),
-        target: nodeById.get(linkTargetId(link)),
+        source: nodeById.get(linkEndpointId(link, "source")),
+        target: nodeById.get(linkEndpointId(link, "target")),
       }))
       .filter(linkNode => linkNode.source && linkNode.target)
 
@@ -475,8 +452,7 @@
               getYAdjusted(linkNode.target.id, linkNode.target.y)) *
             0.5
         })
-        nodes = nodes
-        links = links
+        refreshGraphRows()
       })
   }
 
@@ -503,10 +479,26 @@
     tooltip = { node, ...tooltipPoint(event) }
   }
 
+  function clearTooltip() {
+    if (!dragNode) {
+      hoverNode = null
+      tooltip = null
+    }
+  }
+
   function moveTooltip(event) {
     if (hoverNode && !dragNode) {
       tooltip = { node: hoverNode, ...tooltipPoint(event) }
     }
+  }
+
+  function refreshGraphRows() {
+    nodes = nodes
+    refreshLinks()
+  }
+
+  function refreshLinks() {
+    links = links
   }
 
   function startDrag(node, event) {
@@ -531,8 +523,7 @@
     dragNode.fy = point.y
     dragNode.x = point.x
     dragNode.y = point.y
-    nodes = nodes
-    links = links
+    refreshGraphRows()
   }
 
   function endDrag() {
@@ -548,9 +539,7 @@
   }
 
   function resetSimulation() {
-    if (simulation) {
-      simulation.stop()
-    }
+    stopSimulation()
 
     descriptorNodes = enrichedNodes(graph?.nodes || [])
     descriptorLinks = (graph?.links || []).map(d => ({ ...d }))
@@ -578,7 +567,13 @@
   function updateLinkDescriptorValue(event) {
     linkDescriptorValue = event.detail.d
     triggerLinkDashPulse()
-    links = links
+    refreshLinks()
+  }
+
+  function stopSimulation() {
+    if (simulation) {
+      simulation.stop()
+    }
   }
 
   function hasTimeframeDescriptor(row, timeframe) {
@@ -629,9 +624,7 @@
     : ""
 
   onDestroy(() => {
-    if (simulation) {
-      simulation.stop()
-    }
+    stopSimulation()
     clearTimeout(linkDashPulseTimer)
   })
 </script>
@@ -682,30 +675,25 @@
         role="img"
         bind:this={svg}
         on:pointermove={moveTooltip}
-        on:pointerleave={() => {
-          if (!dragNode) {
-            hoverNode = null
-            tooltip = null
-          }
-        }}
+        on:pointerleave={clearTooltip}
       >
         <rect {width} {height} fill="#fbfcf9" />
         <g>
           {#each links as link, i (i)}
             <line
-              x1={linkSourceX(link)}
-              y1={linkSourceY(link)}
-              x2={linkTargetX(link)}
-              y2={linkTargetY(link)}
+              x1={linkX(link, "source")}
+              y1={linkY(link, "source")}
+              x2={linkX(link, "target")}
+              y2={linkY(link, "target")}
               stroke="#8a948f"
               stroke-opacity="0.45"
               stroke-width="1"
             />
             <line
-              x1={linkSourceX(link)}
-              y1={linkSourceY(link)}
-              x2={linkTargetX(link)}
-              y2={linkTargetY(link)}
+              x1={linkX(link, "source")}
+              y1={linkY(link, "source")}
+              x2={linkX(link, "target")}
+              y2={linkY(link, "target")}
               stroke={linkHasDescriptor(link) ? "blue" : "transparent"}
               stroke-opacity="0.9"
               stroke-width={linkDashStrokeWidth}
@@ -725,12 +713,7 @@
               on:pointerdown={event => startDrag(node, event)}
               on:pointerenter={event => showTooltip(node, event)}
               on:pointermove={event => showTooltip(node, event)}
-              on:pointerleave={() => {
-                if (!dragNode) {
-                  hoverNode = null
-                  tooltip = null
-                }
-              }}
+              on:pointerleave={clearTooltip}
             >
               <circle
                 r={nodeRadius(node)}
@@ -753,7 +736,7 @@
                 {node.participant}
               </text>
               {#if showNodeSizeWarning(node)}
-                {@const warningPosition = nodeSizeWarningPosition(node)}
+                {@const warningPosition = nodeSizeWarningPosition(node, label)}
                 <text
                   class="text-[12px] font-bold"
                   x={warningPosition.x}
