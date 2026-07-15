@@ -127,6 +127,7 @@ def test_step_3_exports_frontend_graph_data(step_3_outputs: tuple[Path, Path]):
     assert payload["source"]["tables"] == ["final_wars", "d3_war_nodes", "d3_war_links"]
     assert len(payload["wars"]) > 0
     assert len(payload["graphsByWarNum"]) > 0
+    assert all(js_war_num_key(war["war_num"]) in payload["graphsByWarNum"] for war in payload["wars"])
 
     with duckdb.connect(str(db_path), read_only=True) as conn:
         graph_data_json = conn.execute("select graph_data_json from frontend_graph_data").fetchone()[0]
@@ -204,3 +205,7 @@ def test_step_3_materializes_valid_per_war_graph_json(conn):
     assert len(graph["war"]) == 1
     assert len(graph["nodes"]) == scalar(conn, "select count(*) from d3_war_nodes where war_num = 419")
     assert len(graph["links"]) == scalar(conn, "select count(*) from d3_war_links where war_num = 419")
+
+
+def js_war_num_key(value: float) -> str:
+    return str(int(value)) if value == int(value) else str(value)

@@ -94,7 +94,7 @@ graph_json as (
 
 select
     json_group_object(
-        a.war_num::varchar,
+        if(a.war_num = floor(a.war_num), a.war_num::bigint::varchar, a.war_num::varchar),
         json_object('nodes', json(coalesce(b.payload, '[]')), 'links', json(coalesce(c.payload, '[]')))
     ) payload
 from frontend_wars a
