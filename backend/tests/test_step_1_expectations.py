@@ -1278,11 +1278,7 @@ def test_dyads_apply_final_transformation_assumptions(conn):
     """
     assert scalar(conn, count_sql) == 0
 
-    count_sql = """
-    with
-
-    duplicate_dyads as (
-
+    query = """
     select
         war_num,
         c_code_a,
@@ -1291,12 +1287,10 @@ def test_dyads_apply_final_transformation_assumptions(conn):
         participant_b
     from dyads
     group by 1, 2, 3, 4, 5
-    having count(*) > 1)
-
-    select count(*)
-    from duplicate_dyads
+    having count(*) > 1
+    order by 1, 2, 3, 4, 5
     """
-    assert scalar(conn, count_sql) == 0
+    assert conn.execute(query).fetchall() == []
 
     count_sql = """
     select count(*)
