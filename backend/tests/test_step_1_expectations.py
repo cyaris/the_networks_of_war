@@ -694,7 +694,10 @@ def test_war_type_ids_are_populated_when_required_and_exist_in_reference_table(c
         failures.append(sql_check_failure(table_name, detected_rows_sql, flagged_count, detected_rows, problem_cells))
 
     if failures:
-        fail_sql_check("War type ids should be populated when required and exist in the war_types reference table:", failures=failures)
+        fail_sql_check(
+            "War type ids should be populated when required and exist in the war_types reference table:",
+            failures=failures,
+        )
 
 
 def test_source_transition_war_references_are_positive_or_null(conn):
