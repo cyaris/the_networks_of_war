@@ -55,12 +55,14 @@ source_side_adjustments as (
 select
     a.war_num,
     a.c_code,
-    clean_participant(a.participant, c.replacement) participant,
+    coalesce(c.state_name, clean_participant(a.participant, d.replacement)) participant,
     a.side
 from source_participant_side_adjustments a
 join source_file_versions b on a.source_key = b.source_key
                             and a.source_version = b.source_version
-left join participant_name_replacements c on clean_text(a.participant) = c.source)
+left join country_codes c on a.c_code = c.c_code
+left join participant_name_replacements d on c.c_code is null
+                                          and clean_text(a.participant) = d.source)
 
 select
     a.war_num,
@@ -77,5 +79,5 @@ from participant_union a
 left join side_assignments b on a.war_num = b.war_num
                              and a.c_code = b.c_code
 left join source_side_adjustments c on a.war_num = c.war_num
-                                   and a.c_code = c.c_code
-                                   and a.participant = c.participant;
+                                    and a.c_code = c.c_code
+                                    and a.participant = c.participant;

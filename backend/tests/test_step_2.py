@@ -11,6 +11,7 @@ from pipeline import (
     SOURCE_METADATA,
     SOURCE_PREPARED_FILES,
     SQL_ROOT,
+    STEP_1_SOURCE_KEYS,
     STEP_2_SOURCE_KEYS,
     STEP_2_SQL,
     Pipeline,
@@ -37,19 +38,31 @@ STEP_2_SOURCE_TABLES = [
     "source_national_material_capabilities",
 ]
 
+STEP_2_TRANSFORMED_TABLES = [
+    "country_year_descriptives",
+    "participant_year_descriptives",
+    "participant_descriptives",
+    "dyad_year_descriptives",
+    "dyadic_descriptives",
+]
+
 
 @pytest.fixture(scope="session")
 def step_2_db_path(tmp_path_factory: pytest.TempPathFactory) -> Path:
     db_path = tmp_path_factory.mktemp("duckdb") / "step_2.duckdb"
     pipeline = Pipeline(db_path=db_path, csv_dir=DEFAULT_CSV_DIR)
     missing = [
-        str(path) for source_key in STEP_2_SOURCE_KEYS for path in pipeline.paths_for(source_key) if not path.exists()
+        str(path)
+        for source_key in [*STEP_1_SOURCE_KEYS, *STEP_2_SOURCE_KEYS]
+        for path in pipeline.paths_for(source_key)
+        if not path.exists()
     ]
 
     if missing:
-        pytest.skip("Step 2 source CSVs are not available:\n" + "\n".join(missing))
+        pytest.skip("Step 1 or Step 2 source CSVs are not available:\n" + "\n".join(missing))
 
     with pipeline.connect() as conn:
+        pipeline.run_step_1(conn)
         pipeline.run_step_2(conn)
 
     return db_path
@@ -146,8 +159,14 @@ def test_step_2_manifest_runs_source_ingestion(conn):
 
     assert STEP_2_SQL == [
         "00_setup.sql",
+        "step_1/00_setup.sql",
         "step_2/01_create_source_tables.sql",
         "step_2/02_insert_source_tables.sql",
+        "step_2/03_create_country_year_descriptives.sql",
+        "step_2/04_create_participant_year_descriptives.sql",
+        "step_2/05_create_participant_descriptives.sql",
+        "step_2/06_create_dyad_year_descriptives.sql",
+        "step_2/07_create_dyadic_descriptives.sql",
     ]
     assert set(STEP_2_SOURCE_TABLES).issubset(actual_tables)
     assert all(row_count > 0 for row_count in row_counts.values())
@@ -157,6 +176,30 @@ def test_step_2_manifest_runs_source_ingestion(conn):
     ]
     assert igo_columns[:4] == ["c_code_a", "c_code_b", "country_name_a", "country_name_b"]
     assert dd_revisited_columns[:2] == ["c_code_a", "c_code_b"]
+
+
+def test_step_2_manifest_runs_descriptive_transformations(conn):
+    actual_tables_query = """
+    select table_name
+    from information_schema.tables
+    where table_schema = current_schema()
+    """
+    actual_tables = {table_name for (table_name,) in conn.execute(actual_tables_query).fetchall()}
+    row_counts = {}
+
+    for table_name in STEP_2_TRANSFORMED_TABLES:
+        row_count_query = f"select count(*) from {sql_identifier(table_name)}"
+        row_counts[table_name] = conn.execute(row_count_query).fetchone()[0]
+
+    participant_columns = table_columns(conn, "participant_descriptives")
+    dyad_columns = table_columns(conn, "dyadic_descriptives")
+
+    assert set(STEP_2_TRANSFORMED_TABLES).issubset(actual_tables)
+    assert all(row_count > 0 for row_count in row_counts.values())
+    assert "terrorism_deaths_x" in participant_columns
+    assert "concurrent_wars_z" in participant_columns
+    assert "alliance_x" in dyad_columns
+    assert "mtops_z" in dyad_columns
 
 
 def test_step_2_source_metadata_files_match_known_downloads():

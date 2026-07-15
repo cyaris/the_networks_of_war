@@ -29,5 +29,10 @@ from (
         ('participants'),
         ('dyads'),
         ('dyad_years'),
-        ('wars')
+        ('wars'),
+        ('country_year_descriptives'),
+        ('participant_year_descriptives'),
+        ('participant_descriptives'),
+        ('dyad_year_descriptives'),
+        ('dyadic_descriptives')
 ) tables(table_name);

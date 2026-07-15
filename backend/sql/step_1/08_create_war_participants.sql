@@ -11,7 +11,7 @@ select
     c.war_type_name,
     c.war_subtype,
     a.c_code,
-    clean_participant(coalesce(d.state_name, a.participant), e.replacement) participant,
+    coalesce(d.state_name, clean_participant(a.participant, e.replacement)) participant,
     a.side,
     least(cow_date(a.start_year_1, a.start_month_1, a.start_day_1, 1, 1), cow_date(a.start_year_2, a.start_month_2, a.start_day_2, 1, 1)) start_date,
     greatest(cow_end_date(a.end_year_1, a.end_month_1, a.end_day_1), cow_end_date(a.end_year_2, a.end_month_2, a.end_day_2)) end_date,
@@ -22,7 +22,8 @@ select
 from source_interstate_wars a
 left join war_types c on a.war_type = c.war_type
 left join country_codes d on a.c_code = d.c_code
-left join participant_name_replacements e on clean_text(coalesce(d.state_name, a.participant)) = e.source
+left join participant_name_replacements e on d.c_code is null
+                                          and clean_text(a.participant) = e.source
 union all
 select
     a.war_num,
@@ -31,7 +32,7 @@ select
     a.war_type_name,
     a.war_subtype,
     a.c_code_a c_code,
-    clean_participant(a.participant_a, b.replacement) participant,
+    coalesce(b.state_name, clean_participant(a.participant_a, c.replacement)) participant,
     a.side_a side,
     a.start_date,
     a.end_date,
@@ -40,7 +41,9 @@ select
     a.battle_deaths_a battle_deaths,
     0 battle_deaths_estimated
 from war_dyads a
-left join participant_name_replacements b on clean_text(a.participant_a) = b.source
+left join country_codes b on a.c_code_a = b.c_code
+left join participant_name_replacements c on b.c_code is null
+                                          and clean_text(a.participant_a) = c.source
 where
     a.war_type <> 1
     and a.participant_a is not null
@@ -52,7 +55,7 @@ select
     a.war_type_name,
     a.war_subtype,
     a.c_code_b c_code,
-    clean_participant(a.participant_b, b.replacement) participant,
+    coalesce(b.state_name, clean_participant(a.participant_b, c.replacement)) participant,
     a.side_b side,
     a.start_date,
     a.end_date,
@@ -61,7 +64,9 @@ select
     a.battle_deaths_b battle_deaths,
     0 battle_deaths_estimated
 from war_dyads a
-left join participant_name_replacements b on clean_text(a.participant_b) = b.source
+left join country_codes b on a.c_code_b = b.c_code
+left join participant_name_replacements c on b.c_code is null
+                                          and clean_text(a.participant_b) = c.source
 where
     a.war_type <> 1
     and a.participant_b is not null),
@@ -89,11 +94,13 @@ dyadic_side_assignments as (
 select
     a.war_num,
     a.c_code,
-    clean_participant(a.participant, b.replacement) participant,
+    coalesce(b.state_name, clean_participant(a.participant, c.replacement)) participant,
     min(side) min_side,
     max(side) max_side
 from dyadic_side_rows a
-left join participant_name_replacements b on clean_text(a.participant) = b.source
+left join country_codes b on a.c_code = b.c_code
+left join participant_name_replacements c on b.c_code is null
+                                          and clean_text(a.participant) = c.source
 group by 1, 2, 3)
 
 select

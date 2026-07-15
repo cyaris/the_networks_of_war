@@ -70,7 +70,7 @@ Pipeline parameters:
 | `--data-dir PATH` | `backend/data/` | Source-data directory. Use `--data-dir data` for the default relative backend path. |
 | `--csv-dir PATH` | `backend/data/` | Backward-compatible alias for `--data-dir`; use `--csv-dir data` only for older scripts. |
 | `--db-path PATH` | `backend/the_networks_of_war.duckdb` | DuckDB database path. Use `--db-path the_networks_of_war.duckdb` for the default relative backend path. |
-| `--step {none,all,1,2,3}` | `all` | `all` rebuilds Steps 1 and 2; `1` rebuilds Step 1; `2` rebuilds Step 2 source tables; `3` is an accepted placeholder and currently raises `NotImplementedError`; `none` skips preprocessing. |
+| `--step {none,all,1,2,3}` | `all` | `all` rebuilds Steps 1 and 2; `1` rebuilds Step 1; `2` rebuilds Step 2 source and descriptive tables against existing Step 1 outputs; `3` is an accepted placeholder and currently raises `NotImplementedError`; `none` skips preprocessing. |
 | `--inspect` | off | Print table row counts after the selected step runs. |
 | `--prepare-data` | off | Download and validate missing source-data folders before opening the database. |
 | `--recreate-data` | off | Delete and recreate the full source-data directory before opening the database. |
@@ -89,7 +89,7 @@ Run all rebuilt steps:
 python src/pipeline.py --step all
 ```
 
-Run or rebuild Step 2 source tables:
+Run or rebuild Step 2 source and descriptive tables after Step 1 outputs exist:
 
 ```bash
 python src/pipeline.py --step 2
@@ -246,6 +246,14 @@ Step 1 also materializes compatibility tables:
 - `participants`
 - `wars`
 
+Step 2 also materializes descriptive compatibility tables:
+
+- `country_year_descriptives`
+- `participant_year_descriptives`
+- `participant_descriptives`
+- `dyad_year_descriptives`
+- `dyadic_descriptives`
+
 ## Ingestion Assumptions
 
 ### Source Ingestion Rules
@@ -319,6 +327,8 @@ Step 1 also materializes compatibility tables:
   internally where needed.
 - After source date components are resolved, transformed tables carry `start_date`, `end_date`, and date-estimation
   flags instead of the original day/month/year component columns.
+- Step 2 final descriptive tables use suffixes to distinguish the timeframe summarized for each war participant or
+  dyad: `_x` is the first active year, `_y` is the last active year, and `_z` is the whole active span.
 
 ### Source War Dyads And Participants
 
@@ -443,3 +453,13 @@ flowchart LR
     `present` or `ongoing`; `EndYr1` is set to `-7` for these rows. The original source values include `-7`, `-8`, and
     `-9`, but only `-7` is treated as an ongoing end-year marker. Other negative end-year values are loaded as `null`
     because the codebooks use them for not applicable or unknown values.
+
+## Backend Update Notes
+
+- Participant names for rows with COW codes come from `country_codes.state_name`. `participant_name_replacements.json`
+  is reserved for formatting cleanup and uncoded participant consolidation, and replacement targets should not duplicate
+  `country_codes.state_name` values.
+- Step 2 final descriptive table suffixes identify the summarized timeframe: `_x` is the first active year, `_y` is the
+  last active year, and `_z` is the whole active span.
+- Backend SQL table aliases use sequential single letters, and multi-line join predicates align continuation `and`
+  clauses beneath the preceding `on`.

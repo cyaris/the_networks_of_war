@@ -40,7 +40,17 @@ STEP_1_SQL = [
     "step_1/13_create_wars.sql",
 ]
 
-STEP_2_SQL = ["00_setup.sql", "step_2/01_create_source_tables.sql", "step_2/02_insert_source_tables.sql"]
+STEP_2_SQL = [
+    "00_setup.sql",
+    "step_1/00_setup.sql",
+    "step_2/01_create_source_tables.sql",
+    "step_2/02_insert_source_tables.sql",
+    "step_2/03_create_country_year_descriptives.sql",
+    "step_2/04_create_participant_year_descriptives.sql",
+    "step_2/05_create_participant_descriptives.sql",
+    "step_2/06_create_dyad_year_descriptives.sql",
+    "step_2/07_create_dyadic_descriptives.sql",
+]
 
 STEP_1_SOURCE_KEYS = [
     "country_codes",

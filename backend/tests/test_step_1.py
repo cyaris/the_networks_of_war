@@ -26,7 +26,6 @@ from shared import (  # noqa: E402
     sql_check_failure,
 )
 
-
 from pipeline import DEFAULT_CSV_DIR, SOURCE_FILES, STEP_1_SOURCE_KEYS, Pipeline, sql_identifier  # noqa: E402
 
 
@@ -166,10 +165,11 @@ def test_date_macros_capture_step_1_date_assumptions(conn, expression, expected)
 
 def test_clean_participant_nested_replacement_inventory_matches_current_sources(conn):
     actual_replacements = set()
+    current_inputs = {clean_text_python(value) for value in participant_input_values(conn)}
     expected_replacements = {
         (source, replacement)
         for source, replacement in participant_name_replacements()
-        if apply_legacy_participant_replacements(source) == replacement
+        if source in current_inputs and apply_legacy_participant_replacements(source) == replacement
     }
 
     for input_value in participant_input_values(conn):
@@ -209,6 +209,155 @@ def test_participant_name_replacements_are_unique_and_materialized(conn):
     actual_replacements = set(conn.execute(query).fetchall())
 
     assert actual_replacements == set(participant_name_replacements())
+
+
+def test_participant_name_replacements_do_not_duplicate_country_code_names(conn):
+    query = """
+    select
+        a.source,
+        a.replacement,
+        b.c_code
+    from participant_name_replacements a
+    join country_codes b on a.replacement = b.state_name
+    order by 1
+    """
+    replacement_country_names = conn.execute(query).fetchall()
+
+    assert replacement_country_names == []
+
+
+def test_shared_participant_replacement_targets_do_not_cross_country_codes(conn):
+    query = """
+    with
+
+    shared_replacements as (
+
+    select replacement
+    from participant_name_replacements
+    group by 1
+    having count(*) > 1),
+
+    replacement_names as (
+
+    select
+        a.replacement,
+        a.source source_name
+    from participant_name_replacements a
+    join shared_replacements b on a.replacement = b.replacement
+    union
+    select
+        a.replacement,
+        a.replacement source_name
+    from participant_name_replacements a
+    join shared_replacements b on a.replacement = b.replacement),
+
+    name_codes as (
+
+    select
+        a.replacement,
+        a.source_name,
+        b.c_code
+    from replacement_names a
+    join source_country_codes b on a.source_name = b.state_name)
+
+    select
+        replacement,
+        string_agg(distinct source_name || '=' || c_code, ', ' order by source_name || '=' || c_code) matched_names
+    from name_codes
+    group by 1
+    having count(distinct c_code) > 1
+    order by 1
+    """
+    conflicting_replacements = conn.execute(query).fetchall()
+
+    assert conflicting_replacements == []
+
+
+def test_expected_cow_code_fields_are_not_null(conn):
+    checks = [
+        ("source_interstate_wars", ["c_code"]),
+        ("source_interstate_war_dyads", ["c_code_a", "c_code_b"]),
+        ("source_interstate_mid_dyads", ["c_code_a", "c_code_b"]),
+        ("source_extrastate_wars", ["c_code_a", "c_code_b"]),
+        ("source_intrastate_wars", ["c_code_a", "c_code_b"]),
+        ("war_dyads", ["c_code_a", "c_code_b"]),
+        ("war_participants", ["c_code"]),
+        ("participants", ["c_code"]),
+        ("dyads", ["c_code_a", "c_code_b"]),
+    ]
+    unexpected = []
+
+    for table_name, columns in checks:
+        null_conditions = " or ".join(f"{column} is null" for column in columns)
+        query = f"""
+        select
+            {table_name!r} table_name,
+            count(*) null_code_rows
+        from {sql_identifier(table_name)}
+        where {null_conditions}
+        """
+        row = conn.execute(query).fetchone()
+
+        if row[1]:
+            unexpected.append(row)
+
+    assert unexpected == []
+
+
+def test_coded_participant_names_come_from_country_codes(conn):
+    query = """
+    select
+        'war_participants' table_name,
+        a.war_num,
+        a.c_code,
+        a.participant,
+        b.state_name
+    from war_participants a
+    join country_codes b on a.c_code = b.c_code
+    where
+        a.c_code > 0
+        and a.participant != b.state_name
+    union all
+    select
+        'participants' table_name,
+        a.war_num,
+        a.c_code,
+        a.participant,
+        b.state_name
+    from participants a
+    join country_codes b on a.c_code = b.c_code
+    where
+        a.c_code > 0
+        and a.participant != b.state_name
+    union all
+    select
+        'dyads_a' table_name,
+        a.war_num,
+        a.c_code_a c_code,
+        a.participant_a participant,
+        b.state_name
+    from dyads a
+    join country_codes b on a.c_code_a = b.c_code
+    where
+        a.c_code_a > 0
+        and a.participant_a != b.state_name
+    union all
+    select
+        'dyads_b' table_name,
+        a.war_num,
+        a.c_code_b c_code,
+        a.participant_b participant,
+        b.state_name
+    from dyads a
+    join country_codes b on a.c_code_b = b.c_code
+    where
+        a.c_code_b > 0
+        and a.participant_b != b.state_name
+    order by 1, 2, 3, 4
+    """
+    non_country_code_names = conn.execute(query).fetchall()
+
+    assert non_country_code_names == []
 
 
 def test_raw_source_date_components_use_valid_domains(conn):

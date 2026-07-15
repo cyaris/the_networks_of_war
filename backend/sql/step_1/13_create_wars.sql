@@ -114,22 +114,22 @@ from war_metadata_rows
 group by 1)
 
 select
-    w.war_num,
-    b.war_name,
-    b.war_type,
-    b.war_type_name,
-    b.war_subtype,
-    coalesce(a.total_participants, 0) total_participants,
-    coalesce(d.total_dyads, 0) total_dyads,
-    coalesce(a.start_date, d.start_date) start_date,
-    coalesce(a.end_date, d.end_date) end_date,
-    coalesce(a.start_date_estimated, d.start_date_estimated) start_date_estimated,
-    coalesce(a.end_date_estimated, d.end_date_estimated) end_date_estimated,
-    coalesce(c.ongoing_war, 0) ongoing_war,
-    c.lagging_war,
-    c.leading_war
-from war_nums w
-left join participant_counts a on w.war_num = a.war_num
-join war_metadata b on w.war_num = b.war_num
-left join source_wars c on w.war_num = c.war_num
-left join dyad_counts d on w.war_num = d.war_num;
+    a.war_num,
+    c.war_name,
+    c.war_type,
+    c.war_type_name,
+    c.war_subtype,
+    coalesce(b.total_participants, 0) total_participants,
+    coalesce(e.total_dyads, 0) total_dyads,
+    coalesce(b.start_date, e.start_date) start_date,
+    coalesce(b.end_date, e.end_date) end_date,
+    coalesce(b.start_date_estimated, e.start_date_estimated) start_date_estimated,
+    coalesce(b.end_date_estimated, e.end_date_estimated) end_date_estimated,
+    coalesce(d.ongoing_war, 0) ongoing_war,
+    d.lagging_war,
+    d.leading_war
+from war_nums a
+left join participant_counts b on a.war_num = b.war_num
+join war_metadata c on a.war_num = c.war_num
+left join source_wars d on a.war_num = d.war_num
+left join dyad_counts e on a.war_num = e.war_num;
