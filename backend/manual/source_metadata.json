@@ -1,0 +1,338 @@
+[
+  {
+    "key": "country_codes",
+    "file": "COW-country-codes.csv",
+    "version": "unversioned",
+    "downloads": [
+      {
+        "url": "https://correlatesofwar.org/wp-content/uploads/COW-country-codes.csv",
+        "kind": "file",
+        "filename": "COW-country-codes.csv"
+      }
+    ]
+  },
+  {
+    "key": "extrastate_wars",
+    "file": "Extra-StateWarData_v4.0.csv",
+    "version": "4.0",
+    "encoding": "cp1252",
+    "downloads": [
+      {
+        "url": "https://correlatesofwar.org/wp-content/uploads/Extra-StateWarData_v4.0.csv",
+        "kind": "file",
+        "filename": "Extra-StateWarData_v4.0.csv"
+      },
+      {
+        "url": "https://correlatesofwar.org/wp-content/uploads/Extra-StateWars_Codebook.pdf",
+        "kind": "file",
+        "filename": "Extra-StateWars_Codebook.pdf"
+      }
+    ]
+  },
+  {
+    "key": "global_terrorism_database",
+    "file": "globalterrorismdb_0522dist.csv",
+    "prepared_files": [
+      "globalterrorismdb_0522dist.csv",
+      "globalterrorismdb_2021Jan-June_1222dist.csv"
+    ],
+    "version": "0522 + 2021 Jan-June 1222",
+    "downloads": [
+      {
+        "url": "https://www.start.umd.edu/sites/default/files/2024-10/Codebook.pdf",
+        "kind": "file",
+        "filename": "Codebook.pdf"
+      },
+      {
+        "url": "https://www.start.umd.edu/system/files/globalterrorismdb_0522dist.xlsx",
+        "kind": "file",
+        "filename": "globalterrorismdb_0522dist.xlsx",
+        "converted_filename": "globalterrorismdb_0522dist.csv"
+      },
+      {
+        "url": "https://www.start.umd.edu/system/files/globalterrorismdb_2021Jan-June_1222dist.xlsx",
+        "kind": "file",
+        "filename": "globalterrorismdb_2021Jan-June_1222dist.xlsx",
+        "converted_filename": "globalterrorismdb_2021Jan-June_1222dist.csv"
+      }
+    ]
+  },
+  {
+    "key": "formal_alliances_directed_yearly",
+    "file": "alliance_v4.1_by_directed_yearly.csv",
+    "version": "4.1",
+    "downloads": [
+      {
+        "url": "https://correlatesofwar.org/wp-content/uploads/version4.1_csv.zip",
+        "kind": "zip",
+        "filename": "version4.1_csv.zip"
+      }
+    ]
+  },
+  {
+    "key": "territorial_changes",
+    "file": "tc2018.csv",
+    "version": "6",
+    "encoding": "latin-1",
+    "downloads": [
+      {
+        "url": "https://correlatesofwar.org/wp-content/uploads/terr-changes-v6.zip",
+        "kind": "zip",
+        "filename": "terr-changes-v6.zip"
+      }
+    ]
+  },
+  {
+    "key": "forcibly_displaced_populations",
+    "file": "FDP2008a.csv",
+    "version": "2008a",
+    "downloads": [
+      {
+        "url": "http://www.systemicpeace.org/inscr/FDP2008a.xls",
+        "kind": "file",
+        "filename": "FDP2008a.xls",
+        "converted_filename": "FDP2008a.csv"
+      },
+      {
+        "url": "http://www.systemicpeace.org/inscr/FDPCodebook2008.pdf",
+        "kind": "file",
+        "filename": "FDPCodebook2008.pdf"
+      }
+    ]
+  },
+  {
+    "key": "colonial_dependency_contiguity",
+    "file": "contcold.csv",
+    "version": "3.1",
+    "downloads": [
+      {
+        "url": "https://correlatesofwar.org/wp-content/uploads/ColonialContiguity310.zip",
+        "kind": "zip",
+        "filename": "ColonialContiguity310.zip"
+      }
+    ]
+  },
+  {
+    "key": "direct_contiguity",
+    "file": "contdird.csv",
+    "version": "3.2",
+    "downloads": [
+      {
+        "url": "https://correlatesofwar.org/wp-content/uploads/DirectContiguity320.zip",
+        "kind": "zip",
+        "filename": "DirectContiguity320.zip"
+      }
+    ]
+  },
+  {
+    "key": "defense_cooperation_agreements",
+    "file": "DCAD-v1.0-dyadic.csv",
+    "version": "1.0",
+    "downloads": [
+      {
+        "url": "https://correlatesofwar.org/wp-content/uploads/kinne_dca.zip",
+        "kind": "zip",
+        "filename": "kinne_dca.zip"
+      }
+    ]
+  },
+  {
+    "key": "intergovernmental_organizations_dyadic",
+    "file": "dyadic_formatv3.csv",
+    "version": "3",
+    "downloads": [
+      {
+        "url": "https://correlatesofwar.org/wp-content/uploads/dyadic_formatv3.zip",
+        "kind": "zip",
+        "filename": "dyadic_formatv3.zip"
+      },
+      {
+        "url": "https://correlatesofwar.org/wp-content/uploads/IGO-Codebook_v3_short-copy.pdf",
+        "kind": "file",
+        "filename": "IGO-Codebook_v3_short-copy.pdf"
+      }
+    ]
+  },
+  {
+    "key": "diplomatic_exchange",
+    "file": "Diplomatic_Exchange_2006v1.csv",
+    "version": "2006.1",
+    "downloads": [
+      {
+        "url": "https://correlatesofwar.org/wp-content/uploads/Diplomatic_Exchange_2006.1.zip",
+        "kind": "zip",
+        "filename": "Diplomatic_Exchange_2006.1.zip"
+      }
+    ]
+  },
+  {
+    "key": "dd_revisited",
+    "file": "ddrevisited_data_v1.csv",
+    "version": "1",
+    "encoding": "latin-1",
+    "downloads": [
+      {
+        "url": "https://github.com/cyaris/the_networks_of_war/releases/download/source-data-dd-revisited-v1/ddrevisited_data_v1.csv",
+        "kind": "file",
+        "filename": "ddrevisited_data_v1.csv"
+      },
+      {
+        "url": "https://rforpoliticalscience.com/wp-content/uploads/2022/04/ddrevisited-codebook.pdf",
+        "kind": "file",
+        "filename": "ddrevisited-codebook-v1-corrected.pdf"
+      }
+    ]
+  },
+  {
+    "key": "co_emissions_per_capita",
+    "file": "co-emissions-per-capita.csv",
+    "version": "1",
+    "downloads": [
+      {
+        "url": "https://ourworldindata.org/grapher/co-emissions-per-capita.csv?v=1&csvType=full&useColumnShortNames=true",
+        "kind": "file",
+        "filename": "co-emissions-per-capita.csv"
+      }
+    ]
+  },
+  {
+    "key": "arms_technology",
+    "file": "cow_arms_tech_long.csv",
+    "version": "1.1",
+    "downloads": [
+      {
+        "url": "https://correlatesofwar.org/wp-content/uploads/Arms-TechnologyV1.1.zip",
+        "kind": "zip",
+        "filename": "Arms-TechnologyV1.1.zip"
+      }
+    ]
+  },
+  {
+    "key": "atop_dyadic_years",
+    "file": "atop5_1ddyr.csv",
+    "version": "5.1",
+    "downloads": [
+      {
+        "url": "http://www.atopdata.org/uploads/6/9/1/3/69134503/atop_5.1__.csv_.zip",
+        "kind": "zip",
+        "filename": "atop_5.1__.csv_.zip"
+      },
+      {
+        "url": "http://www.atopdata.org/uploads/6/9/1/3/69134503/atop_5_1_codebook.pdf",
+        "kind": "file",
+        "filename": "atop_5_1_codebook.pdf"
+      }
+    ]
+  },
+  {
+    "key": "mtops_dyadic",
+    "file": "mtopsd150.csv",
+    "version": "1.5",
+    "downloads": [
+      {
+        "url": "https://www.paulhensel.org/Data/mtops.zip",
+        "kind": "zip",
+        "filename": "mtops.zip"
+      }
+    ]
+  },
+  {
+    "key": "interstate_mid_dyads",
+    "file": "dyadic_mid_4.03.csv",
+    "version": "4.03",
+    "downloads": [
+      {
+        "url": "https://correlatesofwar.org/wp-content/uploads/dyadic_mid_4.03_update.zip",
+        "kind": "zip",
+        "filename": "dyadic_mid_4.03_update.zip"
+      }
+    ]
+  },
+  {
+    "key": "interstate_war_dyads",
+    "file": "directed_dyadic_war.csv",
+    "version": "unversioned",
+    "downloads": [
+      {
+        "url": "https://correlatesofwar.org/wp-content/uploads/Dyadic-Interstate-War-Dataset.zip",
+        "kind": "zip",
+        "filename": "Dyadic-Interstate-War-Dataset.zip"
+      }
+    ]
+  },
+  {
+    "key": "interstate_wars",
+    "file": "Inter-StateWarData_v4.0.csv",
+    "version": "4.0",
+    "downloads": [
+      {
+        "url": "https://correlatesofwar.org/wp-content/uploads/Inter-StateWarData_v4.0.csv",
+        "kind": "file",
+        "filename": "Inter-StateWarData_v4.0.csv"
+      },
+      {
+        "url": "https://correlatesofwar.org/wp-content/uploads/Inter-StateWarsList.pdf",
+        "kind": "file",
+        "filename": "Inter-StateWarsList.pdf"
+      },
+      {
+        "url": "https://correlatesofwar.org/wp-content/uploads/Inter-StateWars_Codebook.pdf",
+        "kind": "file",
+        "filename": "Inter-StateWars_Codebook.pdf"
+      }
+    ]
+  },
+  {
+    "key": "cow_trade_dyadic",
+    "file": "Dyadic_COW_4.0.csv",
+    "version": "4.0",
+    "downloads": [
+      {
+        "url": "https://correlatesofwar.org/wp-content/uploads/COW_Trade_4.0.zip",
+        "kind": "zip",
+        "filename": "COW_Trade_4.0.zip"
+      }
+    ]
+  },
+  {
+    "key": "cow_trade_national",
+    "file": "National_COW_4.0.csv",
+    "version": "4.0",
+    "encoding": "latin-1",
+    "downloads": [
+      {
+        "url": "https://correlatesofwar.org/wp-content/uploads/COW_Trade_4.0.zip",
+        "kind": "zip",
+        "filename": "COW_Trade_4.0.zip"
+      }
+    ]
+  },
+  {
+    "key": "intrastate_wars",
+    "file": "INTRA-STATE_State_participants v5.1 CSV.csv",
+    "version": "5.1",
+    "downloads": [
+      {
+        "url": "https://correlatesofwar.org/wp-content/uploads/Intra-State-Wars-v5.1.zip",
+        "kind": "zip",
+        "filename": "Intra-State-Wars-v5.1.zip"
+      }
+    ]
+  },
+  {
+    "key": "national_material_capabilities",
+    "file": "NMC-70-wsupplementary.csv",
+    "version": "7.0",
+    "encoding": "latin-1",
+    "downloads": [
+      {
+        "url": "https://correlatesofwar.org/wp-content/uploads/NMCv7.zip",
+        "kind": "zip",
+        "filename": "NMCv7.zip",
+        "nested_zips": [
+          "NMC-v7-supplemental.zip"
+        ]
+      }
+    ]
+  }
+]

@@ -79,12 +79,7 @@ create or replace table source_interstate_mid_dyads (
     new_record integer,
     change_flag integer,
     change_type_1 integer,
-    change_type_2 integer,
-    dyad varchar,
-    abbrev_a varchar,
-    abbrev_b varchar,
-    last_observation integer,
-    newar integer
+    change_type_2 integer
 );
 
 create or replace table source_extrastate_wars (
@@ -191,10 +186,4 @@ create or replace table source_intrastate_wars (
     side_a_peak_theater_forces double,
     side_b_peak_theater_forces double,
     source_version double
-);
-
-create or replace table source_war_types (
-    war_type integer,
-    war_type_name varchar,
-    war_subtype varchar
 );

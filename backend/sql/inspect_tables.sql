@@ -1,64 +1,38 @@
-select
-    'source_country_codes' table_name,
-    count(*) row_count
-from source_country_codes
-union all
-select
-    'source_interstate_war_dyads' table_name,
-    count(*) row_count
-from source_interstate_war_dyads
-union all
-select
-    'source_interstate_mid_dyads' table_name,
-    count(*) row_count
-from source_interstate_mid_dyads
-union all
-select
-    'source_extrastate_wars' table_name,
-    count(*) row_count
-from source_extrastate_wars
-union all
-select
-    'source_interstate_wars' table_name,
-    count(*) row_count
-from source_interstate_wars
-union all
-select
-    'source_intrastate_wars' table_name,
-    count(*) row_count
-from source_intrastate_wars
-union all
-select
-    'source_war_types' table_name,
-    count(*) row_count
-from source_war_types
-union all
-select
-    'war_participants' table_name,
-    count(*) row_count
-from war_participants
-union all
-select
-    'dyads_after_sources' table_name,
-    count(*) row_count
-from dyads_after_sources
-union all
-select
-    'participants' table_name,
-    count(*) row_count
-from participants
-union all
-select
-    'dyads' table_name,
-    count(*) row_count
-from dyads
-union all
-select
-    'dyad_years' table_name,
-    count(*) row_count
-from dyad_years
-union all
-select
-    'wars' table_name,
-    count(*) row_count
-from wars;
+select *
+from (
+    values
+        ('source_country_codes'),
+        ('source_interstate_war_dyads'),
+        ('source_interstate_mid_dyads'),
+        ('source_extrastate_wars'),
+        ('source_interstate_wars'),
+        ('source_intrastate_wars'),
+        ('source_global_terrorism_database'),
+        ('source_formal_alliances_directed_yearly'),
+        ('source_territorial_changes'),
+        ('source_forcibly_displaced_populations'),
+        ('source_colonial_dependency_contiguity'),
+        ('source_direct_contiguity'),
+        ('source_defense_cooperation_agreements'),
+        ('source_intergovernmental_organizations_dyadic'),
+        ('source_diplomatic_exchange'),
+        ('source_dd_revisited'),
+        ('source_co_emissions_per_capita'),
+        ('source_arms_technology'),
+        ('source_atop_dyadic_years'),
+        ('source_mtops_dyadic'),
+        ('source_cow_trade_dyadic'),
+        ('source_cow_trade_national'),
+        ('source_national_material_capabilities'),
+        ('war_participants'),
+        ('dyads_after_sources'),
+        ('participants'),
+        ('dyads'),
+        ('dyad_years'),
+        ('wars'),
+        ('country_year_descriptives'),
+        ('participant_year_descriptives'),
+        ('participant_descriptives'),
+        ('dyad_year_descriptives'),
+        ('dyadic_descriptives')
+) tables(table_name);

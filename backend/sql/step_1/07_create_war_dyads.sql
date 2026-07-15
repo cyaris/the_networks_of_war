@@ -102,47 +102,59 @@ with
 cleaned_war_dyads as (
 
 select
-    war_num,
-    any_value(war_name) war_name,
-    any_value(war_type) war_type,
-    any_value(war_type_name) war_type_name,
-    any_value(war_subtype) war_subtype,
-    c_code_a,
-    c_code_b,
-    clean_participant(participant_a) participant_a,
-    clean_participant(participant_b) participant_b,
-    start_date,
-    end_date,
-    start_date_estimated,
-    end_date_estimated,
-    battle_deaths_a,
-    battle_deaths_b
-from war_dyads
+    a.war_num,
+    any_value(a.war_name) war_name,
+    any_value(a.war_type) war_type,
+    any_value(a.war_type_name) war_type_name,
+    any_value(a.war_subtype) war_subtype,
+    a.c_code_a,
+    a.c_code_b,
+    coalesce(b.state_name, clean_participant(a.participant_a, d.replacement)) participant_a,
+    coalesce(c.state_name, clean_participant(a.participant_b, e.replacement)) participant_b,
+    a.start_date,
+    a.end_date,
+    a.start_date_estimated,
+    a.end_date_estimated,
+    a.battle_deaths_a,
+    a.battle_deaths_b
+from war_dyads a
+left join country_codes b on a.c_code_a = b.c_code
+left join country_codes c on a.c_code_b = c.c_code
+left join participant_name_replacements d on b.c_code is null
+                                          and clean_text(a.participant_a) = d.source
+left join participant_name_replacements e on c.c_code is null
+                                          and clean_text(a.participant_b) = e.source
 where
-    participant_a is not null
-    and participant_b is not null
+    a.participant_a is not null
+    and a.participant_b is not null
 group by 1, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
 union all
 select
-    war_num,
-    any_value(war_name) war_name,
-    any_value(war_type) war_type,
-    any_value(war_type_name) war_type_name,
-    any_value(war_subtype) war_subtype,
-    c_code_b c_code_a,
-    c_code_a c_code_b,
-    clean_participant(participant_b) participant_a,
-    clean_participant(participant_a) participant_b,
-    start_date,
-    end_date,
-    start_date_estimated,
-    end_date_estimated,
-    battle_deaths_b battle_deaths_a,
-    battle_deaths_a battle_deaths_b
-from war_dyads
+    a.war_num,
+    any_value(a.war_name) war_name,
+    any_value(a.war_type) war_type,
+    any_value(a.war_type_name) war_type_name,
+    any_value(a.war_subtype) war_subtype,
+    a.c_code_b c_code_a,
+    a.c_code_a c_code_b,
+    coalesce(b.state_name, clean_participant(a.participant_b, d.replacement)) participant_a,
+    coalesce(c.state_name, clean_participant(a.participant_a, e.replacement)) participant_b,
+    a.start_date,
+    a.end_date,
+    a.start_date_estimated,
+    a.end_date_estimated,
+    a.battle_deaths_b battle_deaths_a,
+    a.battle_deaths_a battle_deaths_b
+from war_dyads a
+left join country_codes b on a.c_code_b = b.c_code
+left join country_codes c on a.c_code_a = c.c_code
+left join participant_name_replacements d on b.c_code is null
+                                          and clean_text(a.participant_b) = d.source
+left join participant_name_replacements e on c.c_code is null
+                                          and clean_text(a.participant_a) = e.source
 where
-    participant_a is not null
-    and participant_b is not null
+    a.participant_a is not null
+    and a.participant_b is not null
 group by 1, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)
 
 select

@@ -9,6 +9,9 @@ requires-python = ">=3.11"
 dependencies = [
     "colorama>=0.4.0",
     "duckdb>=1.0.0",
+    "openpyxl>=3.1.0",
+    "pandas>=2.0.0",
+    "xlrd>=2.0.0",
 ]
 
 [project.optional-dependencies]
@@ -20,7 +23,7 @@ packages = []
 [tool.isort]
 profile = "black"
 line_length = 120
-known_first_party = ["pipeline", "utils"]
+known_first_party = ["duckdb_backend", "pipeline", "source", "utils"]
 
 [tool.black]
 line-length = 120

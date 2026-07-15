@@ -15,7 +15,7 @@ select
     clean_int(statea) c_code_a,
     clean_int(stateb) c_code_b,
     clean_date_day(warstrtday) start_day_1,
-    if(clean_int(warstrtmnth) = 24, 12, clean_date_month(warstrtmnth)) start_month_1,
+    clean_date_month(warstrtmnth) start_month_1,
     clean_date_year(warstrtyr) start_year_1,
     clean_date_day(warenday) end_day_1,
     clean_date_month(warendmnth) end_month_1,
@@ -101,12 +101,7 @@ select
     clean_int(new) new_record,
     clean_int(change) change_flag,
     clean_int(changetype_1) change_type_1,
-    clean_int(changetype_2) change_type_2,
-    clean_text(dyad) dyad,
-    clean_text(abbreva) abbrev_a,
-    clean_text(abbrevb) abbrev_b,
-    clean_int(lastobs) last_observation,
-    clean_int(newar) newar
+    clean_int(changetype_2) change_type_2
 from read_csv_auto({interstate_mid_dyads_path}, normalize_names = false, encoding = 'latin-1');
 
 insert into source_extrastate_wars
@@ -114,7 +109,7 @@ insert into source_extrastate_wars
 select
     clean_number(WarNum) war_num,
     clean_text(WarName) war_name,
-    clean_int(WarType) war_type,
+    clean_war_type(WarType) war_type,
     clean_int(ccode1) c_code_a,
     clean_int(ccode2) c_code_b,
     clean_text(SideA) participant_a,
@@ -147,7 +142,7 @@ insert into source_interstate_wars
 select
     clean_number(WarNum) war_num,
     clean_text(WarName) war_name,
-    clean_int(WarType) war_type,
+    clean_war_type(WarType) war_type,
     clean_int(ccode) c_code,
     clean_text(StateName) participant,
     clean_int(Side) side,
@@ -178,7 +173,7 @@ select
     if(clean_number(WarNum) = 977, 979, clean_number(WarNum)) war_num,
     clean_text(WarName) war_name,
     clean_int(V5Region) v5_region,
-    clean_int(WarType) war_type,
+    clean_war_type(WarType) war_type,
     clean_int(CcodeA) c_code_a,
     clean_int(CcodeB) c_code_b,
     clean_text(SideA) participant_a,
@@ -198,8 +193,6 @@ select
     clean_date_year(StartYr4) start_year_4,
     clean_date_day(EndDy1) end_day_1,
     clean_date_month(EndMo1) end_month_1,
-    -- todo: review the line below.
-    -- Data-entry fix: these wars are ongoing despite non-ongoing source end-year sentinels.
     if(clean_number(WarNum) in (942, 990.4, 991, 991.4, 992.5), -7, clean_end_year(EndYr1)) end_year_1,
     clean_date_day(EndDy2) end_day_2,
     clean_date_month(EndMo2) end_month_2,
@@ -222,11 +215,3 @@ select
     clean_number(SideBPeakTheatForces) side_b_peak_theater_forces,
     clean_number(Version) source_version
 from read_csv_auto({intrastate_wars_path}, normalize_names = false, encoding = 'latin-1');
-
-insert into source_war_types
-
-select
-    clean_int(war_type_code) war_type,
-    clean_text(war_type) war_type_name,
-    clean_text(war_subtype) war_subtype
-from read_csv_auto({war_types_path}, normalize_names = false);
