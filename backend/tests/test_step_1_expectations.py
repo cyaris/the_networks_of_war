@@ -438,6 +438,9 @@ def test_negative_date_sentinels_are_cleaned_except_ongoing_end_year(conn):
         ("clean_war_reference(-8)", None),
         ("clean_war_reference(-9)", None),
         ("clean_war_reference(905)", 905),
+        ("clean_war_type(-8)", None),
+        ("clean_war_type(0)", 0),
+        ("clean_war_type(4)", 4),
     ],
 )
 def test_date_macros_capture_step_1_date_assumptions(conn, expression, expected):
@@ -659,6 +662,41 @@ def test_calculated_and_transient_source_columns_are_not_materialized(conn):
     assert "ongoing_war" in column_names(conn, "wars")
 
 
+def test_war_type_ids_are_populated_when_required_and_exist_in_reference_table(conn):
+    checks = [
+        ("source_interstate_wars", False),
+        ("source_extrastate_wars", False),
+        ("source_intrastate_wars", False),
+        ("source_interstate_war_metadata_adjustments", True),
+        ("dyads_after_mid", True),
+    ]
+
+    failures = []
+
+    for table_name, require_war_type in checks:
+        missing_war_type_sql = "a.war_type is null or" if require_war_type else ""
+        flagged_rows_sql = f"""
+        select a.*
+        from {table_name} a
+        left join war_types b on a.war_type = b.war_type
+        where
+            {missing_war_type_sql}
+            (a.war_type is not null and b.war_type is null)
+        """
+        flagged_count = flagged_row_count(conn, flagged_rows_sql)
+
+        if flagged_count == 0:
+            continue
+
+        detected_rows_sql = flagged_rows_query(flagged_rows_sql, "all")
+        detected_rows = query_result(conn, detected_rows_sql)
+        problem_cells = problem_cells_for_columns(detected_rows, {"war_type"})
+        failures.append(sql_check_failure(table_name, detected_rows_sql, flagged_count, detected_rows, problem_cells))
+
+    if failures:
+        fail_sql_check("War type ids should be populated when required and exist in the war_types reference table:", failures=failures)
+
+
 def test_source_transition_war_references_are_positive_or_null(conn):
     checks = ["source_interstate_wars", "source_extrastate_wars", "source_intrastate_wars"]
 
@@ -834,6 +872,7 @@ def test_source_adjusted_mid_war_number_relationships_are_applied(conn):
     where
         a.war_num = 4182
         and a.war_name = 'Israeli–Hezbollah Conflict (South Lebanon)'
+        and a.war_type = 1
     """
     assert scalar(conn, count_sql) == 1
 
@@ -855,6 +894,7 @@ def test_source_adjusted_mid_war_number_relationships_are_applied(conn):
     where
         war_num = 4182
         and war_name = 'Israeli–Hezbollah Conflict (South Lebanon)'
+        and war_type = 1
         and total_participants = 2
         and total_dyads = 1
     """

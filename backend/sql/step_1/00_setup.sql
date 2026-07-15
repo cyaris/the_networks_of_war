@@ -34,6 +34,10 @@ create or replace macro clean_war_reference(value) as (
     if(clean_int(value) > 0, clean_int(value), null)
 );
 
+create or replace macro clean_war_type(value) as (
+    if(clean_int(value) in (-7, -8, -9), null, clean_int(value))
+);
+
 create or replace table participant_name_replacements as
 
 select

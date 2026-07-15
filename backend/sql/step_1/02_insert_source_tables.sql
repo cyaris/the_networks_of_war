@@ -109,7 +109,7 @@ insert into source_extrastate_wars
 select
     clean_number(WarNum) war_num,
     clean_text(WarName) war_name,
-    clean_int(WarType) war_type,
+    clean_war_type(WarType) war_type,
     clean_int(ccode1) c_code_a,
     clean_int(ccode2) c_code_b,
     clean_text(SideA) participant_a,
@@ -142,7 +142,7 @@ insert into source_interstate_wars
 select
     clean_number(WarNum) war_num,
     clean_text(WarName) war_name,
-    clean_int(WarType) war_type,
+    clean_war_type(WarType) war_type,
     clean_int(ccode) c_code,
     clean_text(StateName) participant,
     clean_int(Side) side,
@@ -173,7 +173,7 @@ select
     if(clean_number(WarNum) = 977, 979, clean_number(WarNum)) war_num,
     clean_text(WarName) war_name,
     clean_int(V5Region) v5_region,
-    clean_int(WarType) war_type,
+    clean_war_type(WarType) war_type,
     clean_int(CcodeA) c_code_a,
     clean_int(CcodeB) c_code_b,
     clean_text(SideA) participant_a,
