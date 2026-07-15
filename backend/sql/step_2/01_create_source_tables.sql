@@ -1,11 +1,11 @@
 create or replace table source_global_terrorism_database (
-    source_file varchar,
     event_id varchar,
     year integer,
     country_name varchar,
     killed double,
     wounded double,
-    hostages_kidnapped double
+    hostages_kidnapped double,
+    source_file varchar
 );
 
 create or replace table source_formal_alliances_directed_yearly (
@@ -31,22 +31,22 @@ create or replace table source_formal_alliances_directed_yearly (
 );
 
 create or replace table source_territorial_changes (
+    number integer,
     year integer,
     month integer,
     gainer integer,
+    loser integer,
     gain_type integer,
+    lose_type integer,
+    contiguous_gain integer,
+    contiguous_loss integer,
     procedure integer,
     entity varchar,
-    contiguous_gain integer,
     area double,
     population double,
     portion integer,
-    loser integer,
-    lose_type integer,
-    contiguous_loss integer,
     entry integer,
     exit integer,
-    number integer,
     independent integer,
     conflict integer,
     source_version double
@@ -145,8 +145,8 @@ create or replace table source_dd_revisited (
 );
 
 create or replace table source_co_emissions_per_capita (
-    country_name varchar,
     country_code varchar,
+    country_name varchar,
     year integer,
     co2_emissions_per_capita double
 );
@@ -165,6 +165,8 @@ create or replace table source_arms_technology (
 
 create or replace table source_atop_dyadic_years (
     dyad integer,
+    c_code_a integer,
+    c_code_b integer,
     year integer,
     atop_alliance integer,
     defense integer,
@@ -187,8 +189,6 @@ create or replace table source_atop_dyadic_years (
     atop_id_7 integer,
     atop_id_8 integer,
     atop_id_9 integer,
-    c_code_a integer,
-    c_code_b integer,
     source_version double
 );
 
@@ -232,8 +232,8 @@ create or replace table source_cow_trade_dyadic (
 
 create or replace table source_cow_trade_national (
     c_code integer,
-    state_name varchar,
     state_abbreviation varchar,
+    state_name varchar,
     year integer,
     imports double,
     exports double,
@@ -245,9 +245,9 @@ create or replace table source_cow_trade_national (
 );
 
 create or replace table source_national_material_capabilities (
-    state_name varchar,
-    state_abbreviation varchar,
     c_code integer,
+    state_abbreviation varchar,
+    state_name varchar,
     year integer,
     military_expenditures double,
     military_expenditures_source varchar,

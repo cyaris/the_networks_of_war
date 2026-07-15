@@ -1,23 +1,23 @@
 insert into source_global_terrorism_database
 
 select
-    'globalterrorismdb_0522dist.csv' source_file,
     clean_text(eventid) event_id,
     clean_int(iyear) "year",
     clean_text(country_txt) country_name,
     clean_number(nkill) killed,
     clean_number(nwound) wounded,
-    clean_number(nhostkid) hostages_kidnapped
+    clean_number(nhostkid) hostages_kidnapped,
+    'globalterrorismdb_0522dist.csv' source_file
 from read_csv_auto({global_terrorism_database_path_1}, normalize_names = false, all_varchar = true)
 union all
 select
-    'globalterrorismdb_2021Jan-June_1222dist.csv' source_file,
     clean_text(eventid) event_id,
     clean_int(iyear) "year",
     clean_text(country_txt) country_name,
     clean_number(nkill) killed,
     clean_number(nwound) wounded,
-    clean_number(nhostkid) hostages_kidnapped
+    clean_number(nhostkid) hostages_kidnapped,
+    'globalterrorismdb_2021Jan-June_1222dist.csv' source_file
 from read_csv_auto({global_terrorism_database_path_2}, normalize_names = false, all_varchar = true);
 
 insert into source_formal_alliances_directed_yearly
@@ -47,22 +47,22 @@ from read_csv_auto({formal_alliances_directed_yearly_path}, normalize_names = fa
 insert into source_territorial_changes
 
 select
+    clean_int(number) number,
     clean_int(year) "year",
     clean_int(month) "month",
     clean_int(gainer) gainer,
+    clean_int(loser) loser,
     clean_int(gaintype) gain_type,
+    clean_int(losetype) lose_type,
+    clean_int(contgain) contiguous_gain,
+    clean_int(contlose) contiguous_loss,
     clean_int(procedur) "procedure",
     clean_text(entity) entity,
-    clean_int(contgain) contiguous_gain,
     clean_number(area) area,
     clean_number(pop) population,
     clean_int(portion) portion,
-    clean_int(loser) loser,
-    clean_int(losetype) lose_type,
-    clean_int(contlose) contiguous_loss,
     clean_int(entry) entry,
     clean_int(exit) exit,
-    clean_int(number) number,
     clean_int(indep) independent,
     clean_int(conflict) "conflict",
     clean_number(version) source_version
@@ -177,8 +177,8 @@ from read_csv_auto({dd_revisited_path}, normalize_names = false, all_varchar = t
 insert into source_co_emissions_per_capita
 
 select
-    clean_text(entity) country_name,
     clean_text(code) country_code,
+    clean_text(entity) country_name,
     clean_int(year) "year",
     clean_number(emissions_total_per_capita) co2_emissions_per_capita
 from read_csv_auto({co_emissions_per_capita_path}, normalize_names = false, all_varchar = true);
@@ -201,6 +201,8 @@ insert into source_atop_dyadic_years
 
 select
     clean_int(ddyad) dyad,
+    clean_int(stateA) c_code_a,
+    clean_int(stateB) c_code_b,
     clean_int(year) "year",
     clean_int(atopally) atop_alliance,
     clean_int(defense) defense,
@@ -223,8 +225,6 @@ select
     clean_int(atopid7) atop_id_7,
     clean_int(atopid8) atop_id_8,
     clean_int(atopid9) atop_id_9,
-    clean_int(stateA) c_code_a,
-    clean_int(stateB) c_code_b,
     clean_number(version) source_version
 from read_csv_auto({atop_dyadic_years_path}, normalize_names = false, all_varchar = true);
 
@@ -274,8 +274,8 @@ insert into source_cow_trade_national
 
 select
     clean_int(ccode) c_code,
-    clean_text(statename) state_name,
     clean_text(stateabb) state_abbreviation,
+    clean_text(statename) state_name,
     clean_int(year) "year",
     clean_number(imports) imports,
     clean_number(exports) exports,
@@ -289,9 +289,9 @@ from read_csv_auto({cow_trade_national_path}, normalize_names = false, all_varch
 insert into source_national_material_capabilities
 
 select
-    clean_text(statenme) state_name,
-    clean_text(stateabb) state_abbreviation,
     clean_int(ccode) c_code,
+    clean_text(stateabb) state_abbreviation,
+    clean_text(statenme) state_name,
     clean_int(year) "year",
     clean_number(milex) military_expenditures,
     clean_text(milexsource) military_expenditures_source,
