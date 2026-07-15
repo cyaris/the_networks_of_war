@@ -844,15 +844,16 @@ def test_required_source_battle_death_fields_are_not_null(conn):
 
 
 def test_source_adjusted_mid_war_number_relationships_are_applied(conn):
-    count_sql = """
-    select count(*)
+    query = """
+    select
+        source_file,
+        source_version
     from source_file_versions
-    where
-        source_key = 'interstate_mid_dyads'
-        and source_file = 'dyadic_mid_4.03.csv'
-        and source_version = '4.03'
+    where source_key = 'interstate_mid_dyads'
     """
-    assert scalar(conn, count_sql) == 1
+    actual_source_file_version = conn.execute(query).fetchone()
+
+    assert actual_source_file_version == ("dyadic_mid_4.03.csv", "4.03")
 
     query = """
     select
@@ -867,17 +868,25 @@ def test_source_adjusted_mid_war_number_relationships_are_applied(conn):
 
     assert actual_assignments == {(3582, 139), (3583, 139), (3585, 139), (4182, 4182), (4339, 905)}
 
-    count_sql = """
-    select count(*)
+    query = """
+    select
+        a.source_key,
+        a.source_version,
+        a.war_name,
+        a.war_type
     from source_interstate_war_metadata_adjustments a
     join source_file_versions b on a.source_key = b.source_key
                                 and a.source_version = b.source_version
-    where
-        a.war_num = 4182
-        and a.war_name = 'Israeli–Hezbollah Conflict (South Lebanon)'
-        and a.war_type = 1
+    where a.war_num = 4182
     """
-    assert scalar(conn, count_sql) == 1
+    actual_war_metadata = conn.execute(query).fetchone()
+
+    assert actual_war_metadata == (
+        "interstate_mid_dyads",
+        "4.03",
+        "Israeli–Hezbollah Conflict (South Lebanon)",
+        1,
+    )
 
     assert scalar(conn, "select count(*) from source_interstate_wars where war_num = 4182") == 0
 
@@ -957,23 +966,26 @@ def test_source_adjustment_inserts_do_not_duplicate_existing_source_facts(conn):
 def test_source_intrastate_war_data_entry_fixes_are_applied(conn):
     assert scalar(conn, "select count(*) from source_intrastate_wars where war_num = 977") == 0
 
-    count_sql = """
-    select count(*)
+    query = """
+    select start_year_1
     from source_intrastate_wars
-    where
-        war_num = 976
-        and start_year_1 != 2011
+    where war_num = 976
     """
-    assert scalar(conn, count_sql) == 0
+    actual_start_years = {row[0] for row in conn.execute(query).fetchall()}
 
-    count_sql = """
-    select count(*)
+    assert actual_start_years == {2011}
+
+    query = """
+    select
+        war_num,
+        end_year_1
     from source_intrastate_wars
-    where
-        war_num in (942, 990.4, 991, 991.4, 992.5)
-        and end_year_1 != -7
+    where war_num in (942, 990.4, 991, 991.4, 992.5)
+    order by 1
     """
-    assert scalar(conn, count_sql) == 0
+    actual_end_years = set(conn.execute(query).fetchall())
+
+    assert actual_end_years == {(942, -7), (990.4, -7), (991, -7), (991.4, -7), (992.5, -7)}
 
 
 def test_source_wars_named_present_or_ongoing_are_marked_ongoing(conn):
