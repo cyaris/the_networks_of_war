@@ -2,7 +2,7 @@
 
 ## Backend Python
 
-- Format Python from `backend` with the repository's Black and isort settings. Avoid non-functional trailing commas that make Black preserve unnecessary multiline layouts, while keeping commas that are semantically required or improve readability.
+- Format Python from `backend` with the repository's Black and isort settings. Avoid non-functional trailing commas that make Black preserve unnecessary multiline layouts; when an existing tuple, list, call, or assertion would fit under the configured line length, remove the non-functional trailing comma so Black can collapse it. Keep commas that are semantically required or improve readability.
 - When backend code directly imports a runtime package, declare that package explicitly in `backend/pyproject.toml` rather than relying on transitive dependencies.
 
 ## Pipeline Structure
@@ -52,4 +52,4 @@
 - Do not remove, skip, or allowlist away known data-quality failures just to make the suite pass. Expected failures, including missing source relationships such as unresolved MID war numbers, should remain visible until an explicit source-data, source-adjustment, or transformation fix resolves them.
 - Tests should protect data semantics and pipeline behavior at the layer that owns them rather than freezing metadata placeholders or treating source row-position fields as transformed participant-side semantics.
 - Diagnostic SQL should be focused and readable: select only columns needed to identify failing rows, avoid unnecessary subselect wrappers, use simple `count(*)` checks plus focused detail queries for broad source-data quality checks, and prefer loops or named helpers over dense inline repeated SQL fragments.
-- Diagnostic failures and assertions should be plain, self-contained, and data-forward: show the SQL query, concise failure summary, and detected rows without Python traceback/code-frame noise or noisy styled formatting; fetch and assert on raw unexpected rows when useful, and prefer named SQL variables with compact scalar assertions.
+- Diagnostic failures and assertions should be self-contained and data-forward: show the SQL query, concise failure summary, and detected rows without Python traceback/code-frame noise. Avoid decorative or noisy styled formatting, but keep targeted problem-cell highlighting, such as existing `colorama` styling, when it makes detected rows easier to read. Fetch and assert on raw unexpected rows when useful, and prefer named SQL variables with compact scalar assertions.

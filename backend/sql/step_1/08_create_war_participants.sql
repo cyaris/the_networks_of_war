@@ -24,7 +24,6 @@ left join war_types c on a.war_type = c.war_type
 left join country_codes d on a.c_code = d.c_code
 left join participant_name_replacements e on clean_text(coalesce(d.state_name, a.participant)) = e.source
 union all
--- Interstate participants are sourced above; directed dyad rows carry dyad-level dates and deaths.
 select
     a.war_num,
     a.war_name,

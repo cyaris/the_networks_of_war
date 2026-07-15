@@ -881,12 +881,7 @@ def test_source_adjusted_mid_war_number_relationships_are_applied(conn):
     """
     actual_war_metadata = conn.execute(query).fetchone()
 
-    assert actual_war_metadata == (
-        "interstate_mid_dyads",
-        "4.03",
-        "Israeli–Hezbollah Conflict (South Lebanon)",
-        1,
-    )
+    assert actual_war_metadata == ("interstate_mid_dyads", "4.03", "Israeli–Hezbollah Conflict (South Lebanon)", 1)
 
     assert scalar(conn, "select count(*) from source_interstate_wars where war_num = 4182") == 0
 
