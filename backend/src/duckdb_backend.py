@@ -52,16 +52,6 @@ STEP_2_SQL = [
     "step_2/07_create_dyadic_descriptives.sql",
 ]
 
-STEP_3_SQL = [
-    "00_setup.sql",
-    "step_3/01_create_final_participants.sql",
-    "step_3/02_create_final_dyads.sql",
-    "step_3/03_create_final_wars.sql",
-    "step_3/04_create_d3_war_nodes.sql",
-    "step_3/05_create_d3_war_links.sql",
-    "step_3/06_create_d3_war_json.sql",
-]
-
 STEP_1_SOURCE_KEYS = [
     "country_codes",
     "extrastate_wars",
@@ -210,11 +200,6 @@ class DuckDBProcessesMixin:
             logger.info("Running %s", name)
             self.execute_sql(conn, name)
 
-    def run_step_3(self, conn: duckdb.DuckDBPyConnection) -> None:
-        for name in STEP_3_SQL:
-            logger.info("Running %s", name)
-            self.execute_sql(conn, name)
-
     def inspect(self, conn: duckdb.DuckDBPyConnection) -> None:
         query = """
         select 1
@@ -244,7 +229,6 @@ __all__ = [
     "SQL_ROOT",
     "STEP_1_SQL",
     "STEP_2_SQL",
-    "STEP_3_SQL",
     "STEP_1_SOURCE_KEYS",
     "STEP_2_SOURCE_KEYS",
     "DuckDBProcessesMixin",

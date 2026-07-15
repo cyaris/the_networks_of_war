@@ -1,0 +1,13 @@
+import "svelte-lib/styles/app.css"
+import "svelte-lib/styles/root.css"
+
+import Router from "./lib/components/Router.svelte"
+
+let div = document.createElement("div")
+div.classList.add("the-networks-of-war")
+div.dataset.svelteLibTooltipRoot = "true"
+
+let script = document.currentScript
+script.parentNode.insertBefore(div, script)
+
+new Router({ target: div })

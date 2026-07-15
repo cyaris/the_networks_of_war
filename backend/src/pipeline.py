@@ -12,7 +12,6 @@ from duckdb_backend import (
     STEP_1_SQL,
     STEP_2_SOURCE_KEYS,
     STEP_2_SQL,
-    STEP_3_SQL,
     DuckDBProcessesMixin,
     add_duckdb_arguments,
     created_relation_names,
@@ -40,11 +39,55 @@ from utils import initialize_logger
 
 logger = initialize_logger(__name__)
 
+DEFAULT_FRONTEND_DATA_PATH = (
+    Path(__file__).resolve().parents[2] / "frontend" / "src" / "lib" / "static" / "graphData.json"
+)
+
+STEP_3_SQL = [
+    "00_setup.sql",
+    "step_3/01_create_final_participants.sql",
+    "step_3/02_create_final_dyads.sql",
+    "step_3/03_create_final_wars.sql",
+    "step_3/04_create_d3_war_nodes.sql",
+    "step_3/05_create_d3_war_links.sql",
+    "step_3/06_create_d3_war_json.sql",
+    "step_3/07_create_frontend_graph_data.sql",
+]
+
 
 class Pipeline(SourceDataPreparationMixin, DuckDBProcessesMixin):
-    def __init__(self, db_path: Path = DEFAULT_DB_PATH, csv_dir: Path = DEFAULT_DATA_DIR) -> None:
+    def __init__(
+        self,
+        db_path: Path = DEFAULT_DB_PATH,
+        csv_dir: Path = DEFAULT_DATA_DIR,
+        frontend_data_path: Path | None = DEFAULT_FRONTEND_DATA_PATH,
+    ) -> None:
         self.data_dir = csv_dir
         self.db_path = db_path
+        self.frontend_data_path = frontend_data_path
+
+    def run_step_3(self, conn) -> None:
+        for name in STEP_3_SQL:
+            logger.info("Running %s", name)
+            self.execute_sql(conn, name)
+
+        self.export_frontend_data(conn)
+
+    def export_frontend_data(self, conn) -> None:
+        if self.frontend_data_path is None:
+            return
+
+        query = """
+        select
+            json_pretty(graph_data_json),
+            war_count
+        from frontend_graph_data
+        """
+        graph_data_json, war_count = conn.execute(query).fetchone()
+
+        self.frontend_data_path.parent.mkdir(parents=True, exist_ok=True)
+        self.frontend_data_path.write_text(f"{graph_data_json}\n")
+        logger.info("Frontend graph data: %s (%s wars)", self.frontend_data_path, f"{war_count:,d}")
 
     def run(
         self,

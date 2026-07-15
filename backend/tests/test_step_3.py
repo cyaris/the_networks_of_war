@@ -20,13 +20,16 @@ STEP_3_TRANSFORMED_TABLES = [
     "d3_war_nodes",
     "d3_war_links",
     "d3_war_json",
+    "frontend_graph_data",
 ]
 
 
 @pytest.fixture(scope="session")
-def step_3_db_path(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    db_path = tmp_path_factory.mktemp("duckdb") / "step_3.duckdb"
-    pipeline = Pipeline(db_path=db_path, csv_dir=DEFAULT_CSV_DIR)
+def step_3_outputs(tmp_path_factory: pytest.TempPathFactory) -> tuple[Path, Path]:
+    tmp_path = tmp_path_factory.mktemp("duckdb")
+    db_path = tmp_path / "step_3.duckdb"
+    frontend_data_path = tmp_path / "graphData.json"
+    pipeline = Pipeline(db_path=db_path, csv_dir=DEFAULT_CSV_DIR, frontend_data_path=frontend_data_path)
     missing = [
         str(path)
         for source_key in [*STEP_1_SOURCE_KEYS, *STEP_2_SOURCE_KEYS]
@@ -41,6 +44,13 @@ def step_3_db_path(tmp_path_factory: pytest.TempPathFactory) -> Path:
         pipeline.run_step_1(conn)
         pipeline.run_step_2(conn)
         pipeline.run_step_3(conn)
+
+    return db_path, frontend_data_path
+
+
+@pytest.fixture(scope="session")
+def step_3_db_path(step_3_outputs: tuple[Path, Path]) -> Path:
+    db_path, _ = step_3_outputs
 
     return db_path
 
@@ -92,6 +102,7 @@ def test_step_3_manifest_runs_final_export_transformations(conn):
         "step_3/04_create_d3_war_nodes.sql",
         "step_3/05_create_d3_war_links.sql",
         "step_3/06_create_d3_war_json.sql",
+        "step_3/07_create_frontend_graph_data.sql",
     ]
     assert set(STEP_3_TRANSFORMED_TABLES).issubset(actual_tables)
     assert all(row_count > 0 for row_count in row_counts.values())
@@ -101,11 +112,26 @@ def test_step_3_manifest_runs_final_export_transformations(conn):
     assert row_counts["d3_war_nodes"] == row_counts["final_participants"]
     assert row_counts["d3_war_links"] == row_counts["final_dyads"]
     assert row_counts["d3_war_json"] == row_counts["final_wars"]
+    assert row_counts["frontend_graph_data"] == 1
 
     assert "file_name" in table_columns(conn, "final_wars")
     assert "total_days_in_war" in table_columns(conn, "final_wars")
     assert {"id", "node_key"}.issubset(table_columns(conn, "d3_war_nodes"))
     assert {"source", "target"}.issubset(table_columns(conn, "d3_war_links"))
+
+
+def test_step_3_exports_frontend_graph_data(step_3_outputs: tuple[Path, Path]):
+    db_path, frontend_data_path = step_3_outputs
+    payload = json.loads(frontend_data_path.read_text())
+
+    assert payload["source"]["tables"] == ["final_wars", "d3_war_nodes", "d3_war_links"]
+    assert len(payload["wars"]) > 0
+    assert len(payload["graphsByWarNum"]) > 0
+
+    with duckdb.connect(str(db_path), read_only=True) as conn:
+        graph_data_json = conn.execute("select graph_data_json from frontend_graph_data").fetchone()[0]
+
+    assert json.loads(graph_data_json) == payload
 
 
 def test_step_3_applies_legacy_participant_fill_and_conversion_rules(conn):

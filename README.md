@@ -29,6 +29,7 @@ A study of networks by war using data from the Correlates of War (COW) project.
     - [Participant Inference](#participant-inference)
     - [Dyads](#dyads)
   - [Data-Entry Fixes And Assignment Rules](#data-entry-fixes-and-assignment-rules)
+  - [Backend Update Notes](#backend-update-notes)
 
 ## Backend
 
@@ -269,11 +270,13 @@ Step 3 materializes final merge and graph-export tables:
 - `d3_war_nodes`
 - `d3_war_links`
 - `d3_war_json`
+- `frontend_graph_data`
 
 The legacy Step 3 notebook saved `part_df.pkl`, `dyad_df.pkl`, `war_df.pkl`, one JSON file per war, and
 `war_file_list.csv`. The DuckDB rebuild keeps the same final concepts in tables instead of writing many JSON files.
 `d3_war_json` stores one graph payload per `war_num`, while `d3_war_nodes` and `d3_war_links` keep the normalized graph
-shape available for a Svelte app or API route.
+shape available for a Svelte app or API route. `frontend_graph_data` stores the single JSON payload that `pipeline.py`
+writes to the Svelte frontend after Step 3 completes.
 
 ## Ingestion Assumptions
 
@@ -452,7 +455,8 @@ flowchart LR
 - Step 3 participant outputs convert legacy unit-scaled fields before graph export: trade money flows to dollars,
   NMC military/population and displacement counts to people, and iron/steel and energy figures to documented base units.
 - Step 3 does not write separate JSON files. `final_wars.file_name` preserves the legacy filename that a static export
-  can use later, and `d3_war_json.graph_json` provides the per-war graph payload directly from DuckDB.
+  can use later, `d3_war_json.graph_json` provides the per-war graph payload directly from DuckDB, and
+  `frontend_graph_data.graph_data_json` provides the single frontend payload written by `pipeline.py`.
 
 ## Data-Entry Fixes And Assignment Rules
 
