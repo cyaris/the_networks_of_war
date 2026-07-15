@@ -1,33 +1,36 @@
 with
 
-frontend_wars as (
-
-select * exclude (graph_json)
-from final_wars),
-
-frontend_war_nodes as (
-
-select *
-from final_participants),
-
-frontend_war_links as (
-
-select *
-from final_dyads),
-
 war_json as (
 
 select
-    to_json(array_agg(a order by start_year nulls last, war_num)) payload,
+    to_json(array_agg(struct_pack(
+        war_num := war_num,
+        war_name := war_name,
+        war_type_code := war_type_code,
+        war_type := war_type,
+        war_subtype := war_subtype,
+        total_participants := total_participants,
+        total_dyads := total_dyads,
+        start_date := start_date,
+        end_date := end_date,
+        start_year := start_year,
+        end_year := end_year,
+        ongoing_conflict := ongoing_conflict,
+        start_date_estimated := start_date_estimated,
+        end_date_estimated := end_date_estimated,
+        lagging_war := lagging_war,
+        leading_war := leading_war,
+        total_days_in_war := total_days_in_war
+    ) order by start_year nulls last, war_num)) payload,
     count(*) war_count
-from frontend_wars a),
+from final_wars),
 
 node_json as (
 
 select
     war_num,
     to_json(array_agg(a order by id)) payload
-from frontend_war_nodes a
+from final_participants a
 group by 1),
 
 link_json as (
@@ -35,7 +38,7 @@ link_json as (
 select
     war_num,
     to_json(array_agg(a order by source, target)) payload
-from frontend_war_links a
+from final_dyads a
 group by 1),
 
 graph_json as (
@@ -45,7 +48,7 @@ select
         if(a.war_num = floor(a.war_num), a.war_num::bigint::varchar, a.war_num::varchar),
         json_object('nodes', json(coalesce(b.payload, '[]')), 'links', json(coalesce(c.payload, '[]')))
     ) payload
-from frontend_wars a
+from final_wars a
 left join node_json b on a.war_num = b.war_num
 left join link_json c on a.war_num = c.war_num)
 
