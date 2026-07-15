@@ -329,8 +329,11 @@
 
     nodes.forEach(node => {
       let nodeValue = nodeDescriptiveValues[node.id]
+      let nodeHasSelectedDescriptor = Boolean(nodeDescriptorValue?.value)
       let currentRadiusSize = Number.isNaN(Number.parseFloat(nodeValue))
-        ? radiusScale(stdNullRadiusSize)
+        ? nodeHasSelectedDescriptor
+          ? minRadiusSize
+          : radiusScale(stdNullRadiusSize)
         : radiusScale(nodeValue)
       let currentNameLength = textWidth(node.participant)
       let currentNameLengthHalf = currentNameLength / 2
@@ -462,6 +465,14 @@
     if (!nodeDescriptorValue?.value || maxValue(coalescedUniqueValues(nodeDescriptiveValues)) == 0) return false
 
     return !Number.isFinite(nodeDescriptiveValues[node.id])
+  }
+
+  function nodeDescriptorDisplayValue(node) {
+    if (!nodeDescriptorValue?.value) return null
+
+    let value = numberValue(node[nodeDescriptorValue.value])
+
+    return value == null ? "Unknown" : value.toLocaleString()
   }
 
   function linkHasDescriptor(link) {
@@ -857,9 +868,7 @@
           <div class="text-[#50615b]">Battle deaths: {Number(tooltip.node.battle_deaths || 0).toLocaleString()}</div>
           {#if nodeDescriptorValue?.value}
             <div class="text-[#50615b]">
-              {nodeDescriptorValue.label}: {Number(
-                numberValue(tooltip.node[nodeDescriptorValue.value]) || 0
-              ).toLocaleString()}
+              {nodeDescriptorValue.label}: {nodeDescriptorDisplayValue(tooltip.node)}
             </div>
           {/if}
         </div>
