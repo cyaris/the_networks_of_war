@@ -22,9 +22,28 @@
   }
 
   function warSecondaryLabel(war) {
-    return `${plural(war.total_participants, "participant")} | ${plural(war.total_dyads, "dyad")} | ${timeframe(war)}`
+    let dashCount = linkDashFieldCountsByWarNum[String(war.war_num)] || 0
+    let dashLabel = dashCount ? ` | ${plural(dashCount, "dash field")}` : ""
+
+    return `${plural(war.total_participants, "participant")} | ${plural(war.total_dyads, "dyad")} | ${timeframe(war)}${dashLabel}`
   }
 
+  function graphForWar(war) {
+    return graphsByWarNum[String(war?.war_num)] || { nodes: [], links: [] }
+  }
+
+  function linkDashFieldCount(war) {
+    let graph = graphForWar(war)
+    let fields = Array.from(new Set((graph.links || []).flatMap(link => Object.keys(link).filter(field => field.endsWith("_x") || field.endsWith("_y") || field.endsWith("_z")))))
+
+    return fields.filter(field => graph.links.some(link => Number(link[field]) > 0)).length
+  }
+
+  function preferredWarItem(items) {
+    return items.find(item => item.linkDashFieldCount > 0) || items[0]
+  }
+
+  let linkDashFieldCountsByWarNum = Object.fromEntries(wars.map(war => [String(war.war_num), linkDashFieldCount(war)]))
   let warTypeItems = Array.from(new Set(wars.map(war => war.war_type)))
     .sort()
     .map(warType => ({
@@ -44,19 +63,18 @@
     selectedLabel: `${war.war_name} (${timeframe(war)})`,
     secondaryLabel: warSecondaryLabel(war),
     war_type: war.war_type,
+    linkDashFieldCount: linkDashFieldCountsByWarNum[String(war.war_num)] || 0,
     war,
   }))
   $: if (warItems.length && !warItems.some(item => item.value == selectedWarItem?.value)) {
-    selectedWarItem = warItems[0]
+    selectedWarItem = preferredWarItem(warItems)
   }
   $: selectedWar = selectedWarItem?.war
-  $: selectedGraph = selectedWar ? graphsByWarNum[String(selectedWar.war_num)] || { nodes: [], links: [] } : null
+  $: selectedGraph = selectedWar ? graphForWar(selectedWar) : null
+  $: selectedLinkDashFieldCount = selectedWar ? linkDashFieldCountsByWarNum[String(selectedWar.war_num)] || 0 : 0
   $: totalParticipants = filteredWars.reduce((total, war) => total + Number(war.total_participants || 0), 0)
   $: totalDyads = filteredWars.reduce((total, war) => total + Number(war.total_dyads || 0), 0)
-  $: largestWar = filteredWars.reduce(
-    (current, war) => (Number(war.total_participants || 0) > Number(current?.total_participants || 0) ? war : current),
-    null
-  )
+  $: warsWithLinkDashes = filteredWars.filter(war => linkDashFieldCountsByWarNum[String(war.war_num)] > 0).length
   $: selectedTypeLabel = selectedWarTypeValues.length == warTypeItems.length ? "All war types" : selectedWarTypeValues.join(", ")
 </script>
 
@@ -108,14 +126,14 @@
           <div class="mt-1 text-2xl font-extrabold">{totalDyads.toLocaleString()}</div>
         </div>
         <div class="border border-[#d8d3c4] bg-[#fbfcf9] p-3">
-          <div class="text-xs font-bold uppercase tracking-[0.14em] text-[#60706a]">Largest</div>
-          <div class="mt-1 truncate text-sm font-extrabold" title={largestWar?.war_name}>{largestWar?.war_name}</div>
+          <div class="text-xs font-bold uppercase tracking-[0.14em] text-[#60706a]">Dash Data</div>
+          <div class="mt-1 text-2xl font-extrabold">{warsWithLinkDashes.toLocaleString()}</div>
         </div>
       </div>
     </section>
 
     {#if selectedWar}
-      <section class="grid gap-3 border border-[#d8d3c4] bg-white p-4 text-sm md:grid-cols-[minmax(260px,1.2fr)_repeat(4,minmax(120px,0.6fr))]">
+      <section class="grid gap-3 border border-[#d8d3c4] bg-white p-4 text-sm md:grid-cols-[minmax(260px,1.2fr)_repeat(5,minmax(120px,0.6fr))]">
         <div>
           <div class="text-xs font-bold uppercase tracking-[0.14em] text-[#60706a]">Selected War</div>
           <div class="mt-1 text-base font-extrabold">{selectedWar.war_name}</div>
@@ -135,6 +153,10 @@
         <div>
           <div class="text-xs font-bold uppercase tracking-[0.14em] text-[#60706a]">Duration</div>
           <div class="mt-1 font-semibold">{Number(selectedWar.total_days_in_war || 0).toLocaleString()} days</div>
+        </div>
+        <div>
+          <div class="text-xs font-bold uppercase tracking-[0.14em] text-[#60706a]">Dash Fields</div>
+          <div class="mt-1 font-semibold">{selectedLinkDashFieldCount.toLocaleString()}</div>
         </div>
       </section>
     {/if}

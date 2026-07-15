@@ -723,7 +723,7 @@
               stroke-opacity="0.9"
               stroke-width={linkDashStrokeWidth}
               stroke-dasharray="2.5 15"
-              transform="translate(-7.5, 1)"
+              stroke-dashoffset="-7.5"
               style="transition: stroke-width 1000ms ease 50ms, stroke 1000ms ease 50ms;"
             />
           {/each}
