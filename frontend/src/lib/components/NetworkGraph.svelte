@@ -114,6 +114,8 @@
       if (sizeField == "days_at_war_z") {
         let totalDays = dateDays(node.start_date, Number(node.ongoing_conflict) == 1 ? null : node.end_date)
         sizeValue = totalDays == null ? NaN : totalDays - (numberValue(node.days_not_at_war_z) ?? 0)
+      } else if (sizeField == "battle_deaths_z") {
+        sizeValue = numberValue(node.battle_deaths) ?? NaN
       } else if (sizeField == "battle_deaths_per_day_z") {
         let totalDays = dateDays(node.start_date, Number(node.ongoing_conflict) == 1 ? null : node.end_date)
         let daysAtWar = totalDays == null ? null : totalDays - (numberValue(node.days_not_at_war_z) ?? 0)
@@ -165,7 +167,7 @@
     )
 
     if (suffix == "z") {
-      fields = [...fields, "days_at_war_z", "battle_deaths_per_day_z"]
+      fields = Array.from(new Set([...fields, "days_at_war_z", "battle_deaths_z", "battle_deaths_per_day_z"]))
     }
 
     let daysAtWarValues = getNodeDescriptiveValues("days_at_war_z")[0]
@@ -471,7 +473,10 @@
   function nodeDescriptorDisplayValue(node) {
     if (!nodeDescriptorValue?.value) return null
 
-    let value = numberValue(node[nodeDescriptorValue.value])
+    let value =
+      nodeDescriptorValue.value == "battle_deaths_z"
+        ? numberValue(node.battle_deaths)
+        : numberValue(node[nodeDescriptorValue.value])
 
     return value == null ? "Unknown" : value.toLocaleString()
   }
@@ -636,6 +641,7 @@
     tooltip = null
     hoverNode = null
     dragNode = null
+    timeframeValue = timeframeItems[2]
     currentSizingSignature = null
     currentLinkDescriptorSignature = null
   }
