@@ -315,6 +315,10 @@ descriptor fields only when they pass per-war availability checks.
 
 - The primary source tables listed above come directly from their source CSV files, with only type coercion, column
   renaming, encoding normalization, and the data-entry fixes documented below applied during load.
+- Source CSV headers are aliased to canonical pipeline names as early as possible. COW `WarNum`/`war_num` fields are
+  loaded as `war_id`, numeric war-type fields are loaded as `war_type_id`, and the human-readable label comes from
+  `war_types.war_type`. Ongoing-war markers and derived flags use `ongoing_war`; `ongoing_conflict` is not used as a
+  table or frontend payload field.
 - `source_global_terrorism_database` stacks two prepared GTD CSVs with `union all` after confirming the two files do
   not overlap on `eventid`.
 - `dyadic_mid_4.03.csv` has no new columns relative to `dyadic_mid_4.02.csv` and no longer includes the 4.02 columns
