@@ -2,6 +2,29 @@
 
 A study of networks by war using data from the Correlates of War (COW) project.
 
+## Table Of Contents
+
+- [Backend](#backend)
+- [Setup](#setup)
+- [Data Layout](#data-layout)
+- [Pipeline Commands](#pipeline-commands)
+- [Test Commands](#test-commands)
+- [Step 1 Sources And Tables](#step-1-sources-and-tables)
+- [Ingestion Assumptions](#ingestion-assumptions)
+  - [Source Tables](#source-tables)
+  - [Excluded Calculated Columns](#excluded-calculated-columns)
+  - [Date Values](#date-values)
+  - [Encoding And Deduplication](#encoding-and-deduplication)
+  - [Field Normalization](#field-normalization)
+- [Transformation Assumptions](#transformation-assumptions)
+  - [Table Shape](#table-shape)
+  - [Source War Dyads And Participants](#source-war-dyads-and-participants)
+  - [Date Spans](#date-spans)
+  - [Directed Dyads And MID Records](#directed-dyads-and-mid-records)
+  - [Participant Inference](#participant-inference)
+  - [Dyads](#dyads)
+- [Data-Entry Fixes And Assignment Rules](#data-entry-fixes-and-assignment-rules)
+
 ## Backend
 
 The DuckDB backend rebuilds the first preprocessing notebook with native SQL. Python only resolves file paths,
