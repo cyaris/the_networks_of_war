@@ -48,10 +48,6 @@ STEP_3_SQL = [
     "step_3/01_create_final_participants.sql",
     "step_3/02_create_final_dyads.sql",
     "step_3/03_create_final_wars.sql",
-    "step_3/04_create_d3_war_nodes.sql",
-    "step_3/05_create_d3_war_links.sql",
-    "step_3/06_create_d3_war_json.sql",
-    "step_3/07_create_frontend_graph_data.sql",
 ]
 
 
@@ -77,11 +73,11 @@ class Pipeline(SourceDataPreparationMixin, DuckDBProcessesMixin):
         if self.frontend_data_path is None:
             return
 
-        query = """
+        query = f"""
         select
             json_pretty(graph_data_json),
             war_count
-        from frontend_graph_data
+        from ({render_sql("step_3/04_export_frontend_graph_data.sql", self.sql_context())})
         """
         graph_data_json, war_count = conn.execute(query).fetchone()
 

@@ -1,6 +1,7 @@
 create or replace table final_participants as
 
 select
+    row_number() over (partition by a.war_num order by a.side nulls last, a.c_code, a.participant) - 1 id,
     a.war_num,
     b.war_name,
     b.war_type war_type_code,
@@ -9,6 +10,7 @@ select
     a.c_code,
     a.participant,
     a.side,
+    if(a.c_code > 0, a.c_code::varchar, a.participant) node_key,
     a.battle_deaths,
     a.battle_deaths_estimated,
     a.start_date,

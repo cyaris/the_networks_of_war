@@ -13,15 +13,7 @@ sys.path.insert(0, str(SRC_ROOT))
 
 from pipeline import DEFAULT_CSV_DIR, STEP_1_SOURCE_KEYS, STEP_2_SOURCE_KEYS, STEP_3_SQL, Pipeline, sql_identifier
 
-STEP_3_TRANSFORMED_TABLES = [
-    "final_participants",
-    "final_dyads",
-    "final_wars",
-    "d3_war_nodes",
-    "d3_war_links",
-    "d3_war_json",
-    "frontend_graph_data",
-]
+STEP_3_TRANSFORMED_TABLES = ["final_participants", "final_dyads", "final_wars"]
 
 
 @pytest.fixture(scope="session")
@@ -99,43 +91,35 @@ def test_step_3_manifest_runs_final_export_transformations(conn):
         "step_3/01_create_final_participants.sql",
         "step_3/02_create_final_dyads.sql",
         "step_3/03_create_final_wars.sql",
-        "step_3/04_create_d3_war_nodes.sql",
-        "step_3/05_create_d3_war_links.sql",
-        "step_3/06_create_d3_war_json.sql",
-        "step_3/07_create_frontend_graph_data.sql",
     ]
     assert set(STEP_3_TRANSFORMED_TABLES).issubset(actual_tables)
     assert all(row_count > 0 for row_count in row_counts.values())
     assert row_counts["final_participants"] == scalar(conn, "select count(*) from participant_descriptives")
     assert row_counts["final_dyads"] == scalar(conn, "select count(*) from dyadic_descriptives")
     assert row_counts["final_wars"] == scalar(conn, "select count(*) from wars")
-    assert row_counts["d3_war_nodes"] == row_counts["final_participants"]
-    assert row_counts["d3_war_links"] == row_counts["final_dyads"]
-    assert row_counts["d3_war_json"] == row_counts["final_wars"]
-    assert row_counts["frontend_graph_data"] == 1
 
-    assert "file_name" in table_columns(conn, "final_wars")
+    assert "file_name" not in table_columns(conn, "final_wars")
     assert "total_days_in_war" in table_columns(conn, "final_wars")
-    assert {"id", "node_key"}.issubset(table_columns(conn, "d3_war_nodes"))
-    assert {"source", "target"}.issubset(table_columns(conn, "d3_war_links"))
+    assert "graph_json" in table_columns(conn, "final_wars")
+    assert {"id", "node_key"}.issubset(table_columns(conn, "final_participants"))
+    assert {"source", "target"}.issubset(table_columns(conn, "final_dyads"))
 
 
 def test_step_3_exports_frontend_graph_data(step_3_outputs: tuple[Path, Path]):
     db_path, frontend_data_path = step_3_outputs
     payload = json.loads(frontend_data_path.read_text())
 
-    assert payload["source"]["tables"] == ["final_wars", "d3_war_nodes", "d3_war_links"]
+    assert payload["source"]["tables"] == ["final_wars", "final_participants", "final_dyads"]
     assert len(payload["wars"]) > 0
     assert len(payload["graphsByWarNum"]) > 0
     assert all(js_war_num_key(war["war_num"]) in payload["graphsByWarNum"] for war in payload["wars"])
 
     with duckdb.connect(str(db_path), read_only=True) as conn:
-        graph_data_json = conn.execute("select graph_data_json from frontend_graph_data").fetchone()[0]
-
-    assert json.loads(graph_data_json) == payload
+        assert scalar(conn, "select count(*) from final_wars where graph_json is not null") > 0
 
 
 def test_step_3_applies_legacy_participant_fill_and_conversion_rules(conn):
+
     state_null_fill_sql = """
     select count(*)
     from participant_descriptives a
@@ -147,6 +131,8 @@ def test_step_3_applies_legacy_participant_fill_and_conversion_rules(conn):
         and a.money_flow_in_x is null
         and b.money_flow_in_x = 0
     """
+    assert scalar(conn, state_null_fill_sql) > 0
+
     population_conversion_sql = """
     select count(*)
     from participant_descriptives a
@@ -159,6 +145,8 @@ def test_step_3_applies_legacy_participant_fill_and_conversion_rules(conn):
         and a.population_x not in (-9, -8)
         and b.population_x = a.population_x * 1000
     """
+    assert scalar(conn, population_conversion_sql) > 0
+
     non_state_null_sql = """
     select count(*)
     from participant_descriptives a
@@ -170,22 +158,21 @@ def test_step_3_applies_legacy_participant_fill_and_conversion_rules(conn):
         and a.terrorism_deaths_x is null
         and b.terrorism_deaths_x is null
     """
-
-    assert scalar(conn, state_null_fill_sql) > 0
-    assert scalar(conn, population_conversion_sql) > 0
     assert scalar(conn, non_state_null_sql) > 0
 
 
-def test_step_3_d3_links_resolve_all_final_dyads(conn):
+def test_step_3_final_dyad_links_resolve_all_final_participants(conn):
     missing_nodes_sql = """
     select count(*)
     from final_dyads a
-    left join d3_war_nodes b on a.war_num = b.war_num
-                              and if(a.c_code_a > 0, a.c_code_a::varchar, a.participant_a) = b.node_key
-    left join d3_war_nodes c on a.war_num = c.war_num
-                              and if(a.c_code_b > 0, a.c_code_b::varchar, a.participant_b) = c.node_key
+    left join final_participants b on a.war_num = b.war_num
+                                   and a.source = b.id
+    left join final_participants c on a.war_num = c.war_num
+                                   and a.target = c.id
     where
-        b.id is null
+        a.source is null
+        or a.target is null
+        or b.id is null
         or c.id is null
     """
     assert scalar(conn, missing_nodes_sql) == 0
@@ -194,17 +181,16 @@ def test_step_3_d3_links_resolve_all_final_dyads(conn):
 def test_step_3_materializes_valid_per_war_graph_json(conn):
     query = """
     select graph_json
-    from d3_war_json
+    from final_wars
     where war_num = 419
     """
     graph_json = conn.execute(query).fetchone()[0]
     graph = json.loads(graph_json)
 
     assert set(graph) == {"war", "nodes", "links"}
-    assert graph["war"][0]["file_name"] == "war_num_419_0.json"
     assert len(graph["war"]) == 1
-    assert len(graph["nodes"]) == scalar(conn, "select count(*) from d3_war_nodes where war_num = 419")
-    assert len(graph["links"]) == scalar(conn, "select count(*) from d3_war_links where war_num = 419")
+    assert len(graph["nodes"]) == scalar(conn, "select count(*) from final_participants where war_num = 419")
+    assert len(graph["links"]) == scalar(conn, "select count(*) from final_dyads where war_num = 419")
 
 
 def js_war_num_key(value: float) -> str:

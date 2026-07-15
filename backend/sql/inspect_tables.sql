@@ -37,9 +37,5 @@ from (
         ('dyadic_descriptives'),
         ('final_participants'),
         ('final_dyads'),
-        ('final_wars'),
-        ('d3_war_nodes'),
-        ('d3_war_links'),
-        ('d3_war_json'),
-        ('frontend_graph_data')
+        ('final_wars')
 ) tables(table_name);
