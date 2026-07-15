@@ -103,6 +103,20 @@
       .replace(/\b\w/g, value => value.toUpperCase())
   }
 
+  function descriptorFields(rows, suffix) {
+    return Array.from(new Set((rows[0] ? Object.keys(rows[0]) : []).filter(field => field.endsWith(`_${suffix}`))))
+  }
+
+  function descriptorItems(fields) {
+    let items = fields
+      .sort((a, b) => fieldLabel(a).localeCompare(fieldLabel(b)))
+      .map(field => ({ value: field, label: fieldLabel(field), secondaryLabel: field }))
+
+    return items.length
+      ? [{ value: null, label: "None Selected" }, ...items]
+      : [{ value: null, label: "None Available", selectable: false }]
+  }
+
   function getNodeDescriptiveValues(sizeField) {
     let values = []
     let descriptorMaxDomain = 0
@@ -162,48 +176,36 @@
   }
 
   function nodeFieldItems(rows, suffix) {
-    let fields = Array.from(
-      new Set((rows[0] ? Object.keys(rows[0]) : []).filter(field => field.endsWith(`_${suffix}`)))
-    )
+    let fields = descriptorFields(rows, suffix)
 
     if (suffix == "z") {
       fields = Array.from(new Set([...fields, "days_at_war_z", "battle_deaths_z", "battle_deaths_per_day_z"]))
     }
 
-    let daysAtWarValues = getNodeDescriptiveValues("days_at_war_z")[0]
-    let daysNotAtWarValues = getNodeDescriptiveValues("days_not_at_war_z")[0]
+    let daysAtWarUniqueValues = coalescedUniqueValues(getNodeDescriptiveValues("days_at_war_z")[0])
+    let daysNotAtWarUniqueValues = coalescedUniqueValues(getNodeDescriptiveValues("days_not_at_war_z")[0])
 
-    let items = fields
-      .filter(field => {
+    return descriptorItems(
+      fields.filter(field => {
         let [values, , , fieldNullRadiusNodes] = getNodeDescriptiveValues(field)
         let uniqueValues = coalescedUniqueValues(values)
 
         if (maxValue(uniqueValues) == 0) return false
         if (uniqueValues.length == 1) return false
         if (fieldNullRadiusNodes / values.length >= 0.5) return false
-        if (field == "days_at_war_z" && coalescedUniqueValues(daysAtWarValues).length == 1) return false
-        if (field == "days_not_at_war_z" && coalescedUniqueValues(daysNotAtWarValues).length == 1) return false
-        if (field == "battle_deaths_per_day_z" && coalescedUniqueValues(daysAtWarValues).length == 1) return false
+        if (field == "days_at_war_z" && daysAtWarUniqueValues.length == 1) return false
+        if (field == "days_not_at_war_z" && daysNotAtWarUniqueValues.length == 1) return false
+        if (field == "battle_deaths_per_day_z" && daysAtWarUniqueValues.length == 1) return false
 
         return true
       })
-      .sort((a, b) => fieldLabel(a).localeCompare(fieldLabel(b)))
-      .map(field => ({ value: field, label: fieldLabel(field), secondaryLabel: field }))
-
-    return items.length
-      ? [{ value: null, label: "None Selected" }, ...items]
-      : [{ value: null, label: "None Available", selectable: false }]
+    )
   }
 
   function linkFieldItems(rows, suffix) {
-    let items = Array.from(new Set((rows[0] ? Object.keys(rows[0]) : []).filter(field => field.endsWith(`_${suffix}`))))
-      .filter(field => maxValue(getLinkDescriptiveValues(field)) == 1)
-      .sort((a, b) => fieldLabel(a).localeCompare(fieldLabel(b)))
-      .map(field => ({ value: field, label: fieldLabel(field), secondaryLabel: field }))
-
-    return items.length
-      ? [{ value: null, label: "None Selected" }, ...items]
-      : [{ value: null, label: "None Available", selectable: false }]
+    return descriptorItems(
+      descriptorFields(rows, suffix).filter(field => maxValue(getLinkDescriptiveValues(field)) == 1)
+    )
   }
 
   function dateDays(startDate, endDate) {
@@ -579,6 +581,10 @@
     links = links
   }
 
+  function hasTimeframeDescriptor(row, timeframe) {
+    return Object.keys(row).some(field => field.endsWith(`_${timeframe}`) && numberValue(row[field]) != null)
+  }
+
   $: if (graph !== currentGraph || width !== currentWidth) {
     currentGraph = graph
     currentWidth = width
@@ -588,12 +594,8 @@
   $: availableTimeframeItems = timeframeItems.filter(
     item =>
       item.value == "z" ||
-      descriptorNodes.some(node =>
-        Object.keys(node).some(field => field.endsWith(`_${item.value}`) && numberValue(node[field]) != null)
-      ) ||
-      descriptorLinks.some(link =>
-        Object.keys(link).some(field => field.endsWith(`_${item.value}`) && numberValue(link[field]) != null)
-      )
+      descriptorNodes.some(node => hasTimeframeDescriptor(node, item.value)) ||
+      descriptorLinks.some(link => hasTimeframeDescriptor(link, item.value))
   )
   $: if (!availableTimeframeItems.some(item => item.value == timeframeValue?.value)) {
     timeframeValue = availableTimeframeItems[availableTimeframeItems.length - 1] || timeframeItems[2]
@@ -635,7 +637,6 @@
 </script>
 
 <svelte:window on:pointermove={drag} on:pointerup={endDrag} />
-
 <section class="min-h-[690px] border border-[#d2d7d3] bg-[#fbfcf9]" bind:clientWidth={width}>
   <div class="flex flex-col gap-3 border-b border-[#d2d7d3] bg-white px-4 py-3">
     <div class="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
@@ -650,7 +651,6 @@
         </div>
       {/if}
     </div>
-
     {#if nodes.length}
       <div class="grid gap-3 md:grid-cols-3">
         <div>
@@ -673,7 +673,6 @@
       </div>
     {/if}
   </div>
-
   {#if nodes.length}
     <div class="relative">
       <svg
@@ -718,6 +717,7 @@
         </g>
         <g role="list">
           {#each nodes as node (node.id)}
+            {@const label = labelPosition(node)}
             <g
               class="cursor-grab active:cursor-grabbing"
               role="listitem"
@@ -741,22 +741,23 @@
               />
               <text
                 class="text-[12px] font-bold"
-                x={labelPosition(node).x}
-                y={labelPosition(node).y}
-                text-anchor={labelPosition(node).anchor}
-                fill={labelPosition(node).inside ? "white" : "#111827"}
-                stroke={labelPosition(node).inside ? "none" : "white"}
-                stroke-width={labelPosition(node).inside ? 0 : 3}
+                x={label.x}
+                y={label.y}
+                text-anchor={label.anchor}
+                fill={label.inside ? "white" : "#111827"}
+                stroke={label.inside ? "none" : "white"}
+                stroke-width={label.inside ? 0 : 3}
                 paint-order="stroke"
                 style="transition: x 2000ms ease 1500ms, y 2000ms ease 1500ms, fill 2000ms ease 1500ms, stroke 2000ms ease 1500ms;"
               >
                 {node.participant}
               </text>
               {#if showNodeSizeWarning(node)}
+                {@const warningPosition = nodeSizeWarningPosition(node)}
                 <text
                   class="text-[12px] font-bold"
-                  x={nodeSizeWarningPosition(node).x}
-                  y={nodeSizeWarningPosition(node).y}
+                  x={warningPosition.x}
+                  y={warningPosition.y}
                   text-anchor="middle"
                   fill="#111827"
                   stroke="white"
@@ -771,7 +772,6 @@
           {/each}
         </g>
       </svg>
-
       {#if tooltip}
         <div
           class="pointer-events-none absolute z-20 max-w-xs border border-[#c4cec8] bg-white px-3 py-2 text-sm shadow-sm"
