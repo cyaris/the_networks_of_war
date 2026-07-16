@@ -153,7 +153,9 @@ def test_nested_zip_can_be_extracted_from_source_directory(tmp_path: Path) -> No
     assert (source_dir / "NMC-70-wsupplementary.csv").read_text() == "ccode,year\n2,1816\n"
 
 
-def test_populate_source_dir_keeps_only_csv_and_pdf_files(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_populate_source_dir_keeps_only_source_csv_and_document_files(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     metadata = {
         "key": "sample_source",
         "file": "sample.csv",
@@ -161,6 +163,7 @@ def test_populate_source_dir_keeps_only_csv_and_pdf_files(tmp_path: Path, monkey
         "downloads": [
             {"url": "https://example.test/source.zip", "kind": "zip", "filename": "source.zip"},
             {"url": "https://example.test/codebook.pdf", "kind": "file", "filename": "codebook.pdf"},
+            {"url": "https://example.test/metadata.json", "kind": "file", "filename": "metadata.json"},
             {
                 "url": "https://example.test/raw.xlsx",
                 "kind": "file",
@@ -180,6 +183,8 @@ def test_populate_source_dir_keeps_only_csv_and_pdf_files(tmp_path: Path, monkey
                 archive.writestr("nested/readme.txt", "not retained")
         elif destination.suffix == ".pdf":
             destination.write_bytes(b"%PDF-1.7")
+        elif destination.suffix == ".json":
+            destination.write_text('{"title": "Sample source metadata"}\n')
         else:
             destination.write_bytes(b"workbook")
 
@@ -196,6 +201,7 @@ def test_populate_source_dir_keeps_only_csv_and_pdf_files(tmp_path: Path, monkey
 
     assert source_files == [
         Path("sample_source/codebook.pdf"),
+        Path("sample_source/metadata.json"),
         Path("sample_source/raw.csv"),
         Path("sample_source/sample.csv"),
     ]

@@ -270,6 +270,15 @@ def test_step_2_source_metadata_files_match_known_downloads():
     assert SOURCE_FILES["diplomatic_exchange"] == "Diplomatic_Exchange_2006v1.csv"
     assert SOURCE_FILES["dd_revisited"] == "ddrevisited_data_v1.csv"
     assert SOURCE_FILES["co_emissions_per_capita"] == "co-emissions-per-capita.csv"
+    co_emissions_metadata_url = (
+        "https://ourworldindata.org/grapher/co-emissions-per-capita.metadata.json"
+        "?v=1&csvType=full&useColumnShortNames=true&utm_source=chatgpt.com"
+    )
+    assert metadata_by_key["co_emissions_per_capita"]["downloads"][1] == {
+        "url": co_emissions_metadata_url,
+        "kind": "file",
+        "filename": "co-emissions-per-capita.metadata.json",
+    }
     assert SOURCE_FILES["arms_technology"] == "cow_arms_tech_long.csv"
     assert SOURCE_FILES["atop_dyadic_years"] == "atop5_1ddyr.csv"
     assert SOURCE_FILES["mtops_dyadic"] == "mtopsd150.csv"

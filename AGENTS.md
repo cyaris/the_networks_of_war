@@ -11,7 +11,7 @@
   missing values to `0` only when the source coverage or derivation makes the overall value known to be zero; keep
   unknown values as `null` so the frontend can show them as unknown instead of silently displaying zero.
 - Treat `backend/data/<source_key>/` folder names as matching source-data table keys without the `source_` prefix; the
-  corresponding raw source data and documentation live inside each folder.
+  corresponding raw source data and PDF or JSON source documentation live inside each folder.
 - Keep source adjustments minimal and only add values that downstream joins, corrections, or transformations actually
   need.
 - Do not preserve backward compatibility for removed or renamed project interfaces unless the user explicitly asks for a
