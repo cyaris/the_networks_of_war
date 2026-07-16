@@ -9,6 +9,12 @@
   let wars = graphData.wars
   let graphsByWarId = graphData.graphsByWarId
 
+  const timeframeItems = [
+    { value: "first_year", label: "First Year" },
+    { value: "last_year", label: "Last Year" },
+    { value: "all_years", label: "All Years" },
+  ]
+
   function plural(value, noun) {
     return `${Number(value || 0).toLocaleString()} ${noun}${Number(value || 0) == 1 ? "" : "s"}`
   }
@@ -88,22 +94,11 @@
   const tooltipOffset = 16
   const tooltipPadding = 8
 
-  const timeframeItems = [
-    { value: "first_year", label: "First Year" },
-    { value: "last_year", label: "Last Year" },
-    { value: "all_years", label: "All Years" },
-  ]
   let timeframeValue = timeframeItems[2]
   let nodeDescriptorValue = null
   let linkDescriptorValue = null
 
-  const sideColors = {
-    1: "#2f7f66",
-    2: "#b54f72",
-    3: "#5f70b8",
-    null: "#71717a",
-    undefined: "#71717a",
-  }
+  const sideColors = { 1: "#2f7f66", 2: "#b54f72", 3: "#5f70b8", null: "#71717a", undefined: "#71717a" }
 
   $: graphCenterX = width * 0.5
   $: selectedWarTypeValues = selectedWarTypes?.length ? selectedWarTypes.map(d => d.value) : []
@@ -163,9 +158,7 @@
   }
 
   function fieldLabel(field) {
-    return field
-      .replaceAll("_", " ")
-      .replace(/\b\w/g, value => value.toUpperCase())
+    return field.replaceAll("_", " ").replace(/\b\w/g, value => value.toUpperCase())
   }
 
   function descriptorFields(rows, timeframe) {
@@ -197,7 +190,8 @@
         sizeValue = numberValue(node.battle_deaths) ?? NaN
       } else if (sizeField == "battle_deaths_per_day") {
         let totalDays = dateDays(node.start_date, Number(node.ongoing_war) == 1 ? null : node.end_date)
-        let daysAtWar = totalDays == null ? null : totalDays - (numberValue(descriptorValue(node, "days_not_at_war")) ?? 0)
+        let daysAtWar =
+          totalDays == null ? null : totalDays - (numberValue(descriptorValue(node, "days_not_at_war")) ?? 0)
         let battleDeaths = numberValue(descriptorValue(node, "battle_deaths")) ?? numberValue(node.battle_deaths)
         sizeValue =
           Number.isFinite(daysAtWar) && battleDeaths != null ? Math.round((battleDeaths / daysAtWar) * 100) / 100 : NaN
@@ -594,7 +588,7 @@
     hoverNode = null
     tooltip = null
     let point = graphPoint(event)
-    let adjustedPoint = {x: getXAdjusted(node.id, point.x),y: getYAdjusted(node.id, point.y)}
+    let adjustedPoint = { x: getXAdjusted(node.id, point.x), y: getYAdjusted(node.id, point.y) }
     node.fx = adjustedPoint.x
     node.fy = adjustedPoint.y
     node.x = adjustedPoint.x
@@ -609,7 +603,7 @@
     if (!dragNode) return
 
     let point = graphPoint(event)
-    let adjustedPoint = {x: getXAdjusted(dragNode.id, point.x),y: getYAdjusted(dragNode.id, point.y)}
+    let adjustedPoint = { x: getXAdjusted(dragNode.id, point.x), y: getYAdjusted(dragNode.id, point.y) }
     dragNode.fx = adjustedPoint.x
     dragNode.fy = adjustedPoint.y
     dragNode.x = adjustedPoint.x

@@ -192,9 +192,9 @@ select
     if(a.transition_to_dictatorship = 1 and b.transition_to_dictatorship = 1, 1, 0) transition_to_dictatorship
 from dyad_years c
 join dd_country_years a on c.c_code_a = a.c_code
-                       and c.year = a.year
+                        and c.year = a.year
 join dd_country_years b on c.c_code_b = b.c_code
-                       and c.year = b.year
+                        and c.year = b.year
 where c.c_code_a > 0 and c.c_code_b > 0 and a.c_code != b.c_code
 group by all),
 

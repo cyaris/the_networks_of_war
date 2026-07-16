@@ -201,10 +201,14 @@ def test_step_2_manifest_runs_descriptive_transformations(conn):
 
     assert set(STEP_2_TRANSFORMED_TABLES).issubset(actual_tables)
     assert all(row_count > 0 for row_count in row_counts.values())
-    assert "terrorism_deaths_x" in participant_columns
-    assert "concurrent_wars_z" in participant_columns
-    assert "alliance_x" in dyad_columns
-    assert "mtops_z" in dyad_columns
+    assert "timeframe" in participant_columns
+    assert "terrorism_deaths" in participant_columns
+    assert "concurrent_wars" in participant_columns
+    assert "timeframe" in dyad_columns
+    assert "alliance" in dyad_columns
+    assert "mtops" in dyad_columns
+    assert not any(column.endswith(("_x", "_y", "_z")) for column in participant_columns)
+    assert not any(column.endswith(("_x", "_y", "_z")) for column in dyad_columns)
 
 
 def test_step_2_source_metadata_files_match_known_downloads():

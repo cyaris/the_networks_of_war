@@ -173,5 +173,5 @@ select
     max(end_date_estimated) end_date_estimated,
     sum(if(battle_deaths_a >= 0, battle_deaths_a, null)) battle_deaths_a,
     sum(if(battle_deaths_b >= 0, battle_deaths_b, null)) battle_deaths_b
-from cleaned_war_dyads a
+from cleaned_war_dyads
 group by 1, 6, 7, 8, 9;

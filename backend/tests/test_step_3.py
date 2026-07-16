@@ -95,15 +95,15 @@ def test_step_3_manifest_runs_final_export_transformations(conn):
     ]
     assert set(STEP_3_TRANSFORMED_TABLES).issubset(actual_tables)
     assert all(row_count > 0 for row_count in row_counts.values())
-    assert row_counts["final_participants"] == scalar(conn, "select count(*) from participant_descriptives")
-    assert row_counts["final_dyads"] == scalar(conn, "select count(*) from dyadic_descriptives")
+    assert row_counts["final_participants"] == scalar(conn, "select count(*) from participants")
+    assert row_counts["final_dyads"] == scalar(conn, "select count(*) from dyads")
     assert row_counts["final_wars"] == scalar(conn, "select count(*) from wars")
 
     assert "file_name" not in table_columns(conn, "final_wars")
     assert "total_days_in_war" in table_columns(conn, "final_wars")
     assert "graph_json" in table_columns(conn, "final_wars")
-    assert {"id", "node_key"}.issubset(table_columns(conn, "final_participants"))
-    assert {"source", "target"}.issubset(table_columns(conn, "final_dyads"))
+    assert {"id", "node_key", "descriptor_timeframes"}.issubset(table_columns(conn, "final_participants"))
+    assert {"source", "target", "descriptor_timeframes"}.issubset(table_columns(conn, "final_dyads"))
 
 
 def test_step_3_exports_frontend_graph_data(step_3_outputs: tuple[Path, Path]):
@@ -173,9 +173,11 @@ def test_step_3_applies_legacy_participant_fill_and_conversion_rules(conn):
                               and a.c_code = b.c_code
                               and a.participant = b.participant
     where
+        a.timeframe = 'First Year'
+        and
         a.c_code > 0
-        and a.money_flow_in_x is null
-        and b.money_flow_in_x = 0
+        and a.money_flow_in is null
+        and json_extract(b.descriptor_timeframes, '$.first_year.money_flow_in')::double = 0
     """
     assert scalar(conn, state_null_fill_sql) > 0
 
@@ -186,25 +188,23 @@ def test_step_3_applies_legacy_participant_fill_and_conversion_rules(conn):
                               and a.c_code = b.c_code
                               and a.participant = b.participant
     where
+        a.timeframe = 'First Year'
+        and
         a.c_code > 0
-        and a.population_x is not null
-        and a.population_x not in (-9, -8)
-        and b.population_x = a.population_x * 1000
+        and a.population is not null
+        and a.population not in (-9, -8)
+        and json_extract(b.descriptor_timeframes, '$.first_year.population')::double = a.population * 1000
     """
     assert scalar(conn, population_conversion_sql) > 0
 
-    non_state_null_sql = """
+    non_state_descriptor_sql = """
     select count(*)
-    from participant_descriptives a
-    join final_participants b on a.war_id = b.war_id
-                              and a.c_code = b.c_code
-                              and a.participant = b.participant
+    from final_participants
     where
-        a.c_code <= 0
-        and a.terrorism_deaths_x is null
-        and b.terrorism_deaths_x is null
+        c_code <= 0
+        and descriptor_timeframes is null
     """
-    assert scalar(conn, non_state_null_sql) > 0
+    assert scalar(conn, non_state_descriptor_sql) > 0
 
 
 def test_step_3_final_dyad_links_resolve_all_final_participants(conn):
