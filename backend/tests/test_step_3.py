@@ -14,6 +14,7 @@ sys.path.insert(0, str(SRC_ROOT))
 from pipeline import DEFAULT_CSV_DIR, STEP_1_SOURCE_KEYS, STEP_2_SOURCE_KEYS, STEP_3_SQL, Pipeline, sql_identifier
 
 STEP_3_TRANSFORMED_TABLES = ["final_participants", "final_dyads", "final_wars"]
+DESCRIPTOR_TIMEFRAMES = {"first_year", "last_year", "all_years"}
 
 
 @pytest.fixture(scope="session")
@@ -125,21 +126,42 @@ def test_step_3_frontend_graph_data_prunes_unavailable_descriptor_fields(step_3_
     for graph in payload["graphsByWarId"].values():
         nodes = graph["nodes"]
         links = graph["links"]
-        node_fields = sorted({field for node in nodes for field in node if is_timeframe_field(field)})
-        link_fields = sorted({field for link in links for field in link if is_timeframe_field(field)})
+        node_fields = sorted({(timeframe, field) for node in nodes for timeframe, field in descriptor_fields(node)})
+        link_fields = sorted({(timeframe, field) for link in links for timeframe, field in descriptor_fields(link)})
 
-        for field in node_fields:
-            values = [number_or_none(node.get(field)) for node in nodes]
+        assert all(not is_legacy_timeframe_field(field) for node in nodes for field in node)
+        assert all(not is_legacy_timeframe_field(field) for link in links for field in link)
+
+        for timeframe, field in node_fields:
+            values = [number_or_none(node.get(timeframe, {}).get(field)) for node in nodes]
             coalesced_values = [max(value if value is not None else 0, 0) for value in values]
 
             assert max(coalesced_values, default=0) > 0
             assert len(set(coalesced_values)) > 1
             assert sum(value is None for value in values) / len(values) < 0.5
 
-        for field in link_fields:
-            values = [number_or_none(link.get(field)) for link in links]
+        for timeframe, field in link_fields:
+            values = [number_or_none(link.get(timeframe, {}).get(field)) for link in links]
 
             assert any(value is not None and value > 0 for value in values)
+
+
+def test_step_3_frontend_graph_data_omits_first_and_last_year_for_single_year_wars(
+    step_3_outputs: tuple[Path, Path],
+):
+    _, frontend_data_path = step_3_outputs
+    payload = json.loads(frontend_data_path.read_text())
+    single_year_wars = [war for war in payload["wars"] if war["start_year"] == war["end_year"]]
+
+    assert len(single_year_wars) > 0
+
+    for war in single_year_wars:
+        graph = payload["graphsByWarId"][js_war_id_key(war["war_id"])]
+        descriptor_keys = {
+            key for row in [*graph["nodes"], *graph["links"]] for key in row if key in DESCRIPTOR_TIMEFRAMES
+        }
+
+        assert descriptor_keys <= {"all_years"}
 
 
 def test_step_3_applies_legacy_participant_fill_and_conversion_rules(conn):
@@ -221,8 +243,12 @@ def js_war_id_key(value: float) -> str:
     return str(int(value)) if value == int(value) else str(value)
 
 
-def is_timeframe_field(field: str) -> bool:
+def is_legacy_timeframe_field(field: str) -> bool:
     return field.endswith(("_x", "_y", "_z"))
+
+
+def descriptor_fields(row: dict):
+    return [(timeframe, field) for timeframe in DESCRIPTOR_TIMEFRAMES for field in row.get(timeframe, {})]
 
 
 def number_or_none(value):

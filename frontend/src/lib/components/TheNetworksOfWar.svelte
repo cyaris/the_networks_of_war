@@ -24,14 +24,12 @@
   function linkDashFieldCount(war) {
     let graph = graphForWar(war)
     let fields = Array.from(
-      new Set(
-        (graph.links || []).flatMap(link =>
-          Object.keys(link).filter(field => field.endsWith("_x") || field.endsWith("_y") || field.endsWith("_z"))
-        )
-      )
+      new Set((graph.links || []).flatMap(link => timeframeItems.flatMap(item => Object.keys(link[item.value] || {}))))
     )
 
-    return fields.filter(field => graph.links.some(link => Number(link[field]) > 0)).length
+    return fields.filter(field =>
+      graph.links.some(link => timeframeItems.some(item => Number(link[item.value]?.[field]) > 0))
+    ).length
   }
 
   function preferredWarItem(items) {
@@ -91,9 +89,9 @@
   const tooltipPadding = 8
 
   const timeframeItems = [
-    { value: "x", label: "First Year" },
-    { value: "y", label: "Last Year" },
-    { value: "z", label: "All Years" },
+    { value: "first_year", label: "First Year" },
+    { value: "last_year", label: "Last Year" },
+    { value: "all_years", label: "All Years" },
   ]
   let timeframeValue = timeframeItems[2]
   let nodeDescriptorValue = null
@@ -166,19 +164,22 @@
 
   function fieldLabel(field) {
     return field
-      .replace(/_[xyz]$/, "")
       .replaceAll("_", " ")
       .replace(/\b\w/g, value => value.toUpperCase())
   }
 
-  function descriptorFields(rows, suffix) {
-    return Array.from(new Set((rows[0] ? Object.keys(rows[0]) : []).filter(field => field.endsWith(`_${suffix}`))))
+  function descriptorFields(rows, timeframe) {
+    return Array.from(new Set(rows.flatMap(row => Object.keys(row[timeframe] || {}))))
   }
 
   function descriptorItems(fields) {
     return fields
       .sort((a, b) => fieldLabel(a).localeCompare(fieldLabel(b)))
       .map(field => ({ value: field, label: fieldLabel(field), secondaryLabel: field }))
+  }
+
+  function descriptorValue(row, field, timeframe = timeframeValue?.value || "all_years") {
+    return row?.[timeframe]?.[field]
   }
 
   function getNodeDescriptiveValues(sizeField) {
@@ -189,19 +190,19 @@
     descriptorNodes.forEach(node => {
       let sizeValue
 
-      if (sizeField == "days_at_war_z") {
+      if (sizeField == "days_at_war") {
         let totalDays = dateDays(node.start_date, Number(node.ongoing_war) == 1 ? null : node.end_date)
-        sizeValue = totalDays == null ? NaN : totalDays - (numberValue(node.days_not_at_war_z) ?? 0)
-      } else if (sizeField == "battle_deaths_z") {
+        sizeValue = totalDays == null ? NaN : totalDays - (numberValue(descriptorValue(node, "days_not_at_war")) ?? 0)
+      } else if (sizeField == "battle_deaths") {
         sizeValue = numberValue(node.battle_deaths) ?? NaN
-      } else if (sizeField == "battle_deaths_per_day_z") {
+      } else if (sizeField == "battle_deaths_per_day") {
         let totalDays = dateDays(node.start_date, Number(node.ongoing_war) == 1 ? null : node.end_date)
-        let daysAtWar = totalDays == null ? null : totalDays - (numberValue(node.days_not_at_war_z) ?? 0)
-        let battleDeaths = numberValue(node.battle_deaths_z) ?? numberValue(node.battle_deaths)
+        let daysAtWar = totalDays == null ? null : totalDays - (numberValue(descriptorValue(node, "days_not_at_war")) ?? 0)
+        let battleDeaths = numberValue(descriptorValue(node, "battle_deaths")) ?? numberValue(node.battle_deaths)
         sizeValue =
           Number.isFinite(daysAtWar) && battleDeaths != null ? Math.round((battleDeaths / daysAtWar) * 100) / 100 : NaN
       } else {
-        sizeValue = Number.parseFloat(node[sizeField])
+        sizeValue = Number.parseFloat(descriptorValue(node, sizeField))
       }
 
       if (Number.isNaN(sizeValue)) {
@@ -233,21 +234,21 @@
 
   function getLinkDescriptiveValues(linkDescriptorName) {
     return descriptorLinks.map(link => {
-      let value = Number.parseFloat(link[linkDescriptorName])
+      let value = Number.parseFloat(descriptorValue(link, linkDescriptorName))
 
       return Number.isFinite(value) && value > 0 ? 1 : 0
     })
   }
 
-  function nodeFieldItems(rows, suffix) {
-    let fields = descriptorFields(rows, suffix)
+  function nodeFieldItems(rows, timeframe) {
+    let fields = descriptorFields(rows, timeframe)
 
-    if (suffix == "z") {
-      fields = Array.from(new Set([...fields, "days_at_war_z", "battle_deaths_z", "battle_deaths_per_day_z"]))
+    if (timeframe == "all_years") {
+      fields = Array.from(new Set([...fields, "days_at_war", "battle_deaths", "battle_deaths_per_day"]))
     }
 
-    let daysAtWarUniqueValues = coalescedUniqueValues(getNodeDescriptiveValues("days_at_war_z")[0])
-    let daysNotAtWarUniqueValues = coalescedUniqueValues(getNodeDescriptiveValues("days_not_at_war_z")[0])
+    let daysAtWarUniqueValues = coalescedUniqueValues(getNodeDescriptiveValues("days_at_war")[0])
+    let daysNotAtWarUniqueValues = coalescedUniqueValues(getNodeDescriptiveValues("days_not_at_war")[0])
 
     return descriptorItems(
       fields.filter(field => {
@@ -257,18 +258,18 @@
         if (maxValue(uniqueValues) == 0) return false
         if (uniqueValues.length == 1) return false
         if (fieldNullRadiusNodes / values.length >= 0.5) return false
-        if (field == "days_at_war_z" && daysAtWarUniqueValues.length == 1) return false
-        if (field == "days_not_at_war_z" && daysNotAtWarUniqueValues.length == 1) return false
-        if (field == "battle_deaths_per_day_z" && daysAtWarUniqueValues.length == 1) return false
+        if (field == "days_at_war" && daysAtWarUniqueValues.length == 1) return false
+        if (field == "days_not_at_war" && daysNotAtWarUniqueValues.length == 1) return false
+        if (field == "battle_deaths_per_day" && daysAtWarUniqueValues.length == 1) return false
 
         return true
       })
     )
   }
 
-  function linkFieldItems(rows, suffix) {
+  function linkFieldItems(rows, timeframe) {
     return descriptorItems(
-      descriptorFields(rows, suffix).filter(field => maxValue(getLinkDescriptiveValues(field)) == 1)
+      descriptorFields(rows, timeframe).filter(field => maxValue(getLinkDescriptiveValues(field)) == 1)
     )
   }
 
@@ -287,11 +288,15 @@
 
       return {
         ...node,
-        days_at_war_z: daysAtWar,
-        battle_deaths_per_day_z:
-          Number.isFinite(daysAtWar) && battleDeaths != null
-            ? Math.round((battleDeaths / daysAtWar) * 100) / 100
-            : null,
+        all_years: {
+          ...(node.all_years || {}),
+          battle_deaths: battleDeaths,
+          days_at_war: daysAtWar,
+          battle_deaths_per_day:
+            Number.isFinite(daysAtWar) && battleDeaths != null
+              ? Math.round((battleDeaths / daysAtWar) * 100) / 100
+              : null,
+        },
       }
     })
   }
@@ -436,15 +441,15 @@
     if (!nodeDescriptorValue?.value) return null
 
     let value =
-      nodeDescriptorValue.value == "battle_deaths_z"
+      nodeDescriptorValue.value == "battle_deaths"
         ? numberValue(node.battle_deaths)
-        : numberValue(node[nodeDescriptorValue.value])
+        : numberValue(descriptorValue(node, nodeDescriptorValue.value))
 
     return value == null ? "Unknown" : value.toLocaleString()
   }
 
   function linkHasDescriptor(link) {
-    return linkDescriptorValue?.value && Number(link[linkDescriptorValue.value] || 0) > 0
+    return linkDescriptorValue?.value && Number(descriptorValue(link, linkDescriptorValue.value) || 0) > 0
   }
 
   function applyLegacySizing() {
@@ -665,7 +670,7 @@
   }
 
   function hasTimeframeDescriptor(row, timeframe) {
-    return Object.keys(row).some(field => field.endsWith(`_${timeframe}`) && numberValue(row[field]) != null)
+    return Object.values(row[timeframe] || {}).some(value => numberValue(value) != null)
   }
 
   $: if (graph !== currentGraph || width !== currentWidth) {
@@ -683,21 +688,21 @@
   $: if (!availableTimeframeItems.some(item => item.value == timeframeValue?.value)) {
     timeframeValue = availableTimeframeItems[availableTimeframeItems.length - 1] || timeframeItems[2]
   }
-  $: nodeDescriptorItems = nodeFieldItems(descriptorNodes, timeframeValue?.value || "z")
-  $: linkDescriptorItems = linkFieldItems(descriptorLinks, timeframeValue?.value || "z")
+  $: nodeDescriptorItems = nodeFieldItems(descriptorNodes, timeframeValue?.value || "all_years")
+  $: linkDescriptorItems = linkFieldItems(descriptorLinks, timeframeValue?.value || "all_years")
   $: if (nodeDescriptorValue && !nodeDescriptorItems.some(item => item.value == nodeDescriptorValue.value)) {
     nodeDescriptorValue = null
   }
   $: if (linkDescriptorValue && !linkDescriptorItems.some(item => item.value == linkDescriptorValue.value)) {
     linkDescriptorValue = null
   }
-  $: sizingSignature = `${nodeDescriptorValue?.value || "none"}|${width}|${height}|${nodes.length}|${links.length}`
+  $: sizingSignature = `${timeframeValue?.value || "all_years"}|${nodeDescriptorValue?.value || "none"}|${width}|${height}|${nodes.length}|${links.length}`
   $: if (nodes.length && sizingSignature != currentSizingSignature) {
     currentSizingSignature = sizingSignature
     applyLegacySizing()
     createLegacySimulation()
   }
-  $: linkDescriptorSignature = linkDescriptorValue?.value || "none"
+  $: linkDescriptorSignature = `${timeframeValue?.value || "all_years"}|${linkDescriptorValue?.value || "none"}`
   $: if (linkDescriptorSignature != currentLinkDescriptorSignature) {
     currentLinkDescriptorSignature = linkDescriptorSignature
     triggerLinkDashPulse()
@@ -904,9 +909,9 @@
                 >
                   <div class="font-extrabold">{tooltip.node.participant}</div>
                   <div class="text-[#50615b]">
-                    Battle deaths: {Number(tooltip.node.battle_deaths || 0).toLocaleString()}
+                    Battle Deaths: {Number(tooltip.node.battle_deaths || 0).toLocaleString()}
                   </div>
-                  {#if nodeDescriptorValue?.value}
+                  {#if nodeDescriptorValue?.value && nodeDescriptorValue.value != "battle_deaths"}
                     <div class="text-[#50615b]">
                       {nodeDescriptorValue.label}: {nodeDescriptorDisplayValue(tooltip.node)}
                     </div>
