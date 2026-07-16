@@ -19,6 +19,16 @@ create or replace table source_interstate_war_metadata_adjustments (
     war_type_id integer
 );
 
+create or replace table source_interstate_war_dyad_adjustments (
+    source_key varchar,
+    source_version varchar,
+    war_id double,
+    c_code_a integer,
+    c_code_b integer,
+    start_date date,
+    end_date date
+);
+
 create or replace table source_participant_side_adjustments (
     source_key varchar,
     source_version varchar,

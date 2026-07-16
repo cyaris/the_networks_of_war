@@ -7,6 +7,10 @@
 - Split long README assumption sections into small, scannable subsections rather than maintaining one long bullet list.
 - For data-related questions, consult the relevant source documentation in `backend/data/` before concluding whether a
   source value, adjustment, or transformation is correct.
+- Treat `backend/data/<source_key>/` folder names as matching source-data table keys without the `source_` prefix; the
+  corresponding raw source data and documentation live inside each folder.
+- Keep source adjustments minimal and only add values that downstream joins, corrections, or transformations actually
+  need.
 - Do not preserve backward compatibility for removed or renamed project interfaces unless the user explicitly asks for a
   migration bridge. Prefer deleting stale parameters, aliases, scripts, and docs so old callers fail clearly.
 

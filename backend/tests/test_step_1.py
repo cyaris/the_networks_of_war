@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date
 from pathlib import Path
 
 import duckdb
@@ -871,6 +872,52 @@ def test_source_adjusted_mid_participant_side_assignments_are_applied(conn):
     assert actual_sides == {(660, "Lebanon", 1), (666, "Israel", 2)}
 
 
+def test_source_adjusted_interstate_war_dyads_are_applied(conn):
+    query = """
+    select
+        source_key,
+        source_version,
+        war_id,
+        c_code_a,
+        c_code_b,
+        start_date,
+        end_date
+    from source_interstate_war_dyad_adjustments
+    order by c_code_a, c_code_b
+    """
+    actual_adjustments = conn.execute(query).fetchall()
+
+    assert actual_adjustments == [
+        ("interstate_war_dyads", "unversioned", 106, 740, 255, date(1914, 8, 23), date(1918, 11, 11)),
+        ("interstate_war_dyads", "unversioned", 106, 740, 300, date(1914, 8, 23), date(1918, 11, 3)),
+    ]
+
+    query = """
+    select
+        war_id,
+        c_code_a,
+        participant_a,
+        c_code_b,
+        participant_b,
+        start_date,
+        end_date
+    from dyads
+    where
+        war_id = 106
+        and (
+            (c_code_a = 255 and c_code_b = 740)
+            or (c_code_a = 300 and c_code_b = 740)
+        )
+    order by c_code_a, c_code_b
+    """
+    actual_dyads = conn.execute(query).fetchall()
+
+    assert actual_dyads == [
+        (106, 255, "Germany", 740, "Japan", date(1914, 8, 23), date(1918, 11, 11)),
+        (106, 300, "Austria-Hungary", 740, "Japan", date(1914, 8, 23), date(1918, 11, 3)),
+    ]
+
+
 def test_source_adjustment_inserts_do_not_duplicate_existing_source_facts(conn):
     duplicate_facts_sql = """
     select
@@ -901,6 +948,23 @@ def test_source_adjustment_inserts_do_not_duplicate_existing_source_facts(conn):
     join source_interstate_wars c on a.war_id = c.war_id
                                   and a.war_name = c.war_name
                                   and a.war_type_id = c.war_type_id
+    union all
+    select
+        'source_interstate_war_dyad_adjustments' adjustment_table,
+        a.source_key,
+        a.source_version,
+        a.war_id,
+        'c_code_a=' || a.c_code_a || ', c_code_b=' || a.c_code_b row_key,
+        null participant,
+        null side
+    from source_interstate_war_dyad_adjustments a
+    join source_file_versions b on a.source_key = b.source_key
+                                and a.source_version = b.source_version
+    join source_interstate_war_dyads c on a.war_id = c.war_id
+                                      and (
+                                          (a.c_code_a = c.c_code_a and a.c_code_b = c.c_code_b)
+                                          or (a.c_code_a = c.c_code_b and a.c_code_b = c.c_code_a)
+                                      )
     union all
     select
         'source_participant_side_adjustments' adjustment_table,

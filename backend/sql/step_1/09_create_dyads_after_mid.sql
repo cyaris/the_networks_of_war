@@ -153,6 +153,34 @@ left join country_codes c on a.c_code_a = c.c_code
 left join country_codes d on a.c_code_b = d.c_code
 group by 1, 6, 7, 8, 9, 10),
 
+adjusted_war_dyads as (
+
+select
+    a.war_id,
+    any_value(c.war_name) war_name,
+    any_value(c.war_type_id) war_type_id,
+    any_value(c.war_type) war_type,
+    any_value(c.war_subtype) war_subtype,
+    a.c_code_a,
+    a.c_code_b,
+    d.state_name participant_a,
+    e.state_name participant_b,
+    min(a.start_date) start_date,
+    max(a.end_date) end_date,
+    0 start_date_estimated,
+    0 end_date_estimated,
+    null::double battle_deaths_a,
+    null::double battle_deaths_b,
+    0 battle_deaths_estimated_a,
+    0 battle_deaths_estimated_b
+from source_interstate_war_dyad_adjustments a
+join source_file_versions b on a.source_key = b.source_key
+                            and a.source_version = b.source_version
+left join war_metadata c on a.war_id = c.war_id
+left join country_codes d on a.c_code_a = d.c_code
+left join country_codes e on a.c_code_b = e.c_code
+group by 1, 6, 7, 8, 9),
+
 merged_dyads as (
 
 select
@@ -198,7 +226,38 @@ left join dyads_after_sources b on a.war_id = b.war_id
                                 and a.c_code_a = b.c_code_a
                                 and a.c_code_b = b.c_code_b
                                 and least(a.end_date, b.end_date) >= greatest(a.start_date, b.start_date)
-where b.war_id is null)
+where b.war_id is null
+union all
+select
+    a.war_id,
+    a.war_name,
+    a.war_type_id,
+    a.war_type,
+    a.war_subtype,
+    a.c_code_a,
+    a.c_code_b,
+    a.participant_a,
+    a.participant_b,
+    a.start_date,
+    a.end_date,
+    a.start_date_estimated,
+    a.end_date_estimated,
+    a.battle_deaths_a,
+    a.battle_deaths_b,
+    a.battle_deaths_estimated_a,
+    a.battle_deaths_estimated_b
+from adjusted_war_dyads a
+left join dyads_after_sources b on a.war_id = b.war_id
+                                and a.c_code_a = b.c_code_a
+                                and a.c_code_b = b.c_code_b
+                                and least(a.end_date, b.end_date) >= greatest(a.start_date, b.start_date)
+left join mid_dyads c on a.war_id = c.war_id
+                      and a.c_code_a = c.c_code_a
+                      and a.c_code_b = c.c_code_b
+                      and least(a.end_date, c.end_date) >= greatest(a.start_date, c.start_date)
+where
+    b.war_id is null
+    and c.war_id is null)
 
 select
     war_id,

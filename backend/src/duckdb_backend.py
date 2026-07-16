@@ -85,11 +85,12 @@ STEP_2_SOURCE_KEYS = [
 SQL_CHECKPOINTS = {
     "step_1/04_insert_source_adjustments.sql": [
         (
-            "Manual source adjustments loaded: %s MID war IDs, %s war metadata rows, %s participant sides.",
+            "Manual source adjustments loaded: %s MID war IDs, %s war metadata rows, %s war dyads, %s participant sides.",
             """
             select
                 (select count(*) from source_interstate_mid_war_id_adjustments),
                 (select count(*) from source_interstate_war_metadata_adjustments),
+                (select count(*) from source_interstate_war_dyad_adjustments),
                 (select count(*) from source_participant_side_adjustments)
             """,
         ),
