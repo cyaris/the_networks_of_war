@@ -13,7 +13,7 @@
     "preview:open": "vite preview --open",
     "check": "svelte-kit sync && svelte-check --tsconfig ./jsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./jsconfig.json --watch",
-    "data:build": "cd ../backend && .venv/bin/python src/pipeline.py --step 3",
+    "data:build": "cd ../backend && .venv/bin/python src/pipeline.py",
     "format": "prettier --ignore-path .gitignore --ignore-path .prettierignore --write '**/*.{css,cjs,html,js,json,svelte,svg}'",
     "format:check": "prettier --ignore-path ../.gitignore --ignore-path .prettierignore --check '**/*.{css,cjs,html,js,json,svelte,svg}'",
     "lint": "eslint '**/*.{cjs,html,js,svelte}'",

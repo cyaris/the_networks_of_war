@@ -212,14 +212,19 @@ def add_duckdb_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--inspect", action="store_true")
     query_group = parser.add_mutually_exclusive_group()
     query_group.add_argument(
-        "--query", help="SQL query to execute against the DuckDB database after the selected step runs."
+        "--query", help="SQL query to execute after build completes, or immediately with --no-build."
     )
     query_group.add_argument(
         "--query-file",
         type=Path,
-        help="Path to a local .sql file to execute against the DuckDB database after the selected step runs.",
+        help="Path to a local .sql file to execute after build completes, or immediately with --no-build.",
     )
-    parser.add_argument("--step", choices=["none", "all", "1", "2", "3"], default="all")
+    parser.add_argument(
+        "--build",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Run the full pipeline. Use --no-build to skip preprocessing.",
+    )
 
 
 def render_sql(name: str, context: dict[str, str]) -> str:

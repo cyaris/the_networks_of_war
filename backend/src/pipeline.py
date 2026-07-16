@@ -88,7 +88,7 @@ class Pipeline(SourceDataPreparationMixin, DuckDBProcessesMixin):
 
     def run(
         self,
-        step: str = "all",
+        build: bool = True,
         inspect: bool = False,
         query: str | None = None,
         prepare_data: bool = False,
@@ -102,13 +102,9 @@ class Pipeline(SourceDataPreparationMixin, DuckDBProcessesMixin):
             self.prepare_data(recreate=recreate_data)
 
         with self.connect() as conn:
-            if step in {"all", "1"}:
+            if build:
                 self.run_step_1(conn)
-
-            if step in {"all", "2"}:
                 self.run_step_2(conn)
-
-            if step in {"all", "3"}:
                 self.run_step_3(conn)
 
             if inspect:
@@ -135,7 +131,7 @@ def main() -> None:
     args = parse_args()
 
     Pipeline(data_dir=args.data_dir, db_path=args.db_path).run(
-        step=args.step,
+        build=args.build,
         inspect=args.inspect,
         query=args.query,
         query_file=args.query_file,

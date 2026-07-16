@@ -45,7 +45,7 @@ Install the backend and build the DuckDB database first. From `the_networks_of_w
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
-python src/pipeline.py --step all
+python src/pipeline.py
 ```
 
 Then install and run the frontend. From `the_networks_of_war/frontend`:
@@ -56,8 +56,8 @@ npm run data:build
 npm run dev
 ```
 
-`npm run data:build` reruns Step 3 through `../backend/.venv/bin/python`, so it expects the backend virtual environment
-and Step 1/2 database outputs to exist.
+`npm run data:build` reruns the full backend pipeline through `../backend/.venv/bin/python`, so it expects the backend
+virtual environment and source data to be available.
 
 ## Current Architecture
 
@@ -111,79 +111,66 @@ Pipeline parameters:
 | --- | --- | --- |
 | `--data-dir PATH` | `backend/data/` | Source-data directory. Use `--data-dir data` for the default relative backend path. |
 | `--db-path PATH` | `backend/the_networks_of_war.duckdb` | DuckDB database path. Use `--db-path the_networks_of_war.duckdb` for the default relative backend path. |
-| `--step {none,all,1,2,3}` | `all` | `all` rebuilds Steps 1, 2, and 3; `1` rebuilds Step 1; `2` rebuilds Step 2 source and descriptive tables against existing Step 1 outputs; `3` rebuilds final merge and frontend graph-export tables against existing Step 2 outputs; `none` skips preprocessing. |
-| `--inspect` | off | Print table row counts after the selected step runs. |
+| `--build`, `--no-build` | `--build` | `--build` runs Steps 1, 2, and 3; `--no-build` skips preprocessing so commands can inspect or query an existing database. |
+| `--inspect` | off | Print table row counts after build completes, or immediately with `--no-build`. |
 | `--prepare-data` | off | Download and validate missing source-data folders before opening the database. |
 | `--recreate-data` | off | Delete and recreate the full source-data directory before opening the database. |
-| `--query SQL` | none | Execute an inline SQL query after the selected step runs. |
-| `--query-file PATH` | none | Execute SQL read from a local `.sql` file after the selected step runs. Mutually exclusive with `--query`. |
+| `--query SQL` | none | Execute an inline SQL query after build completes, or immediately with `--no-build`. |
+| `--query-file PATH` | none | Execute SQL read from a local `.sql` file after build completes, or immediately with `--no-build`. Mutually exclusive with `--query`. |
 
-Run or rebuild Step 1:
-
-```bash
-python src/pipeline.py --step 1
-```
-
-Run all rebuilt steps:
+Run or rebuild all pipeline steps:
 
 ```bash
-python src/pipeline.py --step all
+python src/pipeline.py
 ```
 
-Run or rebuild Step 2 source and descriptive tables after Step 1 outputs exist:
+Run the full build explicitly:
 
 ```bash
-python src/pipeline.py --step 2
+python src/pipeline.py --build
 ```
 
-Run or rebuild Step 3 final merge and graph tables after Step 2 outputs exist:
-
-```bash
-python src/pipeline.py --step 3
-```
-
-Print table row counts after running the selected step:
+Print table row counts after running the full build:
 
 ```bash
 python src/pipeline.py --inspect
-python src/pipeline.py --step 1 --inspect
 ```
 
 Query the existing DuckDB database without rebuilding it:
 
 ```bash
-python src/pipeline.py --step none --query "select count(*) as row_count from dyads"
-python src/pipeline.py --step none --query "select * from wars limit 10"
+python src/pipeline.py --no-build --query "select count(*) as row_count from dyads"
+python src/pipeline.py --no-build --query "select * from wars limit 10"
 ```
 
 Query from a local SQL file:
 
 ```bash
-python src/pipeline.py --step none --query-file queries/war_counts.sql
+python src/pipeline.py --no-build --query-file queries/war_counts.sql
 ```
 
-Run Step 1, then query the freshly rebuilt tables:
+Run the full build, then query the freshly rebuilt tables:
 
 ```bash
-python src/pipeline.py --step 1 --query "select war_id, war_name from wars limit 10"
+python src/pipeline.py --query "select war_id, war_name from wars limit 10"
 ```
 
 Use non-default input or database paths:
 
 ```bash
-python src/pipeline.py --data-dir data --db-path the_networks_of_war.duckdb --step 1
+python src/pipeline.py --data-dir data --db-path the_networks_of_war.duckdb
 ```
 
-Create missing source-data subdirectories without running a preprocessing step:
+Create missing source-data subdirectories without running the build:
 
 ```bash
-python src/pipeline.py --prepare-data --step none
+python src/pipeline.py --prepare-data --no-build
 ```
 
 Recreate the full ignored source-data directory:
 
 ```bash
-python src/pipeline.py --recreate-data --step none
+python src/pipeline.py --recreate-data --no-build
 ```
 
 ### Test Commands

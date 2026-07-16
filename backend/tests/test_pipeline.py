@@ -25,6 +25,37 @@ def test_source_data_arguments_reject_csv_dir_alias() -> None:
         parser.parse_args(["--csv-dir", "data"])
 
 
+def test_duckdb_arguments_default_to_build_and_reject_step_alias() -> None:
+    parser = argparse.ArgumentParser()
+    pipeline_module.add_duckdb_arguments(parser)
+
+    assert parser.parse_args([]).build is True
+    assert parser.parse_args(["--no-build"]).build is False
+    with pytest.raises(SystemExit):
+        parser.parse_args(["--step", "3"])
+
+
+def test_run_builds_all_steps_by_default(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    executed_steps = []
+
+    def record_step_1(self, conn) -> None:
+        executed_steps.append("1")
+
+    def record_step_2(self, conn) -> None:
+        executed_steps.append("2")
+
+    def record_step_3(self, conn) -> None:
+        executed_steps.append("3")
+
+    monkeypatch.setattr(Pipeline, "run_step_1", record_step_1)
+    monkeypatch.setattr(Pipeline, "run_step_2", record_step_2)
+    monkeypatch.setattr(Pipeline, "run_step_3", record_step_3)
+
+    Pipeline(db_path=tmp_path / "test.duckdb", data_dir=tmp_path).run()
+
+    assert executed_steps == ["1", "2", "3"]
+
+
 def test_run_executes_query_from_local_sql_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     query_file = tmp_path / "query.sql"
     query_file.write_text("select 42 as answer\n")
@@ -35,7 +66,7 @@ def test_run_executes_query_from_local_sql_file(tmp_path: Path, monkeypatch: pyt
 
     monkeypatch.setattr(Pipeline, "query", record_query)
 
-    Pipeline(db_path=tmp_path / "test.duckdb", data_dir=tmp_path).run(step="none", query_file=query_file)
+    Pipeline(db_path=tmp_path / "test.duckdb", data_dir=tmp_path).run(build=False, query_file=query_file)
 
     assert executed_queries == ["select 42 as answer\n"]
 
@@ -58,7 +89,7 @@ def test_run_rejects_query_text_and_query_file_together(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="Use either query or query_file"):
         Pipeline(db_path=tmp_path / "test.duckdb", data_dir=tmp_path).run(
-            step="none", query="select 1", query_file=query_file
+            build=False, query="select 1", query_file=query_file
         )
 
 
