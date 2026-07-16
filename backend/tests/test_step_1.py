@@ -25,13 +25,13 @@ from shared import (  # noqa: E402
     sql_check_failure,
 )
 
-from pipeline import DEFAULT_DATA_DIR, SOURCE_FILES, STEP_1_SOURCE_KEYS, Pipeline, sql_identifier  # noqa: E402
+from pipeline import SOURCE_FILES, STEP_1_SOURCE_KEYS, Pipeline, sql_identifier  # noqa: E402
 
 
 @pytest.fixture(scope="session")
 def step_1_db_path(tmp_path_factory: pytest.TempPathFactory) -> Path:
     db_path = tmp_path_factory.mktemp("duckdb") / "step_1.duckdb"
-    pipeline = Pipeline(db_path=db_path, data_dir=DEFAULT_DATA_DIR)
+    pipeline = Pipeline(db_path=db_path)
     missing = [str(pipeline.path_for(key)) for key in STEP_1_SOURCE_KEYS if not pipeline.path_for(key).exists()]
 
     if missing:
@@ -360,7 +360,7 @@ def test_coded_participant_names_come_from_country_codes(conn):
 
 
 def test_raw_source_date_components_use_valid_domains(conn):
-    pipeline = Pipeline(data_dir=DEFAULT_DATA_DIR)
+    pipeline = Pipeline()
     failures = []
 
     for source_key, row_reference_columns, date_components in RAW_SOURCE_DATE_COMPONENTS:

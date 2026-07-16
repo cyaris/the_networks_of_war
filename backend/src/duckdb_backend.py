@@ -328,7 +328,7 @@ class DuckDBProcessesMixin:
             logger.info(message, *formatted_values)
 
     def run_step_1(self, conn: duckdb.DuckDBPyConnection) -> None:
-        self.prepare_data(recreate=False, source_keys=STEP_1_SOURCE_KEYS)
+        self.prepare_data(source_keys=STEP_1_SOURCE_KEYS)
         self.require_inputs(STEP_1_SOURCE_KEYS)
 
         for name in STEP_1_SQL:
@@ -336,7 +336,7 @@ class DuckDBProcessesMixin:
             self.execute_sql(conn, name)
 
     def run_step_2(self, conn: duckdb.DuckDBPyConnection) -> None:
-        self.prepare_data(recreate=False, source_keys=STEP_2_SOURCE_KEYS)
+        self.prepare_data(source_keys=STEP_2_SOURCE_KEYS)
         self.require_inputs(STEP_2_SOURCE_KEYS)
 
         for name in STEP_2_SQL:

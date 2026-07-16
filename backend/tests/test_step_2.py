@@ -11,7 +11,6 @@ SRC_ROOT = Path(__file__).resolve().parents[1] / "src"
 sys.path.insert(0, str(SRC_ROOT))
 
 from pipeline import (
-    DEFAULT_DATA_DIR,
     SOURCE_FILES,
     SOURCE_METADATA,
     SOURCE_PREPARED_FILES,
@@ -55,7 +54,7 @@ STEP_2_TRANSFORMED_TABLES = [
 @pytest.fixture(scope="session")
 def step_2_db_path(tmp_path_factory: pytest.TempPathFactory) -> Path:
     db_path = tmp_path_factory.mktemp("duckdb") / "step_2.duckdb"
-    pipeline = Pipeline(db_path=db_path, data_dir=DEFAULT_DATA_DIR)
+    pipeline = Pipeline(db_path=db_path)
     missing = [
         str(path)
         for source_key in [*STEP_1_SOURCE_KEYS, *STEP_2_SOURCE_KEYS]
