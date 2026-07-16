@@ -52,10 +52,8 @@
   let selectedWarTypes = [...warTypeItems]
   let selectedWarItem = null
   let graph = { nodes: [], links: [] }
-  let selectedGraph = null
   let selectedWar = null
   let pageWidth
-  let toolViewportWidth
 
   let width = 900
   let simulation
@@ -119,9 +117,7 @@
     selectedWarItem = preferredWarItem(warItems)
   }
   $: selectedWar = selectedWarItem?.war
-  $: selectedGraph = selectedWar ? graphForWar(selectedWar) : null
-  $: graph = selectedGraph || { nodes: [], links: [] }
-  $: toolViewportWidth = pageWidth ? pageWidth * 0.7 : 0
+  $: graph = selectedWar ? graphForWar(selectedWar) : { nodes: [], links: [] }
 
   function emptyNodeMargins() {
     return {
@@ -226,7 +222,12 @@
       descriptorStdNullRadiusSize = descriptorMaxDomain / nodeCount
     }
 
-    return [values, descriptorMaxDomain, descriptorStdNullRadiusSize, descriptorNullRadiusNodes]
+    return {
+      values,
+      maxDomain: descriptorMaxDomain,
+      stdNullRadiusSize: descriptorStdNullRadiusSize,
+      nullRadiusNodes: descriptorNullRadiusNodes,
+    }
   }
 
   function getLinkDescriptiveValues(linkDescriptorName) {
@@ -244,17 +245,17 @@
       fields = Array.from(new Set([...fields, "days_at_war", "battle_deaths", "battle_deaths_per_day"]))
     }
 
-    let daysAtWarUniqueValues = coalescedUniqueValues(getNodeDescriptiveValues("days_at_war")[0])
-    let daysNotAtWarUniqueValues = coalescedUniqueValues(getNodeDescriptiveValues("days_not_at_war")[0])
+    let daysAtWarUniqueValues = coalescedUniqueValues(getNodeDescriptiveValues("days_at_war").values)
+    let daysNotAtWarUniqueValues = coalescedUniqueValues(getNodeDescriptiveValues("days_not_at_war").values)
 
     return descriptorItems(
       fields.filter(field => {
-        let [values, , , fieldNullRadiusNodes] = getNodeDescriptiveValues(field)
+        let { values, nullRadiusNodes } = getNodeDescriptiveValues(field)
         let uniqueValues = coalescedUniqueValues(values)
 
         if (maxValue(uniqueValues) == 0) return false
         if (uniqueValues.length == 1) return false
-        if (fieldNullRadiusNodes / values.length >= 0.5) return false
+        if (nullRadiusNodes / values.length >= 0.5) return false
         if (field == "days_at_war" && daysAtWarUniqueValues.length == 1) return false
         if (field == "days_not_at_war" && daysNotAtWarUniqueValues.length == 1) return false
         if (field == "battle_deaths_per_day" && daysAtWarUniqueValues.length == 1) return false
@@ -451,7 +452,7 @@
   }
 
   function showNodeSizeWarning(node) {
-    if (!nodeDescriptorValue?.value || maxValue(coalescedUniqueValues(nodeDescriptiveValues)) == 0) return false
+    if (!nodeDescriptorValue?.value || !hasNodeSizeSignal) return false
 
     return !Number.isFinite(nodeDescriptiveValues[node.id])
   }
@@ -478,9 +479,10 @@
   }
 
   function applyLegacySizing() {
-    ;[nodeDescriptiveValues, maxDomain, stdNullRadiusSize] = getNodeDescriptiveValues(
-      nodeDescriptorValue?.value || null
-    )
+    let sizing = getNodeDescriptiveValues(nodeDescriptorValue?.value || null)
+    nodeDescriptiveValues = sizing.values
+    maxDomain = sizing.maxDomain
+    stdNullRadiusSize = sizing.stdNullRadiusSize
     nodeMargins = getNodeMargins()
   }
 
@@ -548,7 +550,7 @@
               getYAdjusted(linkNode.target.id, linkNode.target.y)) *
             0.5
         })
-        refreshGraphRows()
+        refreshGraph()
       })
   }
 
@@ -570,9 +572,7 @@
     }
   }
 
-  function clampTooltipCoordinates(x, y) {
-    let bounds = tooltipBounds()
-
+  function clampTooltipCoordinates(x, y, bounds) {
     return {
       x: Math.max(tooltipPadding, Math.min(bounds.width - tooltipWidth - tooltipPadding, x)),
       y: Math.max(tooltipPadding, Math.min(bounds.height - tooltipHeight - tooltipPadding, y)),
@@ -584,10 +584,12 @@
     let x = event.clientX - rect.left + tooltipOffset
     let y = event.clientY - rect.top + tooltipOffset
 
-    return clampTooltipCoordinates(x, y)
+    return clampTooltipCoordinates(x, y, { width: rect.width || width, height: rect.height || height })
   }
 
   function showTooltip(node, event) {
+    if (dragNode) return
+
     hoverNode = node
     tooltip = { node, ...tooltipPoint(event) }
   }
@@ -605,12 +607,8 @@
     }
   }
 
-  function refreshGraphRows() {
+  function refreshGraph() {
     nodes = nodes
-    refreshLinks()
-  }
-
-  function refreshLinks() {
     links = links
   }
 
@@ -641,7 +639,7 @@
     dragNode.fy = adjustedPoint.y
     dragNode.x = adjustedPoint.x
     dragNode.y = adjustedPoint.y
-    refreshGraphRows()
+    refreshGraph()
   }
 
   function endDrag() {
@@ -687,7 +685,7 @@
   function updateLinkDescriptorValue(event) {
     linkDescriptorValue = event.detail.d
     triggerLinkDashPulse()
-    refreshLinks()
+    refreshGraph()
   }
 
   function stopSimulation() {
@@ -708,7 +706,6 @@
 
   $: availableTimeframeItems = timeframeItems.filter(
     item =>
-      item.value == "z" ||
       descriptorNodes.some(node => hasTimeframeDescriptor(node, item.value)) ||
       descriptorLinks.some(link => hasTimeframeDescriptor(link, item.value))
   )
@@ -736,8 +733,9 @@
     currentLinkDescriptorSignature = linkDescriptorSignature
     triggerLinkDashPulse()
   }
+  $: hasNodeSizeSignal = maxValue(coalescedUniqueValues(nodeDescriptiveValues)) != 0
   $: if (tooltip) {
-    let point = clampTooltipCoordinates(tooltip.x, tooltip.y)
+    let point = clampTooltipCoordinates(tooltip.x, tooltip.y, tooltipBounds())
 
     if (point.x != tooltip.x || point.y != tooltip.y) {
       tooltip = { ...tooltip, ...point }
@@ -755,7 +753,7 @@
   <div class="px-8 py-12 text-center text-lg min-[1300px]:hidden">
     This visualization is best viewed on a larger screen. So, grab a computer and come back soon!
   </div>
-  <div class="hidden min-[1300px]:block" style="width:{toolViewportWidth}px">
+  <div class="hidden min-[1300px]:block" style="width:{pageWidth ? pageWidth * 0.7 : 0}px">
     <div class="mx-auto flex w-full flex-col gap-4 py-5">
       <section class="grid gap-3 border border-[#d8d3c4] bg-white p-4">
         <div>
