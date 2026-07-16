@@ -4,8 +4,54 @@
   import { onDestroy } from "svelte"
   import { Select } from "svelte-lib/components"
 
-  export let graph = { nodes: [], links: [] }
-  export let selectedWar = null
+  import graphData from "../static/graphData.json"
+
+  let wars = graphData.wars
+  let graphsByWarId = graphData.graphsByWarId
+
+  function plural(value, noun) {
+    return `${Number(value || 0).toLocaleString()} ${noun}${Number(value || 0) == 1 ? "" : "s"}`
+  }
+
+  function warSecondaryLabel(war) {
+    return `${plural(war.total_participants, "participant")}, ${plural(war.total_dyads, "dyad")}`
+  }
+
+  function graphForWar(war) {
+    return graphsByWarId[String(war?.war_id)] || { nodes: [], links: [] }
+  }
+
+  function linkDashFieldCount(war) {
+    let graph = graphForWar(war)
+    let fields = Array.from(
+      new Set(
+        (graph.links || []).flatMap(link =>
+          Object.keys(link).filter(field => field.endsWith("_x") || field.endsWith("_y") || field.endsWith("_z"))
+        )
+      )
+    )
+
+    return fields.filter(field => graph.links.some(link => Number(link[field]) > 0)).length
+  }
+
+  function preferredWarItem(items) {
+    return items.find(item => item.linkDashFieldCount > 0) || items[0]
+  }
+
+  let linkDashFieldCountsByWarId = Object.fromEntries(wars.map(war => [String(war.war_id), linkDashFieldCount(war)]))
+  let warTypeItems = Array.from(new Set(wars.map(war => war.war_type)))
+    .sort()
+    .map(warType => ({
+      value: warType,
+      label: warType,
+    }))
+  let selectedWarTypes = [...warTypeItems]
+  let selectedWarItem = null
+  let graph = { nodes: [], links: [] }
+  let selectedGraph = null
+  let selectedWar = null
+  let pageWidth
+  let toolViewportWidth
 
   let width = 900
   let simulation
@@ -18,6 +64,8 @@
   let hoverNode = null
   let dragNode = null
   let tooltip = null
+  let tooltipWidth = 320
+  let tooltipHeight = 96
   let currentGraph = null
   let currentWidth = null
   let currentSizingSignature = null
@@ -37,10 +85,10 @@
   const linkNodeSize = 2.5
   const nodeStrokeWidth = 1
   const nodeSizeWarningOffset = 10
-  const graphMenuHeight = height * 0.175
-  const graphHeight = height - graphMenuHeight
-  const graphCenterY = graphMenuHeight + (height - graphMenuHeight) / 2
+  const graphCenterY = height * 0.5
   const addedMarginSize = Math.max(linkNodeSize, 10)
+  const tooltipOffset = 16
+  const tooltipPadding = 8
 
   const timeframeItems = [
     { value: "x", label: "First Year" },
@@ -60,6 +108,26 @@
   }
 
   $: graphCenterX = width * 0.5
+  $: selectedWarTypeValues = selectedWarTypes?.length ? selectedWarTypes.map(d => d.value) : []
+  $: filteredWars = selectedWarTypeValues.length
+    ? wars.filter(war => selectedWarTypeValues.includes(war.war_type))
+    : wars
+  $: warItems = filteredWars.map(war => ({
+    value: String(war.war_id),
+    label: war.war_name,
+    selectedLabel: war.war_name,
+    secondaryLabel: warSecondaryLabel(war),
+    war_type: war.war_type,
+    linkDashFieldCount: linkDashFieldCountsByWarId[String(war.war_id)] || 0,
+    war,
+  }))
+  $: if (warItems.length && !warItems.some(item => item.value == selectedWarItem?.value)) {
+    selectedWarItem = preferredWarItem(warItems)
+  }
+  $: selectedWar = selectedWarItem?.war
+  $: selectedGraph = selectedWar ? graphForWar(selectedWar) : null
+  $: graph = selectedGraph || { nodes: [], links: [] }
+  $: toolViewportWidth = pageWidth ? pageWidth * 0.7 : 0
 
   function emptyNodeMargins() {
     return {
@@ -108,13 +176,9 @@
   }
 
   function descriptorItems(fields) {
-    let items = fields
+    return fields
       .sort((a, b) => fieldLabel(a).localeCompare(fieldLabel(b)))
       .map(field => ({ value: field, label: fieldLabel(field), secondaryLabel: field }))
-
-    return items.length
-      ? [{ value: null, label: "None Selected" }, ...items]
-      : [{ value: null, label: "None Available", selectable: false }]
   }
 
   function getNodeDescriptiveValues(sizeField) {
@@ -267,14 +331,14 @@
       margins.name_fits_in_node[node.id] = nameFits
 
       if (!nameFits) {
-        margins.added_top_margin[node.id] = height - graphHeight - 2 + currentVerticalShift + addedMarginSize
+        margins.added_top_margin[node.id] = currentVerticalShift + addedMarginSize
         margins.added_bottom_margin[node.id] = currentVerticalShift + addedMarginSize
         margins.added_left_margin[node.id] = currentNameLengthHalf + currentHorizontalShift + addedMarginSize
         margins.added_right_margin[node.id] = currentNameLengthHalf + currentHorizontalShift + addedMarginSize
       } else {
         let nodeMargin = Math.max(currentRadiusSize, linkNodeSize) + addedMarginSize
 
-        margins.added_top_margin[node.id] = height - graphHeight - 2 + nodeMargin
+        margins.added_top_margin[node.id] = nodeMargin
         margins.added_bottom_margin[node.id] = nodeMargin
         margins.added_left_margin[node.id] = nodeMargin
         margins.added_right_margin[node.id] = nodeMargin
@@ -411,7 +475,7 @@
       .force("charge", forceManyBody().strength(-1000))
       .force("center", forceCenter(graphCenterX, graphCenterY))
       .force("x", forceX(graphCenterX).strength(0.15))
-      .force("y", forceY(graphHeight - addedMarginSize * 2).strength(0.5))
+      .force("y", forceY(height - addedMarginSize * 2).strength(0.5))
       .force(
         "collision",
         forceCollide()
@@ -465,13 +529,30 @@
     }
   }
 
-  function tooltipPoint(event) {
+  function tooltipBounds() {
     let rect = svg.parentElement.getBoundingClientRect()
 
     return {
-      x: event.clientX - rect.left + 16,
-      y: event.clientY - rect.top + 16,
+      width: rect.width || width,
+      height: rect.height || height,
     }
+  }
+
+  function clampTooltipCoordinates(x, y) {
+    let bounds = tooltipBounds()
+
+    return {
+      x: Math.max(tooltipPadding, Math.min(bounds.width - tooltipWidth - tooltipPadding, x)),
+      y: Math.max(tooltipPadding, Math.min(bounds.height - tooltipHeight - tooltipPadding, y)),
+    }
+  }
+
+  function tooltipPoint(event) {
+    let rect = svg.parentElement.getBoundingClientRect()
+    let x = event.clientX - rect.left + tooltipOffset
+    let y = event.clientY - rect.top + tooltipOffset
+
+    return clampTooltipCoordinates(x, y)
   }
 
   function showTooltip(node, event) {
@@ -505,10 +586,14 @@
     event.preventDefault()
     event.stopPropagation()
     dragNode = node
+    hoverNode = null
     tooltip = null
     let point = graphPoint(event)
-    node.fx = point.x
-    node.fy = point.y
+    let adjustedPoint = {x: getXAdjusted(node.id, point.x), y: getYAdjusted(node.id, point.y)}
+    node.fx = adjustedPoint.x
+    node.fy = adjustedPoint.y
+    node.x = adjustedPoint.x
+    node.y = adjustedPoint.y
 
     if (simulation) {
       simulation.alphaTarget(0.3).restart()
@@ -519,10 +604,14 @@
     if (!dragNode) return
 
     let point = graphPoint(event)
-    dragNode.fx = point.x
-    dragNode.fy = point.y
-    dragNode.x = point.x
-    dragNode.y = point.y
+    let adjustedPoint = {
+      x: getXAdjusted(dragNode.id, point.x),
+      y: getYAdjusted(dragNode.id, point.y),
+    }
+    dragNode.fx = adjustedPoint.x
+    dragNode.fy = adjustedPoint.y
+    dragNode.x = adjustedPoint.x
+    dragNode.y = adjustedPoint.y
     refreshGraphRows()
   }
 
@@ -532,6 +621,8 @@
     dragNode.fx = null
     dragNode.fy = null
     dragNode = null
+    hoverNode = null
+    tooltip = null
 
     if (simulation) {
       simulation.alphaTarget(0)
@@ -597,11 +688,11 @@
   }
   $: nodeDescriptorItems = nodeFieldItems(descriptorNodes, timeframeValue?.value || "z")
   $: linkDescriptorItems = linkFieldItems(descriptorLinks, timeframeValue?.value || "z")
-  $: if (!nodeDescriptorItems.some(item => item.value == nodeDescriptorValue?.value)) {
-    nodeDescriptorValue = nodeDescriptorItems[0]
+  $: if (nodeDescriptorValue && !nodeDescriptorItems.some(item => item.value == nodeDescriptorValue.value)) {
+    nodeDescriptorValue = null
   }
-  $: if (!linkDescriptorItems.some(item => item.value == linkDescriptorValue?.value)) {
-    linkDescriptorValue = linkDescriptorItems[0]
+  $: if (linkDescriptorValue && !linkDescriptorItems.some(item => item.value == linkDescriptorValue.value)) {
+    linkDescriptorValue = null
   }
   $: sizingSignature = `${nodeDescriptorValue?.value || "none"}|${width}|${height}|${nodes.length}|${links.length}`
   $: if (nodes.length && sizingSignature != currentSizingSignature) {
@@ -614,14 +705,13 @@
     currentLinkDescriptorSignature = linkDescriptorSignature
     triggerLinkDashPulse()
   }
+  $: if (tooltip) {
+    let point = clampTooltipCoordinates(tooltip.x, tooltip.y)
 
-  $: timeframe = selectedWar
-    ? selectedWar.ongoing_war
-      ? `${selectedWar.start_year}-Present`
-      : selectedWar.start_year == selectedWar.end_year
-        ? selectedWar.start_year
-        : `${selectedWar.start_year}-${selectedWar.end_year}`
-    : ""
+    if (point.x != tooltip.x || point.y != tooltip.y) {
+      tooltip = { ...tooltip, ...point }
+    }
+  }
 
   onDestroy(() => {
     stopSimulation()
@@ -630,150 +720,212 @@
 </script>
 
 <svelte:window on:pointermove={drag} on:pointerup={endDrag} />
-<section class="min-h-[690px] border border-[#d2d7d3] bg-[#fbfcf9]" bind:clientWidth={width}>
-  <div class="flex flex-col gap-3 border-b border-[#d2d7d3] bg-white px-4 py-3">
-    <div class="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-      <div>
-        <h2 class="text-lg font-extrabold">{selectedWar?.war_name || "Select a war"}</h2>
-        <p class="text-sm text-[#60706a]">{selectedWar ? `${selectedWar.war_type} | ${timeframe}` : ""}</p>
-      </div>
-      {#if selectedWar}
-        <div class="flex gap-3 text-sm font-bold text-[#344348]">
-          <span>{selectedWar.total_participants} participants</span>
-          <span>{selectedWar.total_dyads} dyads</span>
-        </div>
-      {/if}
-    </div>
-    {#if nodes.length}
-      <div class="grid gap-3 md:grid-cols-3">
-        <div>
-          <div class="mb-1 text-xs font-extrabold uppercase tracking-[0.16em] text-[#596b64]">Timeframe</div>
-          <Select items={availableTimeframeItems} bind:value={timeframeValue} clearable={false} />
-        </div>
-        <div>
-          <div class="mb-1 text-xs font-extrabold uppercase tracking-[0.16em] text-[#596b64]">Node Size</div>
-          <Select items={nodeDescriptorItems} bind:value={nodeDescriptorValue} clearable={false} />
-        </div>
-        <div>
-          <div class="mb-1 text-xs font-extrabold uppercase tracking-[0.16em] text-[#596b64]">Link Dashes</div>
-          <Select
-            items={linkDescriptorItems}
-            bind:value={linkDescriptorValue}
-            clearable={false}
-            on:valueChange={updateLinkDescriptorValue}
-          />
-        </div>
-      </div>
-    {/if}
+<main class="flex h-full w-full flex-col items-center justify-center" bind:clientWidth={pageWidth}>
+  <div class="px-8 py-12 text-center text-lg min-[1300px]:hidden">
+    This visualization is best viewed on a larger screen. So, grab a computer and come back soon!
   </div>
-  {#if nodes.length}
-    <div class="relative">
-      <svg
-        class="block w-full touch-none"
-        {height}
-        viewBox="0 0 {width} {height}"
-        role="img"
-        bind:this={svg}
-        on:pointermove={moveTooltip}
-        on:pointerleave={clearTooltip}
-      >
-        <rect {width} {height} fill="#fbfcf9" />
-        <g>
-          {#each links as link, i (i)}
-            <line
-              x1={linkX(link, "source")}
-              y1={linkY(link, "source")}
-              x2={linkX(link, "target")}
-              y2={linkY(link, "target")}
-              stroke="#8a948f"
-              stroke-opacity="0.45"
-              stroke-width="1"
+  <div class="hidden min-[1300px]:block" style="width:{toolViewportWidth}px">
+    <div class="mx-auto flex w-full flex-col gap-4 py-5">
+      <section class="grid gap-3 border border-[#d8d3c4] bg-white p-4">
+          <div>
+            <div class="mb-1 text-sm font-extrabold text-[#596b64]">War Types</div>
+            <Select
+              items={warTypeItems}
+              bind:value={selectedWarTypes}
+              multiple={true}
+              placeholder="Filter war types"
+              on:valueChange={({ detail }) => (selectedWarTypes = detail.d || [])}
             />
-            <line
-              x1={linkX(link, "source")}
-              y1={linkY(link, "source")}
-              x2={linkX(link, "target")}
-              y2={linkY(link, "target")}
-              stroke={linkHasDescriptor(link) ? "blue" : "transparent"}
-              stroke-opacity="0.9"
-              stroke-width={linkDashStrokeWidth}
-              stroke-dasharray="2.5 15"
-              stroke-dashoffset="-7.5"
-              style="transition: stroke-width 1000ms ease 50ms, stroke 1000ms ease 50ms;"
+          </div>
+          <div>
+            <div class="mb-1 text-sm font-extrabold text-[#596b64]">War</div>
+            <Select
+              items={warItems}
+              bind:value={selectedWarItem}
+              groupBy="war_type"
+              labelConstruction={true}
+              secondaryLabelIdentifier="secondaryLabel"
+              placeholder="Select a war"
+              noItemsMessage="No wars match the selected filters."
+              on:valueChange={({ detail }) => (selectedWarItem = detail.d)}
             />
-          {/each}
-        </g>
-        <g role="list">
-          {#each nodes as node (node.id)}
-            {@const label = labelPosition(node)}
-            <g
-              class="cursor-grab active:cursor-grabbing"
-              role="listitem"
-              transform="translate({getXAdjusted(node.id, node.x)}, {getYAdjusted(node.id, node.y)})"
-              on:pointerdown={event => startDrag(node, event)}
-              on:pointerenter={event => showTooltip(node, event)}
-              on:pointermove={event => showTooltip(node, event)}
-              on:pointerleave={clearTooltip}
-            >
-              <circle
-                r={nodeRadius(node)}
-                fill={sideColors[node.side]}
-                stroke="black"
-                stroke-width={hoverNode?.id == node.id ? nodeStrokeWidth + 0.75 : nodeStrokeWidth}
-                style="transition: r 3000ms ease 500ms, stroke-width 150ms ease;"
-              />
-              <text
-                class="text-[12px] font-bold"
-                x={label.x}
-                y={label.y}
-                text-anchor={label.anchor}
-                fill={label.inside ? "white" : "#111827"}
-                stroke={label.inside ? "none" : "white"}
-                stroke-width={label.inside ? 0 : 3}
-                paint-order="stroke"
-                style="transition: x 2000ms ease 1500ms, y 2000ms ease 1500ms, fill 2000ms ease 1500ms, stroke 2000ms ease 1500ms;"
-              >
-                {node.participant}
-              </text>
-              {#if showNodeSizeWarning(node)}
-                {@const warningPosition = nodeSizeWarningPosition(node, label)}
-                <text
-                  class="text-[12px] font-bold"
-                  x={warningPosition.x}
-                  y={warningPosition.y}
-                  text-anchor="middle"
-                  fill="#111827"
-                  stroke="white"
-                  stroke-width="3"
-                  paint-order="stroke"
-                  style="transition: x 2000ms ease 1500ms, y 2000ms ease 1500ms;"
-                >
-                  ?
-                </text>
+          </div>
+        </section>
+
+        <div class="relative w-full overflow-hidden border border-solid border-black">
+          <section class="min-h-[690px] bg-[#fbfcf9]" bind:clientWidth={width}>
+            <div class="flex flex-col gap-4 border-b border-[#d2d7d3] bg-white px-4 py-3">
+              {#if selectedWar}
+                <div class="grid gap-3 text-sm md:grid-cols-3 md:items-start">
+                  <div class="grid gap-1 font-semibold">
+                    <div>
+                      <span class="font-bold text-[#60706a]">Type:</span>
+                      {selectedWar.war_type}
+                    </div>
+                    <div>
+                      <span class="font-bold text-[#60706a]">Subtype:</span>
+                      {selectedWar.war_subtype || "Unspecified"}
+                    </div>
+                  </div>
+                  <div class="self-center text-center">
+                    <div class="text-base font-extrabold">{selectedWar.war_name}</div>
+                    <div class="mt-1 font-semibold text-[#60706a]">
+                      {selectedWar.ongoing_war
+                        ? `${selectedWar.start_year}-Present`
+                        : selectedWar.start_year == selectedWar.end_year
+                          ? String(selectedWar.start_year)
+                          : `${selectedWar.start_year}-${selectedWar.end_year}`}
+                      ({Number(selectedWar.total_days_in_war || 0).toLocaleString()} days)
+                    </div>
+                  </div>
+                  <div aria-hidden="true"></div>
+                </div>
               {/if}
-            </g>
-          {/each}
-        </g>
-      </svg>
-      {#if tooltip}
-        <div
-          class="pointer-events-none absolute z-20 max-w-xs border border-[#c4cec8] bg-white px-3 py-2 text-sm shadow-sm"
-          style="left: {tooltip.x}px; top: {tooltip.y}px;"
-        >
-          <div class="font-extrabold">{tooltip.node.participant}</div>
-          <div class="mt-1 text-[#50615b]">Side {tooltip.node.side || "unknown"}</div>
-          <div class="text-[#50615b]">Battle deaths: {Number(tooltip.node.battle_deaths || 0).toLocaleString()}</div>
-          {#if nodeDescriptorValue?.value}
-            <div class="text-[#50615b]">
-              {nodeDescriptorValue.label}: {nodeDescriptorDisplayValue(tooltip.node)}
+
+              {#if nodes.length}
+                <div class="grid gap-3 md:grid-cols-3">
+                  <div>
+                    <div class="mb-1 text-sm font-extrabold text-[#596b64]">Timeframe</div>
+                    <Select items={availableTimeframeItems} bind:value={timeframeValue} clearable={false} />
+                  </div>
+                  <div>
+                    <div class="mb-1 text-sm font-extrabold text-[#596b64]">Node Size</div>
+                    <Select
+                      items={nodeDescriptorItems}
+                      bind:value={nodeDescriptorValue}
+                      placeholder="Choose a node size."
+                      noItemsMessage="No node size fields available."
+                      clearable={true}
+                    />
+                  </div>
+                  <div>
+                    <div class="mb-1 text-sm font-extrabold text-[#596b64]">Link Dash</div>
+                    <Select
+                      items={linkDescriptorItems}
+                      bind:value={linkDescriptorValue}
+                      placeholder="Choose a link dash."
+                      noItemsMessage="No link dash fields available."
+                      clearable={true}
+                      on:valueChange={updateLinkDescriptorValue}
+                    />
+                  </div>
+                </div>
+              {/if}
             </div>
-          {/if}
-        </div>
-      {/if}
+            {#if nodes.length}
+              <div class="relative">
+                <svg
+                  class="block w-full touch-none"
+                  {height}
+                  viewBox="0 0 {width} {height}"
+                  role="img"
+                  bind:this={svg}
+                  on:pointermove={moveTooltip}
+                  on:pointerleave={clearTooltip}
+                >
+                  <g>
+                    {#each links as link, i (i)}
+                      <line
+                        x1={linkX(link, "source")}
+                        y1={linkY(link, "source")}
+                        x2={linkX(link, "target")}
+                        y2={linkY(link, "target")}
+                        stroke="#8a948f"
+                        stroke-opacity={0.45}
+                        stroke-width={1}
+                      />
+                      <line
+                        x1={linkX(link, "source")}
+                        y1={linkY(link, "source")}
+                        x2={linkX(link, "target")}
+                        y2={linkY(link, "target")}
+                        stroke={linkHasDescriptor(link) ? "blue" : "transparent"}
+                        stroke-opacity={0.9}
+                        stroke-width={linkDashStrokeWidth}
+                        stroke-dasharray="2.5 15"
+                        stroke-dashoffset={-7.5}
+                        style="transition: stroke-width 1000ms ease 50ms, stroke 1000ms ease 50ms;"
+                      />
+                    {/each}
+                  </g>
+                  <g role="list">
+                    {#each nodes as node (node.id)}
+                      {@const label = labelPosition(node)}
+                      <g
+                        class="cursor-grab active:cursor-grabbing"
+                        role="listitem"
+                        transform="translate({getXAdjusted(node.id, node.x)}, {getYAdjusted(node.id, node.y)})"
+                        on:pointerdown={event => startDrag(node, event)}
+                        on:pointerenter={event => showTooltip(node, event)}
+                        on:pointermove={event => showTooltip(node, event)}
+                        on:pointerleave={clearTooltip}
+                      >
+                        <circle
+                          r={nodeRadius(node)}
+                          fill={sideColors[node.side]}
+                          stroke="black"
+                          stroke-width={hoverNode?.id == node.id ? nodeStrokeWidth + 0.75 : nodeStrokeWidth}
+                          style="transition: r 3000ms ease 500ms, stroke-width 150ms ease;"
+                        />
+                        <text
+                          class="text-[12px] font-bold"
+                          x={label.x}
+                          y={label.y}
+                          text-anchor={label.anchor}
+                          fill={label.inside ? "white" : "#111827"}
+                          stroke={label.inside ? "none" : "white"}
+                          stroke-width={label.inside ? 0 : 3}
+                          paint-order="stroke"
+                          style="transition: x 2000ms ease 1500ms, y 2000ms ease 1500ms, fill 2000ms ease 1500ms, stroke 2000ms ease 1500ms;"
+                        >
+                          {node.participant}
+                        </text>
+                        {#if showNodeSizeWarning(node)}
+                          {@const warningPosition = nodeSizeWarningPosition(node, label)}
+                          <text
+                            class="text-[12px] font-bold"
+                            x={warningPosition.x}
+                            y={warningPosition.y}
+                            text-anchor="middle"
+                            fill="#111827"
+                            stroke="white"
+                            stroke-width={3}
+                            paint-order="stroke"
+                            style="transition: x 2000ms ease 1500ms, y 2000ms ease 1500ms;"
+                          >
+                            ?
+                          </text>
+                        {/if}
+                      </g>
+                    {/each}
+                  </g>
+                </svg>
+                {#if tooltip}
+                  <div
+                    class="pointer-events-none absolute z-20 max-w-xs border border-[#c4cec8] bg-white px-3 py-2 text-sm shadow-sm"
+                    style="left: {tooltip.x}px; top: {tooltip.y}px;"
+                    bind:clientWidth={tooltipWidth}
+                    bind:clientHeight={tooltipHeight}
+                  >
+                    <div class="font-extrabold">{tooltip.node.participant}</div>
+                    <div class="text-[#50615b]">
+                      Battle deaths: {Number(tooltip.node.battle_deaths || 0).toLocaleString()}
+                    </div>
+                    {#if nodeDescriptorValue?.value}
+                      <div class="text-[#50615b]">
+                        {nodeDescriptorValue.label}: {nodeDescriptorDisplayValue(tooltip.node)}
+                      </div>
+                    {/if}
+                  </div>
+                {/if}
+              </div>
+            {:else}
+              <div class="flex h-[700px] items-center justify-center px-6 text-center text-[#60706a]">
+                No graph rows are available for the current selection.
+              </div>
+            {/if}
+          </section>
+      </div>
     </div>
-  {:else}
-    <div class="flex h-[700px] items-center justify-center px-6 text-center text-[#60706a]">
-      No graph rows are available for the current selection.
-    </div>
-  {/if}
-</section>
+  </div>
+</main>

@@ -1,5 +1,5 @@
 <script>
-  import WarExplorer from "$lib/components/WarExplorer.svelte"
+  import Home from "../+page.svelte"
 </script>
 
-<WarExplorer />
+<Home />
