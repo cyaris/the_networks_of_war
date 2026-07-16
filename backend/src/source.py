@@ -26,7 +26,7 @@ DEFAULT_DATA_DIR = BACKEND_ROOT / "data"
 PARTICIPANT_NAME_REPLACEMENTS_PATH = BACKEND_ROOT / "manual" / "participant_name_replacements.json"
 SOURCE_METADATA_PATH = BACKEND_ROOT / "manual" / "source_metadata.json"
 SYSTEM_CA_FILE = Path("/etc/ssl/cert.pem")
-RETAINED_SOURCE_SUFFIXES = {".csv", ".pdf"}
+RETAINED_SOURCE_SUFFIXES = {".csv", ".json", ".pdf"}
 
 
 def add_source_data_arguments(parser: argparse.ArgumentParser) -> None:

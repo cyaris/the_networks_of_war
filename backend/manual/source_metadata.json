@@ -192,6 +192,11 @@
         "url": "https://ourworldindata.org/grapher/co-emissions-per-capita.csv?v=1&csvType=full&useColumnShortNames=true",
         "kind": "file",
         "filename": "co-emissions-per-capita.csv"
+      },
+      {
+        "url": "https://ourworldindata.org/grapher/co-emissions-per-capita.metadata.json?v=1&csvType=full&useColumnShortNames=true&utm_source=chatgpt.com",
+        "kind": "file",
+        "filename": "co-emissions-per-capita.metadata.json"
       }
     ]
   },

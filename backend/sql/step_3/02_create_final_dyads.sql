@@ -86,8 +86,8 @@ left join link_descriptor_json d on a.war_id = d.war_id
 
 select
     a.*,
-    b.id as source,
-    c.id as target
+    b.id "source",
+    c.id "target"
 from final_dyad_rows a
 join final_participants b on a.war_id = b.war_id
                           and if(a.c_code_a > 0, a.c_code_a::varchar, a.participant_a) = b.node_key

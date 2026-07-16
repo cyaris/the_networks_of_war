@@ -22,6 +22,12 @@ insert into source_interstate_war_metadata_adjustments
 values
     ('interstate_mid_dyads', '4.03', 4182::double, 'Israeli–Hezbollah Conflict (South Lebanon)', 1::integer);
 
+insert into source_interstate_war_dyad_adjustments
+
+values
+    ('interstate_war_dyads', 'unversioned', 106::double, 740::integer, 255::integer, '1914-08-23'::date, '1918-11-11'::date),
+    ('interstate_war_dyads', 'unversioned', 106::double, 740::integer, 300::integer, '1914-08-23'::date, '1918-11-03'::date);
+
 insert into source_participant_side_adjustments
 
 values

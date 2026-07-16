@@ -69,22 +69,17 @@ class Pipeline(SourceDataPreparationMixin, DuckDBProcessesMixin):
         self.export_frontend_data(conn)
 
     def export_frontend_data(self, conn) -> None:
-        if self.frontend_data_path is not None:
-            logger.info("Updating/recreating frontend graph data.")
-            query = f"""
-            select
-                json_pretty(graph_data_json),
-                war_count
-            from ({render_sql("step_3/04_export_frontend_graph_data.sql", self.sql_context())})
-            """
-            graph_data_json, war_count = conn.execute(query).fetchone()
-            logger.info("Graphs to be rewritten: %s", f"{war_count:,d}")
+        if self.frontend_data_path is None:
+            return
 
-            self.frontend_data_path.parent.mkdir(parents=True, exist_ok=True)
-            self.frontend_data_path.write_text(f"{graph_data_json}\n")
-            logger.info(
-                "Completed frontend graph data update: %s (%s wars)", self.frontend_data_path, f"{war_count:,d}"
-            )
+        logger.info("Updating/recreating frontend graph data.")
+        query = render_sql("step_3/04_export_frontend_graph_data.sql", self.sql_context())
+        _, war_count, graph_data_json = conn.execute(query).fetchone()
+        logger.info("Graphs to be rewritten: %s", f"{war_count:,d}")
+
+        self.frontend_data_path.parent.mkdir(parents=True, exist_ok=True)
+        self.frontend_data_path.write_text(f"{graph_data_json}\n")
+        logger.info("Completed frontend graph data update: %s (%s wars)", self.frontend_data_path, f"{war_count:,d}")
 
     def run(
         self,

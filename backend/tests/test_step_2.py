@@ -5,6 +5,7 @@ from pathlib import Path
 
 import duckdb
 import pytest
+from shared import fail_if_detected_rows  # noqa: E402
 
 SRC_ROOT = Path(__file__).resolve().parents[1] / "src"
 
@@ -50,6 +51,85 @@ STEP_2_TRANSFORMED_TABLES = [
     "dyadic_descriptives",
 ]
 
+PARTICIPANT_DESCRIPTOR_COLUMNS = [
+    "terrorism_deaths",
+    "mid_dyads",
+    "mid_dyads_initiated",
+    "mid_dyads_targeted",
+    "mid_dyads_joined",
+    "allied_countries",
+    "trade_countries",
+    "money_flow_in",
+    "money_flow_out",
+    "imports",
+    "exports",
+    "military_expenditure",
+    "military_personnel",
+    "iron_steel_production",
+    "energy_consumption",
+    "population",
+    "urban_population",
+    "urban_population_growth_rate",
+    "cinc_score",
+    "co2_emissions_per_capita",
+    "land_mass_exchange_gain",
+    "population_exchange_gain",
+    "land_mass_exchange_loss",
+    "population_exchange_loss",
+    "refugees_originated",
+    "refugees_hosted",
+    "internally_displaced_persons",
+    "concurrent_wars",
+]
+
+DYADIC_DESCRIPTOR_COLUMNS = [
+    "territory_exchange",
+    "colonial_contiguity",
+    "contiguity",
+    "alliance",
+    "defense_cooperation_agreements",
+    "inter_governmental_organizations",
+    "diplomatic_exchange",
+    "trade_relations",
+    "same_leader_type",
+    "military_leaders",
+    "communist_leaders",
+    "royal_leaders",
+    "democratic_incumbent",
+    "unconstitutional_incumbent",
+    "democratic_regimes",
+    "dictatorships",
+    "collective_leaderships",
+    "direct_election",
+    "indirect_election",
+    "non_elected_leaders",
+    "no_legislature",
+    "non_elective_legislature",
+    "elective_legislature",
+    "no_partisan_legislature_legal",
+    "no_non_regime_legislature_parties_legal",
+    "multi_party_legislature_legal",
+    "all_parties_illegal",
+    "single_party_state_exists",
+    "multi_party_state_exists",
+    "no_parties_exist",
+    "one_party_exists",
+    "no_non_regime_parties_exist",
+    "leader_died",
+    "new_leader",
+    "transition_to_democracy",
+    "transition_to_dictatorship",
+    "atop",
+    "mtops",
+]
+
+SIGNED_EXCHANGE_COLUMNS = {
+    "land_mass_exchange_gain",
+    "population_exchange_gain",
+    "land_mass_exchange_loss",
+    "population_exchange_loss",
+}
+
 
 @pytest.fixture(scope="session")
 def step_2_db_path(tmp_path_factory: pytest.TempPathFactory) -> Path:
@@ -92,6 +172,10 @@ def table_columns(conn, table_name: str) -> list[str]:
     """
 
     return [column_name for (column_name,) in conn.execute(query, [table_name]).fetchall()]
+
+
+def scalar(conn, sql: str):
+    return conn.execute(sql).fetchone()[0]
 
 
 def test_step_2_source_insert_sql_keeps_compact_alias_style():
@@ -201,11 +285,250 @@ def test_step_2_manifest_runs_descriptive_transformations(conn):
     assert "timeframe" in participant_columns
     assert "terrorism_deaths" in participant_columns
     assert "concurrent_wars" in participant_columns
+    assert "co2_emissions_per_capita" in participant_columns
     assert "timeframe" in dyad_columns
     assert "alliance" in dyad_columns
     assert "mtops" in dyad_columns
     assert not any(column.endswith(("_x", "_y", "_z")) for column in participant_columns)
     assert not any(column.endswith(("_x", "_y", "_z")) for column in dyad_columns)
+
+
+def test_step_2_preserves_unknown_descriptive_values(conn):
+    displaced_population_unknown_sql = """
+    select
+        a.c_code,
+        a.year,
+        b.refugees_originated,
+        b.refugees_hosted,
+        b.internally_displaced_persons
+    from source_forcibly_displaced_populations a
+    join country_year_descriptives b on a.c_code = b.c_code
+                                    and a.year = b.year
+    where
+        a.source is null
+        and a.hosted_refugees is null
+        and a.internally_displaced_persons is null
+        and (
+            b.refugees_originated is not null
+            or b.refugees_hosted is not null
+            or b.internally_displaced_persons is not null
+        )
+    """
+    displaced_population_unknown_rows = conn.execute(displaced_population_unknown_sql).fetchall()
+
+    assert displaced_population_unknown_rows == []
+
+
+def test_step_2_transformed_cow_codes_resolve_country_codes(conn):
+    checks = [
+        ("country_year_descriptives", "c_code"),
+        ("participant_year_descriptives", "c_code"),
+        ("participant_descriptives", "c_code"),
+        ("dyad_year_descriptives", "c_code_a"),
+        ("dyad_year_descriptives", "c_code_b"),
+        ("dyadic_descriptives", "c_code_a"),
+        ("dyadic_descriptives", "c_code_b"),
+    ]
+
+    for table_name, column_name in checks:
+        query = f"""
+        select
+            {table_name!r} table_name,
+            {column_name!r} column_name,
+            a.{column_name} c_code,
+            count(*) row_count
+        from {sql_identifier(table_name)} a
+        left join country_codes b on a.{column_name} = b.c_code
+        where
+            a.{column_name} > 0
+            and b.c_code is null
+        group by 1, 2, 3
+        order by 1, 2, 3
+        """
+        fail_if_detected_rows(
+            conn,
+            query,
+            "Step 2 transformed COW codes should resolve through country_codes.",
+            f"unresolved {table_name}.{column_name}",
+            {"c_code"},
+        )
+
+
+def test_step_2_descriptor_tables_keep_expected_grain(conn):
+    checks = [
+        ("country_year_descriptives", ["c_code", "year"]),
+        ("participant_year_descriptives", ["war_id", "c_code", "participant", "year"]),
+        ("participant_descriptives", ["war_id", "c_code", "participant", "timeframe"]),
+        ("dyad_year_descriptives", ["war_id", "c_code_a", "c_code_b", "participant_a", "participant_b", "year"]),
+        (
+            "dyadic_descriptives",
+            ["war_id", "c_code_a", "c_code_b", "participant_a", "participant_b", "timeframe"],
+        ),
+    ]
+
+    for table_name, key_columns in checks:
+        key_csv = ", ".join(key_columns)
+        query = f"""
+        select
+            {key_csv},
+            count(*) row_count
+        from {table_name}
+        group by {key_csv}
+        having count(*) > 1
+        order by {key_csv}
+        limit 50
+        """
+        fail_if_detected_rows(
+            conn,
+            query,
+            "Step 2 descriptor tables should keep one row per expected key.",
+            f"duplicate {table_name} grain rows",
+            set(key_columns),
+        )
+
+
+def test_step_2_participant_year_descriptives_cover_full_participant_year_spans(conn):
+    query = """
+    select
+        a.war_id,
+        a.c_code,
+        a.participant,
+        extract(year from a.start_date)::integer start_year,
+        extract(year from a.end_date)::integer end_year,
+        extract(year from a.end_date)::integer - extract(year from a.start_date)::integer + 1 expected_years,
+        count(b.year) actual_years
+    from participants a
+    left join participant_year_descriptives b on a.war_id = b.war_id
+                                             and a.c_code = b.c_code
+                                             and a.participant = b.participant
+    where a.c_code > 0
+    group by 1, 2, 3, 4, 5
+    having count(b.year) != extract(year from a.end_date)::integer - extract(year from a.start_date)::integer + 1
+    order by 1, 2, 3
+    limit 50
+    """
+    fail_if_detected_rows(
+        conn,
+        query,
+        "Participant-year descriptors should cover every coded participant year.",
+        "participant-year coverage gaps",
+        {"expected_years", "actual_years"},
+    )
+
+
+def test_step_2_co2_emissions_join_into_country_year_descriptives(conn):
+    known_match_sql = """
+    select count(*)
+    from source_co_emissions_per_capita a
+    join country_year_descriptives b on b.c_code = 2
+                                    and a.year = b.year
+    where
+        a.country_name = 'United States'
+        and a.co2_emissions_per_capita is not null
+        and b.co2_emissions_per_capita = a.co2_emissions_per_capita
+    """
+    assert scalar(conn, known_match_sql) > 0
+
+    missing_co2_sql = """
+    with
+
+    co2_country_name_replacements(source_name, state_name) as (
+
+    values
+            ('Cote d''Ivoire', 'Ivory Coast'),
+            ('Czechia', 'Czech Republic'),
+            ('Democratic Republic of Congo', 'Democratic Republic of the Congo'),
+            ('Eswatini', 'Swaziland'),
+            ('Micronesia (country)', 'Federated States of Micronesia'),
+            ('North Macedonia', 'Macedonia'),
+            ('United States', 'United States of America'))
+
+    select
+        a.country_name,
+        a.year,
+        a.co2_emissions_per_capita,
+        c.c_code,
+        c.state_name
+    from source_co_emissions_per_capita a
+    left join co2_country_name_replacements b on a.country_name = b.source_name
+    join country_codes c on coalesce(b.state_name, a.country_name) = c.state_name
+    left join country_year_descriptives d on c.c_code = d.c_code
+                                         and a.year = d.year
+    where
+        a.co2_emissions_per_capita is not null
+        and d.co2_emissions_per_capita is null
+    order by c.c_code, a.year
+    limit 50
+    """
+    fail_if_detected_rows(
+        conn,
+        missing_co2_sql,
+        "Matched CO2 emissions rows should be available in country_year_descriptives.",
+        "missing CO2 descriptor rows",
+        {"co2_emissions_per_capita"},
+    )
+
+
+def test_step_2_descriptor_values_do_not_leak_source_sentinels(conn):
+    checks = [
+        (
+            "country_year_descriptives",
+            [
+                column
+                for column in PARTICIPANT_DESCRIPTOR_COLUMNS
+                if column != "concurrent_wars" and column not in SIGNED_EXCHANGE_COLUMNS
+            ],
+        ),
+        (
+            "participant_year_descriptives",
+            [column for column in PARTICIPANT_DESCRIPTOR_COLUMNS if column not in SIGNED_EXCHANGE_COLUMNS],
+        ),
+        ("participant_descriptives", PARTICIPANT_DESCRIPTOR_COLUMNS),
+        ("dyad_year_descriptives", DYADIC_DESCRIPTOR_COLUMNS),
+        ("dyadic_descriptives", DYADIC_DESCRIPTOR_COLUMNS),
+    ]
+
+    for table_name, columns in checks:
+        for column_name in columns:
+            query = f"""
+            select
+                {table_name!r} table_name,
+                {column_name!r} column_name,
+                {column_name} descriptor_value
+            from {table_name}
+            where {column_name} in (-9, -8)
+            order by descriptor_value
+            limit 50
+            """
+            fail_if_detected_rows(
+                conn,
+                query,
+                "Step 2 descriptor values should not leak source sentinel values.",
+                f"sentinel values in {table_name}.{column_name}",
+                {"descriptor_value"},
+            )
+
+
+def test_step_2_dyadic_descriptor_flags_are_binary(conn):
+    for table_name in ["dyad_year_descriptives", "dyadic_descriptives"]:
+        for column_name in DYADIC_DESCRIPTOR_COLUMNS:
+            query = f"""
+            select
+                {table_name!r} table_name,
+                {column_name!r} column_name,
+                {column_name} descriptor_value
+            from {table_name}
+            where {column_name} is not null and {column_name} not in (0, 1)
+            order by descriptor_value
+            limit 50
+            """
+            fail_if_detected_rows(
+                conn,
+                query,
+                "Dyadic descriptor flags should be binary.",
+                f"non-binary {table_name}.{column_name}",
+                {"descriptor_value"},
+            )
 
 
 def test_step_2_source_metadata_files_match_known_downloads():
@@ -244,6 +567,15 @@ def test_step_2_source_metadata_files_match_known_downloads():
     assert SOURCE_FILES["diplomatic_exchange"] == "Diplomatic_Exchange_2006v1.csv"
     assert SOURCE_FILES["dd_revisited"] == "ddrevisited_data_v1.csv"
     assert SOURCE_FILES["co_emissions_per_capita"] == "co-emissions-per-capita.csv"
+    co_emissions_metadata_url = (
+        "https://ourworldindata.org/grapher/co-emissions-per-capita.metadata.json"
+        "?v=1&csvType=full&useColumnShortNames=true&utm_source=chatgpt.com"
+    )
+    assert metadata_by_key["co_emissions_per_capita"]["downloads"][1] == {
+        "url": co_emissions_metadata_url,
+        "kind": "file",
+        "filename": "co-emissions-per-capita.metadata.json",
+    }
     assert SOURCE_FILES["arms_technology"] == "cow_arms_tech_long.csv"
     assert SOURCE_FILES["atop_dyadic_years"] == "atop5_1ddyr.csv"
     assert SOURCE_FILES["mtops_dyadic"] == "mtopsd150.csv"

@@ -79,17 +79,23 @@ The frontend consumes ignored generated data at `frontend/src/lib/static/graphDa
 Generated graph rows include only descriptor fields that pass per-war availability checks, so the frontend does not
 receive fields that cannot be selected.
 
+When a node-size descriptor is selected, known zero values render at the minimum node radius and unknown or `null` values also
+shrink to the minimum radius with a `?` marker. The frontend should not impute unknown selected descriptor values to an
+average node size, because that can make missing data look like a real mid-sized value. The no-descriptor default still
+uses equal fallback sizing so the graph remains readable before a size field is selected.
+
 ## Data Layout
 
 Source data is downloaded into `backend/data/`, which is ignored by git. Each external source table gets its own
-subdirectory named after the source key, such as `backend/data/interstate_mid_dyads/`. Source download metadata lives in
-`backend/manual/source_metadata.json`. Source CSVs that need explicit encoding handling use `latin-1` by default;
-prepared copies are written to UTF-8 under ignored `backend/.work/` before DuckDB reads them. The generated DuckDB
-database is ignored:
+subdirectory named after the source key without the `source_` table prefix, such as
+`backend/data/interstate_mid_dyads/` for `source_interstate_mid_dyads`. The corresponding raw source data and source
+documentation live in that folder. Source download metadata lives in `backend/manual/source_metadata.json`. Source CSVs
+that need explicit encoding handling use `latin-1` by default; prepared copies are written to UTF-8 under ignored
+`backend/.work/` before DuckDB reads them. The generated DuckDB database is ignored:
 
-Prepared source subdirectories keep only durable source CSVs and PDF documentation. Archive files, original Excel/Stata
-workbooks, text exports, and temporary download caches are discarded after extraction or conversion; `_downloads/` is
-not part of the expected `backend/data/` layout.
+Prepared source subdirectories keep only durable source CSVs and PDF or JSON source documentation. Archive files,
+original Excel/Stata workbooks, text exports, and temporary download caches are discarded after extraction or conversion;
+`_downloads/` is not part of the expected `backend/data/` layout.
 
 - `the_networks_of_war/backend/data/`
 - `the_networks_of_war/backend/.work/`
@@ -261,7 +267,7 @@ supporting files from each source bundle when available.
 | `source_intergovernmental_organizations_dyadic` | Correlates of War Project (COW) | `dyadic_formatv3.csv` | 3 | [Data](https://correlatesofwar.org/wp-content/uploads/dyadic_formatv3.zip)<br>[Doc](https://correlatesofwar.org/wp-content/uploads/IGO-Codebook_v3_short-copy.pdf) |
 | `source_diplomatic_exchange` | Correlates of War Project (COW) | `Diplomatic_Exchange_2006v1.csv` | 2006.1 | [Release](https://correlatesofwar.org/wp-content/uploads/Diplomatic_Exchange_2006.1.zip) |
 | `source_dd_revisited` | University of Illinois at Urbana‐Champain (UIUC), Emory University, Georgetown University | `ddrevisited_data_v1.csv` | 1 | [Data](https://github.com/cyaris/the_networks_of_war/releases/download/source-data-dd-revisited-v1/ddrevisited_data_v1.csv)<br>[Doc](https://rforpoliticalscience.com/wp-content/uploads/2022/04/ddrevisited-codebook.pdf) |
-| `source_co_emissions_per_capita` | Our World in Data | `co-emissions-per-capita.csv` | 1 | [Data](https://ourworldindata.org/grapher/co-emissions-per-capita.csv?v=1&csvType=full&useColumnShortNames=true) |
+| `source_co_emissions_per_capita` | Our World in Data | `co-emissions-per-capita.csv` | 1 | [Data](https://ourworldindata.org/grapher/co-emissions-per-capita.csv?v=1&csvType=full&useColumnShortNames=true)<br>[Doc](https://ourworldindata.org/grapher/co-emissions-per-capita.metadata.json?v=1&csvType=full&useColumnShortNames=true&utm_source=chatgpt.com) |
 | `source_arms_technology` | Correlates of War Project (COW) | `cow_arms_tech_long.csv` | 1.1 | [Release](https://correlatesofwar.org/wp-content/uploads/Arms-TechnologyV1.1.zip) |
 | `source_atop_dyadic_years` | ATOP Project | `atop5_1ddyr.csv` | 5.1 | [Data](http://www.atopdata.org/uploads/6/9/1/3/69134503/atop_5.1__.csv_.zip)<br>[Doc](http://www.atopdata.org/uploads/6/9/1/3/69134503/atop_5_1_codebook.pdf) |
 | `source_mtops_dyadic` | Issue Correlates of War Project (ICOW) | `mtopsd150.csv` | 1.5 | [Release](https://www.paulhensel.org/Data/mtops.zip) |
@@ -330,7 +336,8 @@ Step 3 completes. Node and link descriptor values are stored in `descriptor_time
 - Version-scoped source adjustments live in `backend/sql/step_1/03_create_source_adjustment_tables.sql` and
   `backend/sql/step_1/04_insert_source_adjustments.sql`. The first file creates `source_file_versions` and adjustment
   tables; the second inserts adjustment rows for source facts that are not present in the source CSVs. Downstream
-  transformations join adjustment tables to `source_file_versions` when an assignment is version-scoped. Data-entry
+  transformations join adjustment tables to `source_file_versions` when an assignment is version-scoped. Adjustment
+  rows should stay lean: store only values used for joins, source corrections, or downstream transformations. Data-entry
   fixes applied while reading source CSVs are documented below.
 - Reference data that is not tied to an external source file, currently `war_types`, is created and inserted in
   `backend/sql/step_1/05_create_reference_tables.sql` and
@@ -429,6 +436,8 @@ Step 3 completes. Node and link descriptor values are stored in `descriptor_time
   version still needs them. If a future CSV version introduces a new unmatched MID war,
   `test_mid_dyads_resolve_all_mid_war_ids` should fail until the source adjustment file is updated or the new source
   data is accepted as authoritative.
+- Manual interstate war-dyad additions that are missing from `directed_dyadic_war.csv` are stored in
+  `source_interstate_war_dyad_adjustments` and merged after source and MID dyads.
 - Synthetic war metadata, such as the Lebanon-Israel MID conflict (`disno = 4182`) named
   `Israeli–Hezbollah Conflict (South Lebanon)`, is stored in `source_interstate_war_metadata_adjustments` and joined
   during transformation without adding partial rows to `source_interstate_wars`.
@@ -488,15 +497,16 @@ flowchart LR
 - Final dyads are deduplicated to one row per `war_id` and unordered participant pair. When duplicate spans exist, the
   final row keeps the earliest start date and latest end date from the unordered dyad pair.
 - `dyad_years` expands `dyads` into one row per year for years in the range `1500` through `2099`.
-- Step 3 final participant and dyad outputs apply final-fill rules while building `descriptor_timeframes`. Missing
-  descriptor values are filled as zero for COW-coded states and left `null` for non-state participants or dyads involving
-  non-state participants; COW unknown/not-applicable sentinels `-9` and `-8` become `null`.
+- Step 2 and Step 3 preserve the semantic difference between unknown values and known zeros. Missing descriptor values
+  stay `null` unless the source coverage or project derivation makes the value known to be zero, such as
+  `concurrent_wars` when no overlapping participant war exists. Source unknown/not-applicable sentinels such as `-9`
+  and `-8` become `null`, and the frontend displays `null` descriptor values as unknown rather than zero.
 - Step 3 participant outputs convert notebook-era unit-scaled fields while building `descriptor_timeframes`: trade money
   flows to dollars, NMC military/population and displacement counts to people, and iron/steel and energy figures to
   documented base units.
 - Step 3 prunes unavailable graph descriptor fields per war while building `final_participants` and `final_dyads`. Node
-  descriptor fields are kept only when they have a positive maximum value, fewer than half null values, and more than
-  one coalesced value after treating nulls as zero. Link descriptor fields are kept only when at least one dyad has a
+  descriptor fields are kept only when they have a positive maximum value, fewer than half `null` values, and more than
+  one coalesced value after treating `null` values as zero. Link descriptor fields are kept only when at least one dyad has a
   positive value.
 - Step 3 does not write separate JSON files. `final_wars.graph_json` provides the per-war graph payload directly from
   DuckDB, and `pipeline.py` writes the single frontend payload from
@@ -508,6 +518,11 @@ flowchart LR
   - Start month value `24` is treated as invalid and loaded as `null`; resolved start dates use the standard missing
     start-month default.
   - End year is corrected from original value `19118` to `1918`.
+  - The World War I Japan dyads against Germany and Austria-Hungary are added as version-scoped source adjustments
+    because Japan appears as a World War I participant in `Inter-StateWarData_v4.0.csv`, but the directed dyadic war
+    source has no World War I dyads involving Japan. Japan is linked to Germany from `1914-08-23` through
+    `1918-11-11` and to Austria-Hungary from `1914-08-23` through `1918-11-03`, using the overlapping participant
+    date spans from `Inter-StateWarData_v4.0.csv`.
   - The World War II Thailand dyad (`war_id = 139`, `statea = 800`, `stateb = 710`) is loaded with Thailand battle
     deaths corrected from original blank `batdtha` to `5,569`. The Thailand death count comes from Wikipedia's summary
     of [Thailand in World War II](https://en.wikipedia.org/wiki/Thailand_in_World_War_II).

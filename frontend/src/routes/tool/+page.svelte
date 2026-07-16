@@ -1,5 +1,5 @@
 <script>
-  import TheNetworksOfWar from "$lib/components/TheNetworksOfWar.svelte"
+  import TheNetworksOfWar from "../../lib/components/TheNetworksOfWar.svelte"
 </script>
 
 <TheNetworksOfWar />

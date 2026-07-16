@@ -85,11 +85,12 @@ STEP_2_SOURCE_KEYS = [
 SQL_CHECKPOINTS = {
     "step_1/04_insert_source_adjustments.sql": [
         (
-            "Manual source adjustments loaded: %s MID war IDs, %s war metadata rows, %s participant sides.",
+            "Manual source adjustments loaded: %s MID war IDs, %s war metadata rows, %s war dyads, %s participant sides.",
             """
             select
                 (select count(*) from source_interstate_mid_war_id_adjustments),
                 (select count(*) from source_interstate_war_metadata_adjustments),
+                (select count(*) from source_interstate_war_dyad_adjustments),
                 (select count(*) from source_participant_side_adjustments)
             """,
         ),
@@ -98,15 +99,19 @@ SQL_CHECKPOINTS = {
         (
             "Total Unique Dyads After Merging All War Types: %s",
             """
+            with
+
+            unique_dyads as (
+
+            select
+                war_id,
+                least(c_code_a::varchar || '/' || participant_a, c_code_b::varchar || '/' || participant_b),
+                greatest(c_code_a::varchar || '/' || participant_a, c_code_b::varchar || '/' || participant_b)
+            from dyads_after_sources
+            group by 1, 2, 3)
+
             select count(*)
-            from (
-                select
-                    war_id,
-                    least(c_code_a::varchar || '/' || participant_a, c_code_b::varchar || '/' || participant_b),
-                    greatest(c_code_a::varchar || '/' || participant_a, c_code_b::varchar || '/' || participant_b)
-                from dyads_after_sources
-                group by 1, 2, 3
-            )
+            from unique_dyads
             """,
         ),
         ("Note: This is step 1 of 3 to getting the actual total for unique dyads.", None),
@@ -118,34 +123,42 @@ SQL_CHECKPOINTS = {
         (
             "Total Unique Dyads Added From MIDs: %s",
             """
+            with
+
+            unique_dyads as (
+
+            select
+                a.war_id,
+                least(a.c_code_a::varchar || '/' || a.participant_a, a.c_code_b::varchar || '/' || a.participant_b),
+                greatest(a.c_code_a::varchar || '/' || a.participant_a, a.c_code_b::varchar || '/' || a.participant_b)
+            from dyads_after_mid a
+            left join dyads_after_sources b on a.war_id = b.war_id
+                                           and a.c_code_a = b.c_code_a
+                                           and a.c_code_b = b.c_code_b
+            where b.war_id is null
+            group by 1, 2, 3)
+
             select count(*)
-            from (
-                select
-                    a.war_id,
-                    least(a.c_code_a::varchar || '/' || a.participant_a, a.c_code_b::varchar || '/' || a.participant_b),
-                    greatest(a.c_code_a::varchar || '/' || a.participant_a, a.c_code_b::varchar || '/' || a.participant_b)
-                from dyads_after_mid a
-                left join dyads_after_sources b on a.war_id = b.war_id
-                                                and a.c_code_a = b.c_code_a
-                                                and a.c_code_b = b.c_code_b
-                where b.war_id is null
-                group by 1, 2, 3
-            )
+            from unique_dyads
             """,
         ),
         ("Note: These have all been manually reviewed in assigning war numbers.", None),
         (
             "Total Unique Dyads After Merging All War Types AND Adding Missing Dyads from MIDs: %s",
             """
+            with
+
+            unique_dyads as (
+
+            select
+                war_id,
+                least(c_code_a::varchar || '/' || participant_a, c_code_b::varchar || '/' || participant_b),
+                greatest(c_code_a::varchar || '/' || participant_a, c_code_b::varchar || '/' || participant_b)
+            from dyads_after_mid
+            group by 1, 2, 3)
+
             select count(*)
-            from (
-                select
-                    war_id,
-                    least(c_code_a::varchar || '/' || participant_a, c_code_b::varchar || '/' || participant_b),
-                    greatest(c_code_a::varchar || '/' || participant_a, c_code_b::varchar || '/' || participant_b)
-                from dyads_after_mid
-                group by 1, 2, 3
-            )
+            from unique_dyads
             """,
         ),
         ("Note: This is step 2 of 3 to getting the actual total for unique dyads.", None),
@@ -161,15 +174,19 @@ SQL_CHECKPOINTS = {
         (
             "Total Unique Dyads Added in Current Cell: %s",
             """
+            with
+
+            unique_dyads as (
+
+            select
+                war_id,
+                least(c_code_a::varchar || '/' || participant_a, c_code_b::varchar || '/' || participant_b),
+                greatest(c_code_a::varchar || '/' || participant_a, c_code_b::varchar || '/' || participant_b)
+            from dyads_after_mid
+            group by 1, 2, 3)
+
             select (select count(*) from dyads) - count(*)
-            from (
-                select
-                    war_id,
-                    least(c_code_a::varchar || '/' || participant_a, c_code_b::varchar || '/' || participant_b),
-                    greatest(c_code_a::varchar || '/' || participant_a, c_code_b::varchar || '/' || participant_b)
-                from dyads_after_mid
-                group by 1, 2, 3
-            )
+            from unique_dyads
             """,
         ),
     ],
@@ -303,9 +320,11 @@ class DuckDBProcessesMixin:
         """
         row = conn.execute(query, [relation_name]).fetchone()
 
-        if row is not None:
-            relation_type = "view" if row[0] == "VIEW" else "table"
-            conn.execute(f"drop {relation_type} {sql_identifier(relation_name)}")
+        if row is None:
+            return
+
+        relation_type = "view" if row[0] == "VIEW" else "table"
+        conn.execute(f"drop {relation_type} {sql_identifier(relation_name)}")
 
     def drop_created_relations(self, conn: duckdb.DuckDBPyConnection, sql: str) -> None:
         for relation_name in created_relation_names(sql):

@@ -7,7 +7,7 @@ terrorism_country_years as (
 select
     c.c_code,
     a.year,
-    sum(greatest(coalesce(a.killed, 0), 0)) terrorism_deaths
+    sum(if(a.killed >= 0, a.killed, null)) terrorism_deaths
 from source_global_terrorism_database a
 left join participant_name_replacements b on a.country_name = b.source
 left join source_country_codes c on if(a.country_name = 'Hong Kong' and a.year <= 1997, 'United Kingdom', coalesce(b.replacement, a.country_name)) = c.state_name
@@ -77,8 +77,8 @@ select
     year,
     c_code_a,
     c_code_b,
-    greatest(coalesce(flow_1, 0), 0) money_flow_in,
-    greatest(coalesce(flow_2, 0), 0) money_flow_out
+    if(flow_1 >= 0, flow_1, null) money_flow_in,
+    if(flow_2 >= 0, flow_2, null) money_flow_out
 from source_cow_trade_dyadic
 where flow_1 > 0 or flow_2 > 0
 group by 1, 2, 3, 4, 5
@@ -87,8 +87,8 @@ select
     year,
     c_code_b c_code_a,
     c_code_a c_code_b,
-    greatest(coalesce(flow_2, 0), 0) money_flow_in,
-    greatest(coalesce(flow_1, 0), 0) money_flow_out
+    if(flow_2 >= 0, flow_2, null) money_flow_in,
+    if(flow_1 >= 0, flow_1, null) money_flow_out
 from source_cow_trade_dyadic
 where flow_1 > 0 or flow_2 > 0
 group by 1, 2, 3, 4, 5),
@@ -98,8 +98,8 @@ dyadic_trade_country_years as (
 select
     year,
     c_code_a c_code,
-    sum(money_flow_in) money_flow_in,
-    sum(money_flow_out) money_flow_out,
+    if(count(*) filter (where money_flow_in is null) > 0, null, sum(money_flow_in)) money_flow_in,
+    if(count(*) filter (where money_flow_out is null) > 0, null, sum(money_flow_out)) money_flow_out,
     count(distinct c_code_b) trade_countries
 from dyadic_trade_country_year_rows
 group by 1, 2),
@@ -109,10 +109,9 @@ national_trade_country_years as (
 select
     year,
     c_code,
-    sum(greatest(coalesce(imports, 0), 0)) imports,
-    sum(greatest(coalesce(exports, 0), 0)) exports
+    if(count(*) filter (where imports is null or imports < 0) > 0, null, sum(greatest(imports, 0))) imports,
+    if(count(*) filter (where exports is null or exports < 0) > 0, null, sum(greatest(exports, 0))) exports
 from source_cow_trade_national
-where imports > 0 or exports > 0
 group by 1, 2),
 
 national_capability_country_years as (
@@ -120,15 +119,38 @@ national_capability_country_years as (
 select
     year,
     c_code,
-    any_value(military_expenditures) military_expenditure,
-    any_value(military_personnel) military_personnel,
-    any_value(iron_and_steel_production) iron_steel_production,
-    any_value(primary_energy_consumption) energy_consumption,
-    any_value(total_population) population,
-    any_value(urban_population) urban_population,
-    any_value(urban_population_growth) urban_population_growth_rate,
-    any_value(composite_index_of_national_capability) cinc_score
+    any_value(if(military_expenditures in (-9, -8), null, military_expenditures)) military_expenditure,
+    any_value(if(military_personnel in (-9, -8), null, military_personnel)) military_personnel,
+    any_value(if(iron_and_steel_production in (-9, -8), null, iron_and_steel_production)) iron_steel_production,
+    any_value(if(primary_energy_consumption in (-9, -8), null, primary_energy_consumption)) energy_consumption,
+    any_value(if(total_population in (-9, -8), null, total_population)) population,
+    any_value(if(urban_population in (-9, -8), null, urban_population)) urban_population,
+    any_value(if(urban_population_growth in (-9, -8), null, urban_population_growth)) urban_population_growth_rate,
+    any_value(if(composite_index_of_national_capability in (-9, -8), null, composite_index_of_national_capability)) cinc_score
 from source_national_material_capabilities
+group by 1, 2),
+
+co2_country_name_replacements(source_name, state_name) as (
+
+values
+        ('Cote d''Ivoire', 'Ivory Coast'),
+        ('Czechia', 'Czech Republic'),
+        ('Democratic Republic of Congo', 'Democratic Republic of the Congo'),
+        ('Eswatini', 'Swaziland'),
+        ('Micronesia (country)', 'Federated States of Micronesia'),
+        ('North Macedonia', 'Macedonia'),
+        ('United States', 'United States of America')),
+
+co2_country_years as (
+
+select
+    c.c_code,
+    a.year,
+    avg(a.co2_emissions_per_capita) co2_emissions_per_capita
+from source_co_emissions_per_capita a
+left join co2_country_name_replacements b on a.country_name = b.source_name
+join country_codes c on coalesce(b.state_name, a.country_name) = c.state_name
+where a.co2_emissions_per_capita is not null
 group by 1, 2),
 
 territorial_change_country_year_rows as (
@@ -136,20 +158,20 @@ territorial_change_country_year_rows as (
 select
     year,
     gainer c_code,
-    sum(greatest(coalesce(area, 0), 0)) land_mass_exchange_gain,
-    sum(greatest(coalesce(area, 0), 0)) * -1 land_mass_exchange_loss,
-    sum(greatest(coalesce(population, 0), 0)) population_exchange_gain,
-    sum(greatest(coalesce(population, 0), 0)) * -1 population_exchange_loss
+    if(count(*) filter (where area is null or area < 0) > 0, null, sum(greatest(area, 0))) land_mass_exchange_gain,
+    if(count(*) filter (where area is null or area < 0) > 0, null, sum(greatest(area, 0))) * -1 land_mass_exchange_loss,
+    if(count(*) filter (where population is null or population < 0) > 0, null, sum(greatest(population, 0))) population_exchange_gain,
+    if(count(*) filter (where population is null or population < 0) > 0, null, sum(greatest(population, 0))) * -1 population_exchange_loss
 from source_territorial_changes
 group by 1, 2
 union
 select
     year,
     loser c_code,
-    sum(greatest(coalesce(area, 0), 0)) * -1 land_mass_exchange_gain,
-    sum(greatest(coalesce(area, 0), 0)) land_mass_exchange_loss,
-    sum(greatest(coalesce(population, 0), 0)) * -1 population_exchange_gain,
-    sum(greatest(coalesce(population, 0), 0)) population_exchange_loss
+    if(count(*) filter (where area is null or area < 0) > 0, null, sum(greatest(area, 0))) * -1 land_mass_exchange_gain,
+    if(count(*) filter (where area is null or area < 0) > 0, null, sum(greatest(area, 0))) land_mass_exchange_loss,
+    if(count(*) filter (where population is null or population < 0) > 0, null, sum(greatest(population, 0))) * -1 population_exchange_gain,
+    if(count(*) filter (where population is null or population < 0) > 0, null, sum(greatest(population, 0))) population_exchange_loss
 from source_territorial_changes
 group by 1, 2),
 
@@ -170,9 +192,9 @@ displaced_population_country_years as (
 select
     year,
     c_code,
-    sum(coalesce(source, 0)) refugees_originated,
-    sum(coalesce(hosted_refugees, 0)) refugees_hosted,
-    sum(coalesce(internally_displaced_persons, 0)) internally_displaced_persons
+    if(count(*) filter (where source is null) > 0, null, sum(source)) refugees_originated,
+    if(count(*) filter (where hosted_refugees is null) > 0, null, sum(hosted_refugees)) refugees_hosted,
+    if(count(*) filter (where internally_displaced_persons is null) > 0, null, sum(internally_displaced_persons)) internally_displaced_persons
 from source_forcibly_displaced_populations
 group by 1, 2),
 
@@ -189,6 +211,8 @@ union
 select c_code, year from national_trade_country_years
 union
 select c_code, year from national_capability_country_years
+union
+select c_code, year from co2_country_years
 union
 select c_code, year from territorial_change_country_years
 union
@@ -216,14 +240,16 @@ select
     g.urban_population,
     g.urban_population_growth_rate,
     g.cinc_score,
-    h.land_mass_exchange_gain,
-    h.population_exchange_gain,
-    h.land_mass_exchange_loss,
-    h.population_exchange_loss,
-    i.refugees_originated,
-    i.refugees_hosted,
-    i.internally_displaced_persons
+    h.co2_emissions_per_capita,
+    i.land_mass_exchange_gain,
+    i.population_exchange_gain,
+    i.land_mass_exchange_loss,
+    i.population_exchange_loss,
+    j.refugees_originated,
+    j.refugees_hosted,
+    j.internally_displaced_persons
 from country_year_keys a
+join country_codes k on a.c_code = k.c_code
 left join terrorism_country_years b on a.c_code = b.c_code
                                     and a.year = b.year
 left join mid_country_years c on a.c_code = c.c_code
@@ -236,7 +262,9 @@ left join national_trade_country_years f on a.c_code = f.c_code
                                          and a.year = f.year
 left join national_capability_country_years g on a.c_code = g.c_code
                                               and a.year = g.year
-left join territorial_change_country_years h on a.c_code = h.c_code
-                                             and a.year = h.year
-left join displaced_population_country_years i on a.c_code = i.c_code
-                                               and a.year = i.year;
+left join co2_country_years h on a.c_code = h.c_code
+                              and a.year = h.year
+left join territorial_change_country_years i on a.c_code = i.c_code
+                                             and a.year = i.year
+left join displaced_population_country_years j on a.c_code = j.c_code
+                                               and a.year = j.year;

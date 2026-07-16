@@ -14,6 +14,9 @@
     { value: "last_year", label: "Last Year" },
     { value: "all_years", label: "All Years" },
   ]
+  const noTimeframeItemsMessage = "No timeframe data available."
+  const noNodeSizeItemsMessage = "No node size data available."
+  const noLinkDashItemsMessage = "No link dash data available."
 
   function plural(value, noun) {
     return `${Number(value || 0).toLocaleString()} ${noun}${Number(value || 0) == 1 ? "" : "s"}`
@@ -52,10 +55,8 @@
   let selectedWarTypes = [...warTypeItems]
   let selectedWarItem = null
   let graph = { nodes: [], links: [] }
-  let selectedGraph = null
   let selectedWar = null
   let pageWidth
-  let toolViewportWidth
 
   let width = 900
   let simulation
@@ -81,6 +82,7 @@
   let stdNullRadiusSize = 1
   let nodeMargins = emptyNodeMargins()
   let radiusScale = scaleLinear([0, maxDomain], [1, 125])
+  let primaryNode = null
 
   const graphTextSize = 12
   const height = 700
@@ -118,9 +120,7 @@
     selectedWarItem = preferredWarItem(warItems)
   }
   $: selectedWar = selectedWarItem?.war
-  $: selectedGraph = selectedWar ? graphForWar(selectedWar) : null
-  $: graph = selectedGraph || { nodes: [], links: [] }
-  $: toolViewportWidth = pageWidth ? pageWidth * 0.7 : 0
+  $: graph = selectedWar ? graphForWar(selectedWar) : { nodes: [], links: [] }
 
   function emptyNodeMargins() {
     return {
@@ -138,6 +138,8 @@
   }
 
   function numberValue(value) {
+    if (value == null || value === "") return null
+
     let parsed = Number(value)
 
     return Number.isFinite(parsed) ? parsed : null
@@ -223,7 +225,12 @@
       descriptorStdNullRadiusSize = descriptorMaxDomain / nodeCount
     }
 
-    return [values, descriptorMaxDomain, descriptorStdNullRadiusSize, descriptorNullRadiusNodes]
+    return {
+      values,
+      maxDomain: descriptorMaxDomain,
+      stdNullRadiusSize: descriptorStdNullRadiusSize,
+      nullRadiusNodes: descriptorNullRadiusNodes,
+    }
   }
 
   function getLinkDescriptiveValues(linkDescriptorName) {
@@ -241,17 +248,17 @@
       fields = Array.from(new Set([...fields, "days_at_war", "battle_deaths", "battle_deaths_per_day"]))
     }
 
-    let daysAtWarUniqueValues = coalescedUniqueValues(getNodeDescriptiveValues("days_at_war")[0])
-    let daysNotAtWarUniqueValues = coalescedUniqueValues(getNodeDescriptiveValues("days_not_at_war")[0])
+    let daysAtWarUniqueValues = coalescedUniqueValues(getNodeDescriptiveValues("days_at_war").values)
+    let daysNotAtWarUniqueValues = coalescedUniqueValues(getNodeDescriptiveValues("days_not_at_war").values)
 
     return descriptorItems(
       fields.filter(field => {
-        let [values, , , fieldNullRadiusNodes] = getNodeDescriptiveValues(field)
+        let { values, nullRadiusNodes } = getNodeDescriptiveValues(field)
         let uniqueValues = coalescedUniqueValues(values)
 
         if (maxValue(uniqueValues) == 0) return false
         if (uniqueValues.length == 1) return false
-        if (fieldNullRadiusNodes / values.length >= 0.5) return false
+        if (nullRadiusNodes / values.length >= 0.5) return false
         if (field == "days_at_war" && daysAtWarUniqueValues.length == 1) return false
         if (field == "days_not_at_war" && daysNotAtWarUniqueValues.length == 1) return false
         if (field == "battle_deaths_per_day" && daysAtWarUniqueValues.length == 1) return false
@@ -352,6 +359,8 @@
   }
 
   function getXAdjusted(id, xLoc) {
+    if (id == primaryNode && nodes.length > 2) return graphCenterX
+
     return Math.max(
       nodeMargins.added_left_margin[id] ?? addedMarginSize,
       Math.min(width - (nodeMargins.added_right_margin[id] ?? addedMarginSize), xLoc ?? graphCenterX)
@@ -359,6 +368,8 @@
   }
 
   function getYAdjusted(id, yLoc) {
+    if (id == primaryNode && nodes.length > 2) return graphCenterY
+
     return Math.max(
       nodeMargins.added_top_margin[id] ?? addedMarginSize,
       Math.min(height - (nodeMargins.added_bottom_margin[id] ?? addedMarginSize), yLoc ?? graphCenterY)
@@ -367,6 +378,24 @@
 
   function linkEndpointId(link, endpoint) {
     return typeof link[endpoint] == "object" ? link[endpoint].id : link[endpoint]
+  }
+
+  function identifyPrimaryNode() {
+    if (links.length <= 1) return null
+
+    let endpointCounts = new Map()
+
+    links.forEach(link => {
+      for (let id of [linkEndpointId(link, "source"), linkEndpointId(link, "target")]) {
+        endpointCounts.set(id, (endpointCounts.get(id) || 0) + 1)
+      }
+    })
+
+    let primaryNodes = Array.from(endpointCounts)
+      .filter(([, linkCount]) => linkCount == links.length)
+      .map(([id]) => id)
+
+    return primaryNodes.length == 1 ? primaryNodes[0] : null
   }
 
   function linkX(link, endpoint) {
@@ -426,7 +455,7 @@
   }
 
   function showNodeSizeWarning(node) {
-    if (!nodeDescriptorValue?.value || maxValue(coalescedUniqueValues(nodeDescriptiveValues)) == 0) return false
+    if (!nodeDescriptorValue?.value || !hasNodeSizeSignal) return false
 
     return !Number.isFinite(nodeDescriptiveValues[node.id])
   }
@@ -442,14 +471,21 @@
     return value == null ? "Unknown" : value.toLocaleString()
   }
 
+  function displayNumber(value) {
+    let parsed = numberValue(value)
+
+    return parsed == null ? "Unknown" : parsed.toLocaleString()
+  }
+
   function linkHasDescriptor(link) {
-    return linkDescriptorValue?.value && Number(descriptorValue(link, linkDescriptorValue.value) || 0) > 0
+    return linkDescriptorValue?.value && (numberValue(descriptorValue(link, linkDescriptorValue.value)) ?? 0) > 0
   }
 
   function applyLegacySizing() {
-    ;[nodeDescriptiveValues, maxDomain, stdNullRadiusSize] = getNodeDescriptiveValues(
-      nodeDescriptorValue?.value || null
-    )
+    let sizing = getNodeDescriptiveValues(nodeDescriptorValue?.value || null)
+    nodeDescriptiveValues = sizing.values
+    maxDomain = sizing.maxDomain
+    stdNullRadiusSize = sizing.stdNullRadiusSize
     nodeMargins = getNodeMargins()
   }
 
@@ -459,6 +495,8 @@
     if (!nodes.length || !width || !height) return
 
     let nodeById = new Map(nodes.map(node => [node.id, node]))
+    primaryNode = identifyPrimaryNode()
+    let hasPrimaryNode = primaryNode != null
 
     linkNodes = links
       .map(link => ({
@@ -471,10 +509,10 @@
     let averageHorizontalNameShift = averageValue(Object.values(nodeMargins.horizontal_name_shift))
 
     simulation = forceSimulation(nodes.concat(linkNodes))
-      .force("charge", forceManyBody().strength(-1000))
+      .force("charge", forceManyBody().strength(hasPrimaryNode ? -7500 : -1000))
       .force("center", forceCenter(graphCenterX, graphCenterY))
-      .force("x", forceX(graphCenterX).strength(0.15))
-      .force("y", forceY(height - addedMarginSize * 2).strength(0.5))
+      .force("x", forceX(graphCenterX).strength(hasPrimaryNode ? 0.75 : 0.15))
+      .force("y", forceY(height - addedMarginSize * 2).strength(hasPrimaryNode ? 0.75 : 0.5))
       .force(
         "collision",
         forceCollide()
@@ -515,7 +553,7 @@
               getYAdjusted(linkNode.target.id, linkNode.target.y)) *
             0.5
         })
-        refreshGraphRows()
+        refreshGraph()
       })
   }
 
@@ -537,9 +575,7 @@
     }
   }
 
-  function clampTooltipCoordinates(x, y) {
-    let bounds = tooltipBounds()
-
+  function clampTooltipCoordinates(x, y, bounds) {
     return {
       x: Math.max(tooltipPadding, Math.min(bounds.width - tooltipWidth - tooltipPadding, x)),
       y: Math.max(tooltipPadding, Math.min(bounds.height - tooltipHeight - tooltipPadding, y)),
@@ -551,10 +587,12 @@
     let x = event.clientX - rect.left + tooltipOffset
     let y = event.clientY - rect.top + tooltipOffset
 
-    return clampTooltipCoordinates(x, y)
+    return clampTooltipCoordinates(x, y, { width: rect.width || width, height: rect.height || height })
   }
 
   function showTooltip(node, event) {
+    if (dragNode) return
+
     hoverNode = node
     tooltip = { node, ...tooltipPoint(event) }
   }
@@ -572,12 +610,8 @@
     }
   }
 
-  function refreshGraphRows() {
+  function refreshGraph() {
     nodes = nodes
-    refreshLinks()
-  }
-
-  function refreshLinks() {
     links = links
   }
 
@@ -608,7 +642,7 @@
     dragNode.fy = adjustedPoint.y
     dragNode.x = adjustedPoint.x
     dragNode.y = adjustedPoint.y
-    refreshGraphRows()
+    refreshGraph()
   }
 
   function endDrag() {
@@ -654,7 +688,7 @@
   function updateLinkDescriptorValue(event) {
     linkDescriptorValue = event.detail.d
     triggerLinkDashPulse()
-    refreshLinks()
+    refreshGraph()
   }
 
   function stopSimulation() {
@@ -675,12 +709,15 @@
 
   $: availableTimeframeItems = timeframeItems.filter(
     item =>
-      item.value == "z" ||
       descriptorNodes.some(node => hasTimeframeDescriptor(node, item.value)) ||
       descriptorLinks.some(link => hasTimeframeDescriptor(link, item.value))
   )
-  $: if (!availableTimeframeItems.some(item => item.value == timeframeValue?.value)) {
-    timeframeValue = availableTimeframeItems[availableTimeframeItems.length - 1] || timeframeItems[2]
+  $: if (!availableTimeframeItems.length) {
+    timeframeValue = null
+  } else if (availableTimeframeItems.length == 1 && timeframeValue?.value != availableTimeframeItems[0].value) {
+    timeframeValue = availableTimeframeItems[0]
+  } else if (!availableTimeframeItems.some(item => item.value == timeframeValue?.value)) {
+    timeframeValue = availableTimeframeItems[availableTimeframeItems.length - 1]
   }
   $: nodeDescriptorItems = nodeFieldItems(descriptorNodes, timeframeValue?.value || "all_years")
   $: linkDescriptorItems = linkFieldItems(descriptorLinks, timeframeValue?.value || "all_years")
@@ -690,6 +727,11 @@
   $: if (linkDescriptorValue && !linkDescriptorItems.some(item => item.value == linkDescriptorValue.value)) {
     linkDescriptorValue = null
   }
+  $: timeframePlaceholder = !availableTimeframeItems.length && !timeframeValue ? noTimeframeItemsMessage : ""
+  $: nodeDescriptorPlaceholder =
+    !nodeDescriptorItems.length && !nodeDescriptorValue ? noNodeSizeItemsMessage : "Choose a node size."
+  $: linkDescriptorPlaceholder =
+    !linkDescriptorItems.length && !linkDescriptorValue ? noLinkDashItemsMessage : "Choose a link dash."
   $: sizingSignature = `${timeframeValue?.value || "all_years"}|${nodeDescriptorValue?.value || "none"}|${width}|${height}|${nodes.length}|${links.length}`
   $: if (nodes.length && sizingSignature != currentSizingSignature) {
     currentSizingSignature = sizingSignature
@@ -701,8 +743,9 @@
     currentLinkDescriptorSignature = linkDescriptorSignature
     triggerLinkDashPulse()
   }
+  $: hasNodeSizeSignal = maxValue(coalescedUniqueValues(nodeDescriptiveValues)) != 0
   $: if (tooltip) {
-    let point = clampTooltipCoordinates(tooltip.x, tooltip.y)
+    let point = clampTooltipCoordinates(tooltip.x, tooltip.y, tooltipBounds())
 
     if (point.x != tooltip.x || point.y != tooltip.y) {
       tooltip = { ...tooltip, ...point }
@@ -720,7 +763,7 @@
   <div class="px-8 py-12 text-center text-lg min-[1300px]:hidden">
     This visualization is best viewed on a larger screen. So, grab a computer and come back soon!
   </div>
-  <div class="hidden min-[1300px]:block" style="width:{toolViewportWidth}px">
+  <div class="hidden min-[1300px]:block" style="width:{pageWidth ? pageWidth * 0.7 : 0}px">
     <div class="mx-auto flex w-full flex-col gap-4 py-5">
       <section class="grid gap-3 border border-[#d8d3c4] bg-white p-4">
         <div>
@@ -780,16 +823,24 @@
               <div class="grid gap-3 md:grid-cols-3">
                 <div>
                   <div class="mb-1 text-sm font-extrabold text-[#596b64]">Timeframe</div>
-                  <Select items={availableTimeframeItems} bind:value={timeframeValue} clearable={false} />
+                  <Select
+                    items={availableTimeframeItems}
+                    bind:value={timeframeValue}
+                    placeholder={timeframePlaceholder}
+                    noItemsMessage={noTimeframeItemsMessage}
+                    clearable={false}
+                    disabled={availableTimeframeItems.length <= 1}
+                  />
                 </div>
                 <div>
                   <div class="mb-1 text-sm font-extrabold text-[#596b64]">Node Size</div>
                   <Select
                     items={nodeDescriptorItems}
                     bind:value={nodeDescriptorValue}
-                    placeholder="Choose a node size."
-                    noItemsMessage="No node size fields available."
+                    placeholder={nodeDescriptorPlaceholder}
+                    noItemsMessage={noNodeSizeItemsMessage}
                     clearable={true}
+                    disabled={!nodeDescriptorItems.length && !nodeDescriptorValue}
                   />
                 </div>
                 <div>
@@ -797,9 +848,10 @@
                   <Select
                     items={linkDescriptorItems}
                     bind:value={linkDescriptorValue}
-                    placeholder="Choose a link dash."
-                    noItemsMessage="No link dash fields available."
+                    placeholder={linkDescriptorPlaceholder}
+                    noItemsMessage={noLinkDashItemsMessage}
                     clearable={true}
+                    disabled={!linkDescriptorItems.length && !linkDescriptorValue}
                     on:valueChange={updateLinkDescriptorValue}
                   />
                 </div>
@@ -861,34 +913,37 @@
                         stroke-width={hoverNode?.id == node.id ? nodeStrokeWidth + 0.75 : nodeStrokeWidth}
                         style="transition: r 3000ms ease 500ms, stroke-width 150ms ease;"
                       />
-                      <text
-                        class="text-[12px] font-bold"
-                        x={label.x}
-                        y={label.y}
-                        text-anchor={label.anchor}
-                        fill={label.inside ? "white" : "#111827"}
-                        stroke={label.inside ? "none" : "white"}
-                        stroke-width={label.inside ? 0 : 3}
-                        paint-order="stroke"
-                        style="transition: x 2000ms ease 1500ms, y 2000ms ease 1500ms, fill 2000ms ease 1500ms, stroke 2000ms ease 1500ms;"
+                      <g
+                        style="transform: translate({label.x}px, {label.y}px); transition: transform 2000ms ease 1500ms;"
                       >
-                        {node.participant}
-                      </text>
-                      {#if showNodeSizeWarning(node)}
-                        {@const warningPosition = nodeSizeWarningPosition(node, label)}
                         <text
                           class="text-[12px] font-bold"
-                          x={warningPosition.x}
-                          y={warningPosition.y}
-                          text-anchor="middle"
-                          fill="#111827"
-                          stroke="white"
-                          stroke-width={3}
+                          text-anchor={label.anchor}
+                          fill={label.inside ? "white" : "#111827"}
+                          stroke={label.inside ? "none" : "white"}
+                          stroke-width={label.inside ? 0 : 3}
                           paint-order="stroke"
-                          style="transition: x 2000ms ease 1500ms, y 2000ms ease 1500ms;"
+                          style="transition: fill 2000ms ease 1500ms, stroke 2000ms ease 1500ms;"
                         >
-                          ?
+                          {node.participant}
                         </text>
+                      </g>
+                      {#if showNodeSizeWarning(node)}
+                        {@const warningPosition = nodeSizeWarningPosition(node, label)}
+                        <g
+                          style="transform: translate({warningPosition.x}px, {warningPosition.y}px); transition: transform 2000ms ease 1500ms;"
+                        >
+                          <text
+                            class="text-[12px] font-bold"
+                            text-anchor="middle"
+                            fill="#111827"
+                            stroke="white"
+                            stroke-width={3}
+                            paint-order="stroke"
+                          >
+                            ?
+                          </text>
+                        </g>
                       {/if}
                     </g>
                   {/each}
@@ -903,7 +958,7 @@
                 >
                   <div class="font-extrabold">{tooltip.node.participant}</div>
                   <div class="text-[#50615b]">
-                    Battle Deaths: {Number(tooltip.node.battle_deaths || 0).toLocaleString()}
+                    Battle Deaths: {displayNumber(tooltip.node.battle_deaths)}
                   </div>
                   {#if nodeDescriptorValue?.value && nodeDescriptorValue.value != "battle_deaths"}
                     <div class="text-[#50615b]">

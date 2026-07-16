@@ -40,7 +40,7 @@ from final_wars)
 select
     'graphData.json' file_name,
     a.war_count,
-    to_json(struct_pack(
+    json_pretty(to_json(struct_pack(
         source := struct_pack(
             database := 'backend/the_networks_of_war.duckdb',
             tables := json('["final_wars","final_participants","final_dyads"]'),
@@ -48,6 +48,6 @@ select
         ),
         wars := json(a.payload),
         graphsByWarId := json(b.payload)
-    )) graph_data_json
+    ))) graph_data_json
 from war_json a
 cross join graph_json b

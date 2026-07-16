@@ -1,5 +1,6 @@
-select *
-from (
+with
+
+tables(table_name) as (
     values
         ('source_country_codes'),
         ('source_interstate_war_dyads'),
@@ -37,5 +38,7 @@ from (
         ('dyadic_descriptives'),
         ('final_participants'),
         ('final_dyads'),
-        ('final_wars')
-) tables(table_name);
+        ('final_wars'))
+
+select *
+from tables;
