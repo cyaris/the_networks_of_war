@@ -304,9 +304,11 @@ class DuckDBProcessesMixin:
         """
         row = conn.execute(query, [relation_name]).fetchone()
 
-        if row is not None:
-            relation_type = "view" if row[0] == "VIEW" else "table"
-            conn.execute(f"drop {relation_type} {sql_identifier(relation_name)}")
+        if row is None:
+            return
+
+        relation_type = "view" if row[0] == "VIEW" else "table"
+        conn.execute(f"drop {relation_type} {sql_identifier(relation_name)}")
 
     def drop_created_relations(self, conn: duckdb.DuckDBPyConnection, sql: str) -> None:
         for relation_name in created_relation_names(sql):
