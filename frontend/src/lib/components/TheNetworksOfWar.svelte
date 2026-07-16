@@ -728,8 +728,10 @@
     linkDescriptorValue = null
   }
   $: timeframePlaceholder = !availableTimeframeItems.length && !timeframeValue ? noTimeframeItemsMessage : ""
-  $: nodeDescriptorPlaceholder = !nodeDescriptorItems.length && !nodeDescriptorValue ? noNodeSizeItemsMessage : "Choose a node size."
-  $: linkDescriptorPlaceholder = !linkDescriptorItems.length && !linkDescriptorValue ? noLinkDashItemsMessage : "Choose a link dash."
+  $: nodeDescriptorPlaceholder =
+    !nodeDescriptorItems.length && !nodeDescriptorValue ? noNodeSizeItemsMessage : "Choose a node size."
+  $: linkDescriptorPlaceholder =
+    !linkDescriptorItems.length && !linkDescriptorValue ? noLinkDashItemsMessage : "Choose a link dash."
   $: sizingSignature = `${timeframeValue?.value || "all_years"}|${nodeDescriptorValue?.value || "none"}|${width}|${height}|${nodes.length}|${links.length}`
   $: if (nodes.length && sizingSignature != currentSizingSignature) {
     currentSizingSignature = sizingSignature
