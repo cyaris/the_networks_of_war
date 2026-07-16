@@ -712,7 +712,9 @@
       descriptorNodes.some(node => hasTimeframeDescriptor(node, item.value)) ||
       descriptorLinks.some(link => hasTimeframeDescriptor(link, item.value))
   )
-  $: if (!availableTimeframeItems.some(item => item.value == timeframeValue?.value)) {
+  $: if (availableTimeframeItems.length == 1 && timeframeValue?.value != availableTimeframeItems[0].value) {
+    timeframeValue = availableTimeframeItems[0]
+  } else if (!availableTimeframeItems.some(item => item.value == timeframeValue?.value)) {
     timeframeValue = availableTimeframeItems[availableTimeframeItems.length - 1] || timeframeItems[2]
   }
   $: nodeDescriptorItems = nodeFieldItems(descriptorNodes, timeframeValue?.value || "all_years")
