@@ -3,6 +3,7 @@
 ## Shared Svelte Conventions
 
 - Use `../../svelte-lib/AGENTS.md` as the source of truth for shared Svelte formatting, config, lint, dependency, D3, Vite, Rollup, CSS import, and scoped embedded styling conventions.
+- Keep short inline object literals compact when they are easier to scan in local graph logic. For example, prefer `let adjustedPoint = {x: getXAdjusted(dragNode.id, point.x),y: getYAdjusted(dragNode.id, point.y)}` over expanding the object across multiple lines.
 
 ## Local Dependencies
 
