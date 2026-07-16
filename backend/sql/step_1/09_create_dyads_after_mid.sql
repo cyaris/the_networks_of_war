@@ -2,43 +2,43 @@ create or replace table dyads_after_mid as
 
 with
 
-source_mid_war_numbers as (
+source_mid_war_ids as (
 
 select
     disno,
-    any_value(war_num) war_num
+    any_value(war_id) war_id
 from source_interstate_war_dyads
 where disno is not null
 group by 1),
 
-adjusted_mid_war_numbers as (
+adjusted_mid_war_ids as (
 
 select
     a.disno,
-    a.war_num
-from source_interstate_mid_war_num_adjustments a
+    a.war_id
+from source_interstate_mid_war_id_adjustments a
 join source_file_versions b on a.source_key = b.source_key
                             and a.source_version = b.source_version
-left join source_mid_war_numbers c on a.disno = c.disno
+left join source_mid_war_ids c on a.disno = c.disno
 where c.disno is null),
 
-mid_war_numbers as (
+mid_war_ids as (
 
 select
     disno,
-    war_num
-from source_mid_war_numbers
+    war_id
+from source_mid_war_ids
 union all
 select
     disno,
-    war_num
-from adjusted_mid_war_numbers),
+    war_id
+from adjusted_mid_war_ids),
 
 mid_wars_prepared as (
 
 select
     a.disno,
-    coalesce(b.war_num, -1) war_num,
+    coalesce(b.war_id, -1) war_id,
     a.c_code_a,
     a.c_code_b,
     cow_date(a.start_year_1, a.start_month_1, a.start_day_1, 1, 1) start_date,
@@ -48,14 +48,14 @@ select
     a.battle_deaths_estimated_a,
     a.battle_deaths_estimated_b
 from source_interstate_mid_dyads a
-left join mid_war_numbers b on a.disno = b.disno
+left join mid_war_ids b on a.disno = b.disno
 where a.war = 1),
 
 mid_wars_directed as (
 
 select
     disno,
-    war_num,
+    war_id,
     c_code_a,
     c_code_b,
     start_date,
@@ -68,7 +68,7 @@ from mid_wars_prepared
 union all
 select
     disno,
-    war_num,
+    war_id,
     c_code_b c_code_a,
     c_code_a c_code_b,
     start_date,
@@ -82,46 +82,46 @@ from mid_wars_prepared),
 war_metadata_candidates as (
 
 select
-    war_num,
+    war_id,
     any_value(war_name) war_name,
+    any_value(war_type_id) war_type_id,
     any_value(war_type) war_type,
-    any_value(war_type_name) war_type_name,
     any_value(war_subtype) war_subtype
 from dyads_after_sources
 group by 1
 union all
 select
-    a.war_num,
+    a.war_id,
     any_value(a.war_name) war_name,
-    any_value(a.war_type) war_type,
-    any_value(b.war_type_name) war_type_name,
+    any_value(a.war_type_id) war_type_id,
+    any_value(b.war_type) war_type,
     any_value(b.war_subtype) war_subtype
 from source_interstate_wars a
-left join war_types b on a.war_type = b.war_type
+left join war_types b on a.war_type_id = b.war_type_id
 where
     a.war_name is not null
-    and a.war_type is not null
+    and a.war_type_id is not null
 group by 1
 union all
 select
-    a.war_num,
+    a.war_id,
     any_value(a.war_name) war_name,
-    any_value(a.war_type) war_type,
-    any_value(c.war_type_name) war_type_name,
+    any_value(a.war_type_id) war_type_id,
+    any_value(c.war_type) war_type,
     any_value(c.war_subtype) war_subtype
 from source_interstate_war_metadata_adjustments a
 join source_file_versions b on a.source_key = b.source_key
                             and a.source_version = b.source_version
-left join war_types c on a.war_type = c.war_type
+left join war_types c on a.war_type_id = c.war_type_id
 group by 1),
 
 war_metadata as (
 
 select
-    war_num,
+    war_id,
     any_value(war_name order by war_name is null, war_name) war_name,
+    any_value(war_type_id order by war_type_id is null, war_type_id) war_type_id,
     any_value(war_type order by war_type is null, war_type) war_type,
-    any_value(war_type_name order by war_type_name is null, war_type_name) war_type_name,
     any_value(war_subtype order by war_subtype is null, war_subtype) war_subtype
 from war_metadata_candidates
 group by 1),
@@ -129,10 +129,10 @@ group by 1),
 mid_dyads as (
 
 select
-    a.war_num,
+    a.war_id,
     any_value(b.war_name) war_name,
+    any_value(b.war_type_id) war_type_id,
     any_value(b.war_type) war_type,
-    any_value(b.war_type_name) war_type_name,
     any_value(b.war_subtype) war_subtype,
     a.disno,
     a.c_code_a,
@@ -148,7 +148,7 @@ select
     sum(greatest(coalesce(a.battle_deaths_estimated_a, 0), 0)) battle_deaths_estimated_a,
     sum(greatest(coalesce(a.battle_deaths_estimated_b, 0), 0)) battle_deaths_estimated_b
 from mid_wars_directed a
-left join war_metadata b on a.war_num = b.war_num
+left join war_metadata b on a.war_id = b.war_id
 left join country_codes c on a.c_code_a = c.c_code
 left join country_codes d on a.c_code_b = d.c_code
 group by 1, 6, 7, 8, 9, 10),
@@ -156,10 +156,10 @@ group by 1, 6, 7, 8, 9, 10),
 merged_dyads as (
 
 select
-    war_num,
+    war_id,
     war_name,
+    war_type_id,
     war_type,
-    war_type_name,
     war_subtype,
     c_code_a,
     c_code_b,
@@ -176,10 +176,10 @@ select
 from dyads_after_sources
 union all
 select
-    a.war_num,
+    a.war_id,
     a.war_name,
+    a.war_type_id,
     a.war_type,
-    a.war_type_name,
     a.war_subtype,
     a.c_code_a,
     a.c_code_b,
@@ -194,17 +194,17 @@ select
     a.battle_deaths_estimated_a,
     a.battle_deaths_estimated_b
 from mid_dyads a
-left join dyads_after_sources b on a.war_num = b.war_num
+left join dyads_after_sources b on a.war_id = b.war_id
                                 and a.c_code_a = b.c_code_a
                                 and a.c_code_b = b.c_code_b
                                 and least(a.end_date, b.end_date) >= greatest(a.start_date, b.start_date)
-where b.war_num is null)
+where b.war_id is null)
 
 select
-    war_num,
+    war_id,
     any_value(war_name) war_name,
+    any_value(war_type_id) war_type_id,
     any_value(war_type) war_type,
-    any_value(war_type_name) war_type_name,
     any_value(war_subtype) war_subtype,
     c_code_a,
     c_code_b,

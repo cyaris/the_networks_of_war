@@ -5,7 +5,7 @@ create or replace table source_country_codes (
 );
 
 create or replace table source_interstate_war_dyads (
-    war_num double,
+    war_id double,
     disno double,
     dyindex double,
     c_code_a integer,
@@ -83,9 +83,9 @@ create or replace table source_interstate_mid_dyads (
 );
 
 create or replace table source_extrastate_wars (
-    war_num double,
+    war_id double,
     war_name varchar,
-    war_type integer,
+    war_type_id integer,
     c_code_a integer,
     c_code_b integer,
     participant_a varchar,
@@ -114,9 +114,9 @@ create or replace table source_extrastate_wars (
 );
 
 create or replace table source_interstate_wars (
-    war_num double,
+    war_id double,
     war_name varchar,
-    war_type integer,
+    war_type_id integer,
     c_code integer,
     participant varchar,
     side integer,
@@ -142,10 +142,10 @@ create or replace table source_interstate_wars (
 );
 
 create or replace table source_intrastate_wars (
-    war_num double,
+    war_id double,
     war_name varchar,
     v5_region integer,
-    war_type integer,
+    war_type_id integer,
     c_code_a integer,
     c_code_b integer,
     participant_a varchar,

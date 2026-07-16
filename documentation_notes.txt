@@ -1,8 +1,0 @@
-# regime
-# Six‐fold regime classification
-# 0. Parliamentary democracy
-# 1. Mixed (semi‐presidential) democracy
-# 2. Presidential democracy
-# 3. Civilian dictatorship
-# 4. Military dictatorship
-# 5. Royal dictatorship

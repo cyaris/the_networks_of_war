@@ -9,7 +9,7 @@ where c_code is not null
 qualify row_number() over (partition by c_code) = 1;
 
 create or replace table war_types (
-    war_type integer,
-    war_type_name varchar,
+    war_type_id integer,
+    war_type varchar,
     war_subtype varchar
 );

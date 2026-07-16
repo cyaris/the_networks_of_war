@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import duckdb
 import pytest
 
+SRC_ROOT = Path(__file__).resolve().parents[1] / "src"
+
+sys.path.insert(0, str(SRC_ROOT))
+
 from pipeline import (
-    DEFAULT_CSV_DIR,
     SOURCE_FILES,
     SOURCE_METADATA,
     SOURCE_PREPARED_FILES,
@@ -50,7 +54,7 @@ STEP_2_TRANSFORMED_TABLES = [
 @pytest.fixture(scope="session")
 def step_2_db_path(tmp_path_factory: pytest.TempPathFactory) -> Path:
     db_path = tmp_path_factory.mktemp("duckdb") / "step_2.duckdb"
-    pipeline = Pipeline(db_path=db_path, csv_dir=DEFAULT_CSV_DIR)
+    pipeline = Pipeline(db_path=db_path)
     missing = [
         str(path)
         for source_key in [*STEP_1_SOURCE_KEYS, *STEP_2_SOURCE_KEYS]
@@ -117,19 +121,17 @@ def test_global_terrorism_database_source_metadata_converts_workbooks():
 
 def test_global_terrorism_database_source_rows_do_not_overlap_on_event_id(conn):
     query = """
-    select a.event_id
+    select count(*)
     from source_global_terrorism_database a
     inner join source_global_terrorism_database b using (event_id)
     where
         a.source_file = 'globalterrorismdb_0522dist.csv'
         and b.source_file = 'globalterrorismdb_2021Jan-June_1222dist.csv'
         and a.event_id is not null
-    order by a.event_id
-    limit 50
     """
-    overlap = conn.execute(query).fetchall()
+    overlap_count = conn.execute(query).fetchone()[0]
 
-    assert overlap == []
+    assert overlap_count == 0
 
 
 def test_step_2_manifest_runs_source_ingestion(conn):
@@ -196,10 +198,14 @@ def test_step_2_manifest_runs_descriptive_transformations(conn):
 
     assert set(STEP_2_TRANSFORMED_TABLES).issubset(actual_tables)
     assert all(row_count > 0 for row_count in row_counts.values())
-    assert "terrorism_deaths_x" in participant_columns
-    assert "concurrent_wars_z" in participant_columns
-    assert "alliance_x" in dyad_columns
-    assert "mtops_z" in dyad_columns
+    assert "timeframe" in participant_columns
+    assert "terrorism_deaths" in participant_columns
+    assert "concurrent_wars" in participant_columns
+    assert "timeframe" in dyad_columns
+    assert "alliance" in dyad_columns
+    assert "mtops" in dyad_columns
+    assert not any(column.endswith(("_x", "_y", "_z")) for column in participant_columns)
+    assert not any(column.endswith(("_x", "_y", "_z")) for column in dyad_columns)
 
 
 def test_step_2_source_metadata_files_match_known_downloads():

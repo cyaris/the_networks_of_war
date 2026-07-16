@@ -82,19 +82,149 @@ STEP_2_SOURCE_KEYS = [
 ]
 
 
+SQL_CHECKPOINTS = {
+    "step_1/04_insert_source_adjustments.sql": [
+        (
+            "Manual source adjustments loaded: %s MID war IDs, %s war metadata rows, %s participant sides.",
+            """
+            select
+                (select count(*) from source_interstate_mid_war_id_adjustments),
+                (select count(*) from source_interstate_war_metadata_adjustments),
+                (select count(*) from source_participant_side_adjustments)
+            """,
+        ),
+    ],
+    "step_1/07_create_war_dyads.sql": [
+        (
+            "Total Unique Dyads After Merging All War Types: %s",
+            """
+            select count(*)
+            from (
+                select
+                    war_id,
+                    least(c_code_a::varchar || '/' || participant_a, c_code_b::varchar || '/' || participant_b),
+                    greatest(c_code_a::varchar || '/' || participant_a, c_code_b::varchar || '/' || participant_b)
+                from dyads_after_sources
+                group by 1, 2, 3
+            )
+            """,
+        ),
+        ("Note: This is step 1 of 3 to getting the actual total for unique dyads.", None),
+    ],
+    "step_1/08_create_war_participants.sql": [
+        ("Total War Participants After Merging All War Types: %s", "select count(*) from war_participants"),
+    ],
+    "step_1/09_create_dyads_after_mid.sql": [
+        (
+            "Total Unique Dyads Added From MIDs: %s",
+            """
+            select count(*)
+            from (
+                select
+                    a.war_id,
+                    least(a.c_code_a::varchar || '/' || a.participant_a, a.c_code_b::varchar || '/' || a.participant_b),
+                    greatest(a.c_code_a::varchar || '/' || a.participant_a, a.c_code_b::varchar || '/' || a.participant_b)
+                from dyads_after_mid a
+                left join dyads_after_sources b on a.war_id = b.war_id
+                                                and a.c_code_a = b.c_code_a
+                                                and a.c_code_b = b.c_code_b
+                where b.war_id is null
+                group by 1, 2, 3
+            )
+            """,
+        ),
+        ("Note: These have all been manually reviewed in assigning war numbers.", None),
+        (
+            "Total Unique Dyads After Merging All War Types AND Adding Missing Dyads from MIDs: %s",
+            """
+            select count(*)
+            from (
+                select
+                    war_id,
+                    least(c_code_a::varchar || '/' || participant_a, c_code_b::varchar || '/' || participant_b),
+                    greatest(c_code_a::varchar || '/' || participant_a, c_code_b::varchar || '/' || participant_b)
+                from dyads_after_mid
+                group by 1, 2, 3
+            )
+            """,
+        ),
+        ("Note: This is step 2 of 3 to getting the actual total for unique dyads.", None),
+    ],
+    "step_1/10_create_participants.sql": [
+        (
+            "Total Participants Added from Dyadic Data: %s",
+            "select (select count(*) from participants) - (select count(*) from war_participants)",
+        ),
+    ],
+    "step_1/11_create_dyads.sql": [
+        ("Total Unique Dyads After Step 3 of 3: %s", "select count(*) from dyads"),
+        (
+            "Total Unique Dyads Added in Current Cell: %s",
+            """
+            select (select count(*) from dyads) - count(*)
+            from (
+                select
+                    war_id,
+                    least(c_code_a::varchar || '/' || participant_a, c_code_b::varchar || '/' || participant_b),
+                    greatest(c_code_a::varchar || '/' || participant_a, c_code_b::varchar || '/' || participant_b)
+                from dyads_after_mid
+                group by 1, 2, 3
+            )
+            """,
+        ),
+    ],
+    "step_1/12_create_dyad_years.sql": [
+        (
+            "Total Dyad-Year Rows After Adding Years Between Start Year and End Year: %s",
+            "select count(*) from dyad_years",
+        ),
+    ],
+    "step_1/13_create_wars.sql": [
+        ("Total Participants: %s", "select count(*) from participants"),
+        ("Total Dyadic Combinations: %s", "select count(*) from dyads"),
+        ("Total Wars: %s", "select count(*) from wars"),
+    ],
+    "step_2/05_create_participant_descriptives.sql": [
+        ("Total Rows of Participant Descriptive Data: %s", "select count(*) from participant_descriptives"),
+    ],
+    "step_2/06_create_dyad_year_descriptives.sql": [
+        ("Total Unique Dyadic Years in Initial Data: %s", "select count(*) from dyad_year_descriptives"),
+        ("Counting Total Dyadic Year Combinations by Descriptive Field", None),
+    ],
+    "step_2/07_create_dyadic_descriptives.sql": [
+        ("Total Dyadic Combinations of Descriptive Data: %s", "select count(*) from dyadic_descriptives"),
+    ],
+    "step_3/01_create_final_participants.sql": [
+        ("Total Participants: %s", "select count(*) from final_participants"),
+    ],
+    "step_3/02_create_final_dyads.sql": [
+        ("Total Dyadic Combinations: %s", "select count(*) from final_dyads"),
+        ("Counting Total Dyadic War and Year Combinations by Descriptive Field", None),
+    ],
+    "step_3/03_create_final_wars.sql": [
+        ("Total Wars: %s", "select count(*) from final_wars"),
+    ],
+}
+
+
 def add_duckdb_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--db-path", default=DEFAULT_DB_PATH, type=Path)
     parser.add_argument("--inspect", action="store_true")
     query_group = parser.add_mutually_exclusive_group()
     query_group.add_argument(
-        "--query", help="SQL query to execute against the DuckDB database after the selected step runs."
+        "--query", help="SQL query to execute after build completes, or immediately with --no-build."
     )
     query_group.add_argument(
         "--query-file",
         type=Path,
-        help="Path to a local .sql file to execute against the DuckDB database after the selected step runs.",
+        help="Path to a local .sql file to execute after build completes, or immediately with --no-build.",
     )
-    parser.add_argument("--step", choices=["none", "all", "1", "2", "3"], default="all")
+    parser.add_argument(
+        "--build",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Run the full pipeline. Use --no-build to skip preprocessing.",
+    )
 
 
 def render_sql(name: str, context: dict[str, str]) -> str:
@@ -151,6 +281,10 @@ def sql_identifier(value: str) -> str:
     return '"' + value.replace('"', '""') + '"'
 
 
+def format_log_value(value: object) -> str:
+    return f"{value:,d}" if isinstance(value, int) else str(value)
+
+
 class DuckDBProcessesMixin:
     db_path: Path
 
@@ -169,11 +303,9 @@ class DuckDBProcessesMixin:
         """
         row = conn.execute(query, [relation_name]).fetchone()
 
-        if row is None:
-            return
-
-        relation_type = "view" if row[0] == "VIEW" else "table"
-        conn.execute(f"drop {relation_type} {sql_identifier(relation_name)}")
+        if row is not None:
+            relation_type = "view" if row[0] == "VIEW" else "table"
+            conn.execute(f"drop {relation_type} {sql_identifier(relation_name)}")
 
     def drop_created_relations(self, conn: duckdb.DuckDBPyConnection, sql: str) -> None:
         for relation_name in created_relation_names(sql):
@@ -183,9 +315,23 @@ class DuckDBProcessesMixin:
         sql = render_sql(name, self.sql_context())
         self.drop_created_relations(conn, sql)
         conn.execute(sql)
+        self.log_sql_checkpoints(conn, name)
+
+    def log_sql_checkpoints(self, conn: duckdb.DuckDBPyConnection, name: str) -> None:
+        for message, query in SQL_CHECKPOINTS.get(name, []):
+            if query is None:
+                logger.info(message)
+                continue
+
+            values = conn.execute(query).fetchone()
+            if values is None:
+                continue
+
+            formatted_values = tuple(format_log_value(value) for value in values)
+            logger.info(message, *formatted_values)
 
     def run_step_1(self, conn: duckdb.DuckDBPyConnection) -> None:
-        self.prepare_data(recreate=False, source_keys=STEP_1_SOURCE_KEYS)
+        self.prepare_data(source_keys=STEP_1_SOURCE_KEYS)
         self.require_inputs(STEP_1_SOURCE_KEYS)
 
         for name in STEP_1_SQL:
@@ -193,7 +339,7 @@ class DuckDBProcessesMixin:
             self.execute_sql(conn, name)
 
     def run_step_2(self, conn: duckdb.DuckDBPyConnection) -> None:
-        self.prepare_data(recreate=False, source_keys=STEP_2_SOURCE_KEYS)
+        self.prepare_data(source_keys=STEP_2_SOURCE_KEYS)
         self.require_inputs(STEP_2_SOURCE_KEYS)
 
         for name in STEP_2_SQL:

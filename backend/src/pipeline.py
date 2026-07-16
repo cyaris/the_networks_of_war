@@ -21,7 +21,6 @@ from duckdb_backend import (
     sql_identifier,
 )
 from source import (
-    DEFAULT_CSV_DIR,
     DEFAULT_DATA_DIR,
     PARTICIPANT_NAME_REPLACEMENTS_PATH,
     SOURCE_FILES,
@@ -39,15 +38,57 @@ from utils import initialize_logger
 
 logger = initialize_logger(__name__)
 
+DEFAULT_FRONTEND_DATA_PATH = (
+    Path(__file__).resolve().parents[2] / "frontend" / "src" / "lib" / "static" / "graphData.json"
+)
+
+STEP_3_SQL = [
+    "00_setup.sql",
+    "step_3/01_create_final_participants.sql",
+    "step_3/02_create_final_dyads.sql",
+    "step_3/03_create_final_wars.sql",
+]
+
 
 class Pipeline(SourceDataPreparationMixin, DuckDBProcessesMixin):
-    def __init__(self, db_path: Path = DEFAULT_DB_PATH, csv_dir: Path = DEFAULT_DATA_DIR) -> None:
-        self.data_dir = csv_dir
+    def __init__(
+        self,
+        db_path: Path = DEFAULT_DB_PATH,
+        data_dir: Path = DEFAULT_DATA_DIR,
+        frontend_data_path: Path | None = DEFAULT_FRONTEND_DATA_PATH,
+    ) -> None:
+        self.data_dir = data_dir
         self.db_path = db_path
+        self.frontend_data_path = frontend_data_path
+
+    def run_step_3(self, conn) -> None:
+        for name in STEP_3_SQL:
+            logger.info("Running %s", name)
+            self.execute_sql(conn, name)
+
+        self.export_frontend_data(conn)
+
+    def export_frontend_data(self, conn) -> None:
+        if self.frontend_data_path is not None:
+            logger.info("Updating/recreating frontend graph data.")
+            query = f"""
+            select
+                json_pretty(graph_data_json),
+                war_count
+            from ({render_sql("step_3/04_export_frontend_graph_data.sql", self.sql_context())})
+            """
+            graph_data_json, war_count = conn.execute(query).fetchone()
+            logger.info("Graphs to be rewritten: %s", f"{war_count:,d}")
+
+            self.frontend_data_path.parent.mkdir(parents=True, exist_ok=True)
+            self.frontend_data_path.write_text(f"{graph_data_json}\n")
+            logger.info(
+                "Completed frontend graph data update: %s (%s wars)", self.frontend_data_path, f"{war_count:,d}"
+            )
 
     def run(
         self,
-        step: str = "all",
+        build: bool = True,
         inspect: bool = False,
         query: str | None = None,
         prepare_data: bool = False,
@@ -61,14 +102,10 @@ class Pipeline(SourceDataPreparationMixin, DuckDBProcessesMixin):
             self.prepare_data(recreate=recreate_data)
 
         with self.connect() as conn:
-            if step in {"all", "1"}:
+            if build:
                 self.run_step_1(conn)
-
-            if step in {"all", "2"}:
                 self.run_step_2(conn)
-
-            if step == "3":
-                raise NotImplementedError("Only preprocessing Steps 1 and 2 have been rebuilt in native SQL so far.")
+                self.run_step_3(conn)
 
             if inspect:
                 self.inspect(conn)
@@ -93,8 +130,8 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
 
-    Pipeline(csv_dir=args.data_dir, db_path=args.db_path).run(
-        step=args.step,
+    Pipeline(data_dir=args.data_dir, db_path=args.db_path).run(
+        build=args.build,
         inspect=args.inspect,
         query=args.query,
         query_file=args.query_file,

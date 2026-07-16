@@ -34,5 +34,8 @@ from (
         ('participant_year_descriptives'),
         ('participant_descriptives'),
         ('dyad_year_descriptives'),
-        ('dyadic_descriptives')
+        ('dyadic_descriptives'),
+        ('final_participants'),
+        ('final_dyads'),
+        ('final_wars')
 ) tables(table_name);

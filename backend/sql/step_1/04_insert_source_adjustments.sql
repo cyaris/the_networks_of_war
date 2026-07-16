@@ -8,7 +8,7 @@ values
     ('interstate_wars', {interstate_wars_source_file}, {interstate_wars_source_version}),
     ('intrastate_wars', {intrastate_wars_source_file}, {intrastate_wars_source_version});
 
-insert into source_interstate_mid_war_num_adjustments
+insert into source_interstate_mid_war_id_adjustments
 
 values
     ('interstate_mid_dyads', '4.03', 3582::double, 139::double),

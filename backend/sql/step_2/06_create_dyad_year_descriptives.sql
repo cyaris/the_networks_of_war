@@ -156,7 +156,7 @@ group by 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 
 dd_dyad_years as (
 
 select
-    c.war_num,
+    c.war_id,
     c.c_code_a,
     c.c_code_b,
     c.participant_a,
@@ -192,9 +192,9 @@ select
     if(a.transition_to_dictatorship = 1 and b.transition_to_dictatorship = 1, 1, 0) transition_to_dictatorship
 from dyad_years c
 join dd_country_years a on c.c_code_a = a.c_code
-                       and c.year = a.year
+                        and c.year = a.year
 join dd_country_years b on c.c_code_b = b.c_code
-                       and c.year = b.year
+                        and c.year = b.year
 where c.c_code_a > 0 and c.c_code_b > 0 and a.c_code != b.c_code
 group by all),
 
@@ -224,7 +224,7 @@ where
 group by 1, 2, 3, 4)
 
 select
-    a.war_num,
+    a.war_id,
     b.war_name,
     a.c_code_a,
     a.c_code_b,
@@ -276,7 +276,7 @@ select
     coalesce(l.atop, 0) atop,
     coalesce(m.mtops, 0) mtops
 from dyad_years a
-join wars b on a.war_num = b.war_num
+join wars b on a.war_id = b.war_id
 left join territory_exchange_years c on least(a.c_code_a, a.c_code_b) = c.c_code_low
                                      and greatest(a.c_code_a, a.c_code_b) = c.c_code_high
                                      and a.year = c.year
@@ -301,7 +301,7 @@ left join diplomatic_exchange_years i on least(a.c_code_a, a.c_code_b) = i.c_cod
 left join trade_relation_years j on least(a.c_code_a, a.c_code_b) = j.c_code_low
                                  and greatest(a.c_code_a, a.c_code_b) = j.c_code_high
                                  and a.year = j.year
-left join dd_dyad_years k on a.war_num = k.war_num
+left join dd_dyad_years k on a.war_id = k.war_id
                           and a.c_code_a = k.c_code_a
                           and a.c_code_b = k.c_code_b
                           and a.participant_a = k.participant_a

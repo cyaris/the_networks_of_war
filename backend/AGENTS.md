@@ -3,6 +3,7 @@
 ## Backend Python
 
 - Format Python from `backend` with the repository's Black and isort settings. Avoid non-functional trailing commas that make Black preserve unnecessary multiline layouts; when an existing tuple, list, call, or assertion would fit under the configured line length, remove the non-functional trailing comma so Black can collapse it. Keep commas that are semantically required or improve readability.
+- Prefer guard-clause early exits with bare `return` when ending a no-op path improves readability. Do not write `return None`; use bare `return` for early no-value exits, and omit blank `return` statements at the natural end of a function.
 - When backend code directly imports a runtime package, declare that package explicitly in `backend/pyproject.toml` rather than relying on transitive dependencies.
 
 ## Pipeline Structure
@@ -10,12 +11,12 @@
 - Keep transformations as native DuckDB SQL in `.sql` files instead of embedding transformation SQL or Python transformation functions in pipeline code.
 - Keep numbered pipeline-stage SQL filenames as a numeric sequence without letter suffixes. Use separate numbered files for tightly related create/insert pairs.
 - When adding or splitting out a stage materialized table, add it as its own `create or replace table ... as` SQL file and update the stage SQL manifest, inspection SQL, README table lists/assumptions, and any tests that refer to the old table shape.
-- If the pipeline pre-drops existing relations for `create or replace` compatibility, apply that behavior generically to all table/view targets detected from the SQL file. Do not add one-off Python special cases for individual SQL files or relation names.
+- If the pipeline pre-drops existing relations before `create or replace`, apply that behavior generically to all table/view targets detected from the SQL file. Do not add one-off Python special cases for individual SQL files or relation names.
 - Before removing filters, joins, or selected columns after the reference-table steps, compare the affected stage deliverables and downstream tables or otherwise verify that the pipeline keeps the intended behavior.
 
 ## Data Modeling
 
-- Keep table grain explicit and separated by purpose: base compatibility tables hold base rows, yearly expansion tables hold one row per entity-year or dyad-year, and final dyad tables use stable canonical dyad keys with one row per unordered dyad.
+- Keep table grain explicit and separated by purpose: base output tables hold base rows, yearly expansion tables hold one row per entity-year or dyad-year, and final dyad tables use stable canonical dyad keys with one row per unordered dyad.
 - Do not add row identifiers unless a downstream transformation explicitly needs them.
 - Store open-ended lookup/reference data that is expected to grow independently in `backend/manual/*.json`, such as participant name replacements and source metadata. Keep small static reference data such as `war_types` inline in SQL, with table creation and row insertion in separate numbered reference files.
 - Keep related columns grouped consistently in source and transformed select lists. For dyadic A/B fields, put the same field for A and B adjacent before moving to the next field: for example, `c_code_a`, `c_code_b`, then `country_name_a`, `country_name_b`, rather than interleaving all A fields before all B fields. Keep repeated date components in source order by span and component. For resolved date-span fields, keep `start_date`, `end_date`, `start_year`, and `end_year` together in that order. Keep battle-death columns at the end with actual deaths before estimated values and estimate flags.
@@ -24,9 +25,11 @@
 ## SQL Style
 
 - For SQL `insert into ... values` statements, omit the target column list when inserting into tables created immediately nearby with an obvious column order, and collapse small inline `values` inserts to one row per tuple when that remains readable.
-- Prefer compact DuckDB SQL idioms: concise aliases without `as` unless the grammar requires it, postfix casts, unquoted identifiers unless required, and `group by`-based row deduplication instead of `select distinct`. When an alias is a reserved word such as `year`, prefer a quoted alias without `as`, such as `clean_int(year) "year"`, if that is accepted by DuckDB. Aggregate forms such as `count(distinct ...)` are acceptable when distinctness belongs inside the aggregate.
+- Prefer compact DuckDB SQL idioms: concise aliases without `as` unless the grammar requires it, postfix casts, unquoted identifiers unless required, and `group by`-based row deduplication instead of `select distinct`. Do not quote aliases such as `source` or `target` when DuckDB accepts them unquoted with explicit `as`. When an alias is a reserved word such as `year`, prefer a quoted alias without `as`, such as `clean_int(year) "year"`, if that is accepted by DuckDB. Aggregate forms such as `count(distinct ...)` are acceptable when distinctness belongs inside the aggregate.
+- Do not use a table alias in SQL queries that read from only one relation. Add aliases when the query joins multiple relations or otherwise needs them for disambiguation.
 - Use sequential single-letter table aliases in SQL joins: `a`, `b`, `c`, `d`, and so on. Avoid mnemonic or suffix aliases such as `cc`, `dy`, `x`, `y`, or `z`.
-- For multi-line join predicates, align each subsequent `and` with the `on` in the join line above it.
+- For multi-line join predicates, vertically align each subsequent `and` directly beneath the `on` keyword in the join line above it, with `and` starting in the same column as `on`.
+- In `where` and `having` boolean predicate lists, keep leading `and` or `or` on the same line as the predicate it introduces. Do not leave a boolean operator alone on its own line.
 - In numbered pipeline-stage SQL union blocks, order branches by the stage's source/table construction order. When a source or table contributes mirrored A/B branches, put the original non-flipped branch before the flipped branch for that same source or table.
 - Choose `union all` for additive source stacking when later logic handles deduplication or duplicates are meaningful. Use plain `union` only when set semantics are required at that exact point. Do not write `union distinct`.
 - Avoid ordering tables or query results unless deterministic output order is explicitly needed. In tests, compare unordered results in Python unless the query prints or asserts on raw rows, where a deterministic `order by` makes diagnostics stable.
@@ -58,4 +61,5 @@
 - Do not remove, skip, or allowlist away known data-quality failures just to make the suite pass. Expected failures, including missing source relationships such as unresolved MID war numbers, should remain visible until an explicit source-data, source-adjustment, or transformation fix resolves them.
 - Tests should protect data semantics and pipeline behavior at the layer that owns them rather than freezing metadata placeholders or treating source row-position fields as transformed participant-side semantics.
 - Diagnostic SQL should be focused and readable: select only columns needed to identify failing rows, avoid unnecessary subselect wrappers, use simple `count(*)` checks plus focused detail queries for broad source-data quality checks, and prefer loops or named helpers over dense inline repeated SQL fragments.
+- For tests that expect no bad rows, query the unexpected rows with identifying columns instead of asserting on `count(*) = 0`; use the shared SQL-check failure helpers when the full SQL and formatted "Detected rows" table are useful, and use `assert rows == []` only for compact checks where pytest's abbreviated diff is enough. Keep scalar count assertions for aggregate totals, positive existence checks, or intentionally numeric invariants.
 - Diagnostic failures and assertions should be self-contained and data-forward: show the SQL query, concise failure summary, and detected rows without Python traceback/code-frame noise. Avoid decorative or noisy styled formatting, but keep targeted problem-cell highlighting, such as existing `colorama` styling, when it makes detected rows easier to read. Fetch and assert on raw unexpected rows when useful, and prefer named SQL variables with compact scalar assertions.

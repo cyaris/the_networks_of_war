@@ -1,17 +1,12 @@
 .DS_Store
 __pycache__/
-.ipynb_checkpoints/
 .vscode/
 
-csvs
 documentation
-pickles
 backend/.venv/
 backend/data/
-backend/.work/
 backend/*.duckdb
 backend/*.duckdb.wal
-backend/exports/
 backend/__pycache__/
 backend/src/__pycache__/
 backend/*.egg-info/

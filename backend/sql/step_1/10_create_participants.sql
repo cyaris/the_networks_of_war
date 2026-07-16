@@ -5,7 +5,7 @@ with
 participant_union as (
 
 select
-    war_num,
+    war_id,
     c_code,
     participant,
     side,
@@ -18,7 +18,7 @@ select
 from war_participants
 union all
 select
-    a.war_num,
+    a.war_id,
     a.c_code_a c_code,
     a.participant_a participant,
     null::integer side,
@@ -29,7 +29,7 @@ select
     sum(a.battle_deaths_a) battle_deaths,
     max(a.battle_deaths_estimated_a) battle_deaths_estimated
 from dyads_after_mid a
-left join war_participants c on a.war_num = c.war_num
+left join war_participants c on a.war_id = c.war_id
                              and a.c_code_a = c.c_code
                              and a.participant_a = c.participant
 where c.c_code is null
@@ -38,13 +38,13 @@ group by 1, 2, 3),
 side_assignments as (
 
 select
-    a.war_num,
+    a.war_id,
     a.c_code,
     if(count(distinct if(c.side = 3, 3, 3 - c.side)) = 1, min(if(c.side = 3, 3, 3 - c.side)), null) side
 from participant_union a
-join dyads_after_mid b on a.war_num = b.war_num
+join dyads_after_mid b on a.war_id = b.war_id
                        and a.c_code = b.c_code_a
-join participant_union c on b.war_num = c.war_num
+join participant_union c on b.war_id = c.war_id
                          and b.c_code_b = c.c_code
                          and c.side is not null
 where a.side is null
@@ -53,7 +53,7 @@ group by 1, 2),
 source_side_adjustments as (
 
 select
-    a.war_num,
+    a.war_id,
     a.c_code,
     coalesce(c.state_name, clean_participant(a.participant, d.replacement)) participant,
     a.side
@@ -65,10 +65,10 @@ left join participant_name_replacements d on c.c_code is null
                                           and clean_text(a.participant) = d.source)
 
 select
-    a.war_num,
+    a.war_id,
     a.c_code,
     a.participant,
-    coalesce(a.side, b.side, c.side) side,
+    coalesce(c.side, a.side, b.side) side,
     a.start_date,
     a.end_date,
     a.start_date_estimated,
@@ -76,8 +76,8 @@ select
     a.battle_deaths,
     a.battle_deaths_estimated
 from participant_union a
-left join side_assignments b on a.war_num = b.war_num
+left join side_assignments b on a.war_id = b.war_id
                              and a.c_code = b.c_code
-left join source_side_adjustments c on a.war_num = c.war_num
+left join source_side_adjustments c on a.war_id = c.war_id
                                     and a.c_code = c.c_code
                                     and a.participant = c.participant;
