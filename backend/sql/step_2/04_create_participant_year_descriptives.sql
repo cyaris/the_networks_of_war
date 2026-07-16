@@ -79,7 +79,7 @@ select
     coalesce(c.concurrent_wars, 0) concurrent_wars
 from participant_years a
 left join country_year_descriptives b on a.c_code = b.c_code
-                                     and a.year = b.year
+                                      and a.year = b.year
 left join concurrent_wars c on a.c_code = c.c_code
-                           and a.year = c.year
+                            and a.year = c.year
 where a.c_code > 0;

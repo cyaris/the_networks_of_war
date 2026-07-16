@@ -23,7 +23,7 @@ from source_interstate_wars a
 left join war_types c on a.war_type_id = c.war_type_id
 left join country_codes d on a.c_code = d.c_code
 left join participant_name_replacements e on d.c_code is null
-                                         and clean_text(a.participant) = e.source
+                                          and clean_text(a.participant) = e.source
 union all
 select
     a.war_id,
@@ -43,7 +43,7 @@ select
 from war_dyads a
 left join country_codes b on a.c_code_a = b.c_code
 left join participant_name_replacements c on b.c_code is null
-                                         and clean_text(a.participant_a) = c.source
+                                          and clean_text(a.participant_a) = c.source
 where
     a.war_type_id <> 1
     and a.participant_a is not null
@@ -66,7 +66,7 @@ select
 from war_dyads a
 left join country_codes b on a.c_code_b = b.c_code
 left join participant_name_replacements c on b.c_code is null
-                                         and clean_text(a.participant_b) = c.source
+                                          and clean_text(a.participant_b) = c.source
 where
     a.war_type_id <> 1
     and a.participant_b is not null),
@@ -100,7 +100,7 @@ select
 from dyadic_side_rows a
 left join country_codes b on a.c_code = b.c_code
 left join participant_name_replacements c on b.c_code is null
-                                         and clean_text(a.participant) = c.source
+                                          and clean_text(a.participant) = c.source
 group by 1, 2, 3)
 
 select
@@ -124,7 +124,7 @@ select
     max(a.battle_deaths_estimated) battle_deaths_estimated
 from cleaned_participant_rows a
 left join dyadic_side_assignments b on a.war_id = b.war_id
-                                   and a.c_code = b.c_code
-                                   and a.participant = b.participant
+                                    and a.c_code = b.c_code
+                                    and a.participant = b.participant
 where a.participant is not null
 group by 1, 6, 7;

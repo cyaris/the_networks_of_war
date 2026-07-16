@@ -51,9 +51,9 @@ select
 from participant_rows b
 join participant_timeframes c on b.war_id = c.war_id
 left join participant_descriptives a on b.war_id = a.war_id
-                                    and b.c_code = a.c_code
-                                    and b.participant = a.participant
-                                    and c.timeframe = a.timeframe),
+                                     and b.c_code = a.c_code
+                                     and b.participant = a.participant
+                                     and c.timeframe = a.timeframe),
 
 available_node_fields as (
 
@@ -80,8 +80,8 @@ select
 from participant_descriptor_values
 unpivot include nulls (value for field in (columns('^(terrorism_deaths|mid_dyads|mid_dyads_initiated|mid_dyads_targeted|mid_dyads_joined|allied_countries|trade_countries|money_flow_in|money_flow_out|imports|exports|military_expenditure|military_personnel|iron_steel_production|energy_consumption|population|urban_population|urban_population_growth_rate|cinc_score|co2_emissions_per_capita|land_mass_exchange_gain|population_exchange_gain|land_mass_exchange_loss|population_exchange_loss|refugees_originated|refugees_hosted|internally_displaced_persons|concurrent_wars)$'))) a
 join available_node_fields b on a.war_id = b.war_id
-                            and a.timeframe = b.timeframe
-                            and a.field = b.field
+                             and a.timeframe = b.timeframe
+                             and a.field = b.field
 group by 1, 2, 3, 4),
 
 node_descriptor_json as (
@@ -99,5 +99,5 @@ select
     b.payload descriptor_timeframes
 from participant_rows a
 left join node_descriptor_json b on a.war_id = b.war_id
-                                and a.c_code = b.c_code
-                                and a.participant = b.participant;
+                                 and a.c_code = b.c_code
+                                 and a.participant = b.participant;

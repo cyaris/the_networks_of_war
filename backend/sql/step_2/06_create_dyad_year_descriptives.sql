@@ -192,9 +192,9 @@ select
     if(a.transition_to_dictatorship = 1 and b.transition_to_dictatorship = 1, 1, 0) transition_to_dictatorship
 from dyad_years c
 join dd_country_years a on c.c_code_a = a.c_code
-                       and c.year = a.year
+                        and c.year = a.year
 join dd_country_years b on c.c_code_b = b.c_code
-                       and c.year = b.year
+                        and c.year = b.year
 where c.c_code_a > 0 and c.c_code_b > 0 and a.c_code != b.c_code
 group by all),
 
@@ -278,38 +278,38 @@ select
 from dyad_years a
 join wars b on a.war_id = b.war_id
 left join territory_exchange_years c on least(a.c_code_a, a.c_code_b) = c.c_code_low
-                                    and greatest(a.c_code_a, a.c_code_b) = c.c_code_high
-                                    and a.year = c.year
+                                     and greatest(a.c_code_a, a.c_code_b) = c.c_code_high
+                                     and a.year = c.year
 left join colonial_contiguity_years d on least(a.c_code_a, a.c_code_b) = d.c_code_low
-                                     and greatest(a.c_code_a, a.c_code_b) = d.c_code_high
-                                     and a.year = d.year
+                                      and greatest(a.c_code_a, a.c_code_b) = d.c_code_high
+                                      and a.year = d.year
 left join contiguity_years e on least(a.c_code_a, a.c_code_b) = e.c_code_low
-                            and greatest(a.c_code_a, a.c_code_b) = e.c_code_high
-                            and a.year = e.year
+                             and greatest(a.c_code_a, a.c_code_b) = e.c_code_high
+                             and a.year = e.year
 left join alliance_years f on least(a.c_code_a, a.c_code_b) = f.c_code_low
-                          and greatest(a.c_code_a, a.c_code_b) = f.c_code_high
-                          and a.year = f.year
+                           and greatest(a.c_code_a, a.c_code_b) = f.c_code_high
+                           and a.year = f.year
 left join defense_cooperation_agreement_years g on least(a.c_code_a, a.c_code_b) = g.c_code_low
-                                               and greatest(a.c_code_a, a.c_code_b) = g.c_code_high
-                                               and a.year = g.year
+                                                and greatest(a.c_code_a, a.c_code_b) = g.c_code_high
+                                                and a.year = g.year
 left join intergovernmental_organization_years h on least(a.c_code_a, a.c_code_b) = h.c_code_low
-                                                and greatest(a.c_code_a, a.c_code_b) = h.c_code_high
-                                                and a.year = h.year
+                                                 and greatest(a.c_code_a, a.c_code_b) = h.c_code_high
+                                                 and a.year = h.year
 left join diplomatic_exchange_years i on least(a.c_code_a, a.c_code_b) = i.c_code_low
-                                     and greatest(a.c_code_a, a.c_code_b) = i.c_code_high
-                                     and a.year = i.year
+                                      and greatest(a.c_code_a, a.c_code_b) = i.c_code_high
+                                      and a.year = i.year
 left join trade_relation_years j on least(a.c_code_a, a.c_code_b) = j.c_code_low
-                                and greatest(a.c_code_a, a.c_code_b) = j.c_code_high
-                                and a.year = j.year
+                                 and greatest(a.c_code_a, a.c_code_b) = j.c_code_high
+                                 and a.year = j.year
 left join dd_dyad_years k on a.war_id = k.war_id
-                         and a.c_code_a = k.c_code_a
-                         and a.c_code_b = k.c_code_b
-                         and a.participant_a = k.participant_a
-                         and a.participant_b = k.participant_b
-                         and a.year = k.year
+                          and a.c_code_a = k.c_code_a
+                          and a.c_code_b = k.c_code_b
+                          and a.participant_a = k.participant_a
+                          and a.participant_b = k.participant_b
+                          and a.year = k.year
 left join atop_years l on least(a.c_code_a, a.c_code_b) = l.c_code_low
-                      and greatest(a.c_code_a, a.c_code_b) = l.c_code_high
-                      and a.year = l.year
+                       and greatest(a.c_code_a, a.c_code_b) = l.c_code_high
+                       and a.year = l.year
 left join mtops_years m on least(a.c_code_a, a.c_code_b) = m.c_code_low
-                       and greatest(a.c_code_a, a.c_code_b) = m.c_code_high
-                       and a.year = m.year;
+                        and greatest(a.c_code_a, a.c_code_b) = m.c_code_high
+                        and a.year = m.year;
