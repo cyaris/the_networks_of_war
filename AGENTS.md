@@ -5,6 +5,10 @@
 - Keep README link behavior intentional and consistent. Use standard Markdown links by default, and use HTML anchors with `target="_blank"` and `rel="noopener noreferrer"` only when links should explicitly open in a new tab.
 - Keep README pipeline command documentation in sync with `backend/src/pipeline.py` CLI parser behavior.
 - Split long README assumption sections into small, scannable subsections rather than maintaining one long bullet list.
+- For data-related questions, consult the relevant source documentation in `backend/data/` before concluding whether a
+  source value, adjustment, or transformation is correct.
+- Do not preserve backward compatibility for removed or renamed project interfaces unless the user explicitly asks for a
+  migration bridge. Prefer deleting stale parameters, aliases, scripts, and docs so old callers fail clearly.
 
 ## Notebooks
 

@@ -11,7 +11,7 @@ SRC_ROOT = Path(__file__).resolve().parents[1] / "src"
 
 sys.path.insert(0, str(SRC_ROOT))
 
-from pipeline import DEFAULT_CSV_DIR, STEP_1_SOURCE_KEYS, STEP_2_SOURCE_KEYS, STEP_3_SQL, Pipeline, sql_identifier
+from pipeline import DEFAULT_DATA_DIR, STEP_1_SOURCE_KEYS, STEP_2_SOURCE_KEYS, STEP_3_SQL, Pipeline, sql_identifier
 
 STEP_3_TRANSFORMED_TABLES = ["final_participants", "final_dyads", "final_wars"]
 DESCRIPTOR_TIMEFRAMES = {"first_year", "last_year", "all_years"}
@@ -22,7 +22,7 @@ def step_3_outputs(tmp_path_factory: pytest.TempPathFactory) -> tuple[Path, Path
     tmp_path = tmp_path_factory.mktemp("duckdb")
     db_path = tmp_path / "step_3.duckdb"
     frontend_data_path = tmp_path / "graphData.json"
-    pipeline = Pipeline(db_path=db_path, csv_dir=DEFAULT_CSV_DIR, frontend_data_path=frontend_data_path)
+    pipeline = Pipeline(db_path=db_path, data_dir=DEFAULT_DATA_DIR, frontend_data_path=frontend_data_path)
     missing = [
         str(path)
         for source_key in [*STEP_1_SOURCE_KEYS, *STEP_2_SOURCE_KEYS]

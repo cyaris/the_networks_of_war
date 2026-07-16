@@ -21,7 +21,6 @@ from duckdb_backend import (
     sql_identifier,
 )
 from source import (
-    DEFAULT_CSV_DIR,
     DEFAULT_DATA_DIR,
     PARTICIPANT_NAME_REPLACEMENTS_PATH,
     SOURCE_FILES,
@@ -55,10 +54,10 @@ class Pipeline(SourceDataPreparationMixin, DuckDBProcessesMixin):
     def __init__(
         self,
         db_path: Path = DEFAULT_DB_PATH,
-        csv_dir: Path = DEFAULT_DATA_DIR,
+        data_dir: Path = DEFAULT_DATA_DIR,
         frontend_data_path: Path | None = DEFAULT_FRONTEND_DATA_PATH,
     ) -> None:
-        self.data_dir = csv_dir
+        self.data_dir = data_dir
         self.db_path = db_path
         self.frontend_data_path = frontend_data_path
 
@@ -73,6 +72,7 @@ class Pipeline(SourceDataPreparationMixin, DuckDBProcessesMixin):
         if self.frontend_data_path is None:
             return
 
+        logger.info("Updating/recreating frontend graph data.")
         query = f"""
         select
             json_pretty(graph_data_json),
@@ -80,10 +80,11 @@ class Pipeline(SourceDataPreparationMixin, DuckDBProcessesMixin):
         from ({render_sql("step_3/04_export_frontend_graph_data.sql", self.sql_context())})
         """
         graph_data_json, war_count = conn.execute(query).fetchone()
+        logger.info("Graphs to be rewritten: %s", f"{war_count:,d}")
 
         self.frontend_data_path.parent.mkdir(parents=True, exist_ok=True)
         self.frontend_data_path.write_text(f"{graph_data_json}\n")
-        logger.info("Frontend graph data: %s (%s wars)", self.frontend_data_path, f"{war_count:,d}")
+        logger.info("Completed frontend graph data update: %s (%s wars)", self.frontend_data_path, f"{war_count:,d}")
 
     def run(
         self,
@@ -133,7 +134,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
 
-    Pipeline(csv_dir=args.data_dir, db_path=args.db_path).run(
+    Pipeline(data_dir=args.data_dir, db_path=args.db_path).run(
         step=args.step,
         inspect=args.inspect,
         query=args.query,

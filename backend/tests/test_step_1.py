@@ -6,7 +6,6 @@ import duckdb
 import pytest
 from shared import (  # noqa: E402
     CLEAN_PARTICIPANT_TEXT_ASSUMPTIONS,
-    RAW_SOURCE_DATE_DEFAULT_ENCODING,
     RAW_SOURCE_DATE_ENCODING_OVERRIDES,
     apply_legacy_participant_replacements,
     clean_text_python,
@@ -26,13 +25,13 @@ from shared import (  # noqa: E402
     sql_check_failure,
 )
 
-from pipeline import DEFAULT_CSV_DIR, SOURCE_FILES, STEP_1_SOURCE_KEYS, Pipeline, sql_identifier  # noqa: E402
+from pipeline import DEFAULT_DATA_DIR, SOURCE_FILES, STEP_1_SOURCE_KEYS, Pipeline, sql_identifier  # noqa: E402
 
 
 @pytest.fixture(scope="session")
 def step_1_db_path(tmp_path_factory: pytest.TempPathFactory) -> Path:
     db_path = tmp_path_factory.mktemp("duckdb") / "step_1.duckdb"
-    pipeline = Pipeline(db_path=db_path, csv_dir=DEFAULT_CSV_DIR)
+    pipeline = Pipeline(db_path=db_path, data_dir=DEFAULT_DATA_DIR)
     missing = [str(pipeline.path_for(key)) for key in STEP_1_SOURCE_KEYS if not pipeline.path_for(key).exists()]
 
     if missing:
@@ -361,19 +360,24 @@ def test_coded_participant_names_come_from_country_codes(conn):
 
 
 def test_raw_source_date_components_use_valid_domains(conn):
-    pipeline = Pipeline(csv_dir=DEFAULT_CSV_DIR)
+    pipeline = Pipeline(data_dir=DEFAULT_DATA_DIR)
     failures = []
 
     for source_key, row_reference_columns, date_components in RAW_SOURCE_DATE_COMPONENTS:
         source_file = Path(SOURCE_FILES[source_key]).name
         source_path = pipeline.prepared_path_for(source_key)
+        encoding_kwargs = (
+            {"encoding": RAW_SOURCE_DATE_ENCODING_OVERRIDES[source_key]}
+            if source_key in RAW_SOURCE_DATE_ENCODING_OVERRIDES
+            else {}
+        )
         flagged_rows_sql = raw_source_date_component_check_sql(
             source_key,
             source_file,
             source_path,
             row_reference_columns,
             date_components,
-            RAW_SOURCE_DATE_ENCODING_OVERRIDES.get(source_key, RAW_SOURCE_DATE_DEFAULT_ENCODING),
+            **encoding_kwargs,
         )
         flagged_count = flagged_row_count(conn, flagged_rows_sql)
 

@@ -23,15 +23,14 @@ BACKEND_ROOT = Path(__file__).resolve().parents[1]
 WORK_CSV_DIR = BACKEND_ROOT / ".work" / "csv"
 
 DEFAULT_DATA_DIR = BACKEND_ROOT / "data"
-DEFAULT_CSV_DIR = DEFAULT_DATA_DIR
 PARTICIPANT_NAME_REPLACEMENTS_PATH = BACKEND_ROOT / "manual" / "participant_name_replacements.json"
 SOURCE_METADATA_PATH = BACKEND_ROOT / "manual" / "source_metadata.json"
 SYSTEM_CA_FILE = Path("/etc/ssl/cert.pem")
+RETAINED_SOURCE_SUFFIXES = {".csv", ".pdf"}
 
 
 def add_source_data_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--data-dir", default=DEFAULT_DATA_DIR, type=Path)
-    parser.add_argument("--csv-dir", dest="data_dir", type=Path, help=argparse.SUPPRESS)
     parser.add_argument(
         "--prepare-data", action="store_true", help="Download and validate missing source data folders."
     )
@@ -153,33 +152,45 @@ class SourceDataPreparationMixin:
             raise RuntimeError("Excel source conversion requires pandas, openpyxl, and xlrd to be installed.") from exc
         dataframe.to_csv(destination_path, index=False)
 
+    def prune_source_dir(self, source_dir: Path) -> None:
+        for path in sorted(source_dir.rglob("*"), key=lambda item: len(item.parts), reverse=True):
+            if path.is_file() and path.suffix.lower() not in RETAINED_SOURCE_SUFFIXES:
+                path.unlink()
+
+        for path in sorted(source_dir.rglob("*"), key=lambda item: len(item.parts), reverse=True):
+            if path.is_dir() and not any(path.iterdir()):
+                path.rmdir()
+
     def populate_source_dir(self, source_key: str) -> None:
         metadata = SOURCE_METADATA_BY_KEY[source_key]
 
         source_dir = self.source_dir_for(source_key)
         source_dir.mkdir(parents=True, exist_ok=True)
-        downloads_dir = self.data_dir / "_downloads"
+        with tempfile.TemporaryDirectory(prefix="networks-of-war-downloads-") as temp_name:
+            downloads_dir = Path(temp_name)
 
-        for download in metadata["downloads"]:
-            if download["kind"] == "zip":
-                download_path = downloads_dir / download["filename"]
-                logger.info("Downloading %s", download["url"])
-                self.download_file(download["url"], download_path)
-                self.extract_zip(download_path, source_dir)
+            for download in metadata["downloads"]:
+                if download["kind"] == "zip":
+                    download_path = downloads_dir / download["filename"]
+                    logger.info("Downloading %s", download["url"])
+                    self.download_file(download["url"], download_path)
+                    self.extract_zip(download_path, source_dir)
 
-                for nested_zip in download.get("nested_zips", []):
-                    self.extract_zip(self.extracted_file_path(source_dir, nested_zip), source_dir)
-            elif download["kind"] == "file":
-                download_path = downloads_dir / download["filename"]
-                logger.info("Downloading %s", download["url"])
-                self.download_file(download["url"], download_path)
-                source_path = source_dir / download["filename"]
-                shutil.copy2(download_path, source_path)
+                    for nested_zip in download.get("nested_zips", []):
+                        self.extract_zip(self.extracted_file_path(source_dir, nested_zip), source_dir)
+                elif download["kind"] == "file":
+                    download_path = downloads_dir / download["filename"]
+                    logger.info("Downloading %s", download["url"])
+                    self.download_file(download["url"], download_path)
 
-                if converted_filename := download.get("converted_filename"):
-                    self.convert_excel_to_csv(source_path, source_dir / converted_filename)
-            else:
-                raise ValueError(f"Unsupported download kind: {download['kind']}")
+                    if converted_filename := download.get("converted_filename"):
+                        self.convert_excel_to_csv(download_path, source_dir / converted_filename)
+                    elif download_path.suffix.lower() in RETAINED_SOURCE_SUFFIXES:
+                        shutil.copy2(download_path, source_dir / download["filename"])
+                else:
+                    raise ValueError(f"Unsupported download kind: {download['kind']}")
+
+        self.prune_source_dir(source_dir)
 
     def validate_source_dir(self, source_key: str) -> list[SourceDataIssue]:
         metadata = SOURCE_METADATA_BY_KEY[source_key]
@@ -188,7 +199,11 @@ class SourceDataPreparationMixin:
         found = sorted(path.name for path in source_dir.rglob("*") if path.is_file())
         expected_files = set(SOURCE_PREPARED_FILES[source_key])
         expected_files.update(
-            download["filename"] for download in metadata.get("downloads", []) if download["kind"] == "file"
+            download.get("converted_filename", download["filename"])
+            for download in metadata.get("downloads", [])
+            if download["kind"] == "file"
+            and Path(download.get("converted_filename", download["filename"])).suffix.lower()
+            in RETAINED_SOURCE_SUFFIXES
         )
         issues = []
 
@@ -226,6 +241,7 @@ class SourceDataPreparationMixin:
                     self.populate_source_dir(source_key)
                 else:
                     logger.info("Source directory already exists: %s", source_dir)
+                    self.prune_source_dir(source_dir)
 
                 source_issues = self.validate_source_dir(source_key)
                 if source_issues and not recreate:

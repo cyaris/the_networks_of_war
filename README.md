@@ -6,15 +6,19 @@ A study of networks by war using data from the Correlates of War (COW) project.
 
 - [The Networks of War](#the-networks-of-war)
   - [Table Of Contents](#table-of-contents)
-  - [Backend](#backend)
-  - [Frontend](#frontend)
-  - [Setup](#setup)
+  - [Quickstart](#quickstart)
+  - [Current Architecture](#current-architecture)
+    - [Backend](#backend)
+    - [Frontend](#frontend)
   - [Data Layout](#data-layout)
-  - [Pipeline Commands](#pipeline-commands)
-  - [Test Commands](#test-commands)
+  - [Commands](#commands)
+    - [Pipeline Commands](#pipeline-commands)
+    - [Test Commands](#test-commands)
+    - [Frontend Commands](#frontend-commands)
   - [Source Tables](#source-tables)
     - [Step 1 Source Tables](#step-1-source-tables)
     - [Step 2 Source Tables](#step-2-source-tables)
+  - [Materialized Tables](#materialized-tables)
   - [Final Outputs](#final-outputs)
   - [Ingestion Assumptions](#ingestion-assumptions)
     - [Source Ingestion Rules](#source-ingestion-rules)
@@ -30,19 +34,21 @@ A study of networks by war using data from the Correlates of War (COW) project.
     - [Participant Inference](#participant-inference)
     - [Dyads](#dyads)
   - [Data-Entry Fixes And Assignment Rules](#data-entry-fixes-and-assignment-rules)
-  - [Backend Update Notes](#backend-update-notes)
+  - [Embedded Build Artifacts](#embedded-build-artifacts)
+  - [Maintainer Notes](#maintainer-notes)
 
-## Backend
+## Quickstart
 
-The DuckDB backend rebuilds preprocessing steps with native SQL. Python resolves file paths, prepares downloaded source
-files, normalizes configured CSV encodings, and runs the SQL files in order.
+Install the backend and build the DuckDB database first. From `the_networks_of_war/backend`:
 
-## Frontend
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+python src/pipeline.py --step all
+```
 
-The Svelte frontend lives in `frontend/`. It replaces the legacy Jekyll/D3 include with a routed Svelte app and a first
-usable war browser.
-
-From `the_networks_of_war/frontend`:
+Then install and run the frontend. From `the_networks_of_war/frontend`:
 
 ```bash
 npm install
@@ -50,48 +56,48 @@ npm run data:build
 npm run dev
 ```
 
-The app is available at `/the_networks_of_war` in development. The root route also renders the browser for convenience.
+`npm run data:build` reruns Step 3 through `../backend/.venv/bin/python`, so it expects the backend virtual environment
+and Step 1/2 database outputs to exist.
+
+## Current Architecture
+
+### Backend
+
+The DuckDB backend rebuilds preprocessing steps with native SQL. Python resolves file paths, prepares downloaded source
+files, normalizes configured CSV encodings, and runs the SQL files in order.
+
+### Frontend
+
+The Svelte frontend lives in `frontend/`. It provides a routed Svelte app and a usable war browser backed by the Step 3
+graph export.
+
+In Vite development, the menu is available at `/` and `/the_networks_of_war`. The browser itself is available at
+`/tool` and `/the_networks_of_war/tool`.
 
 The frontend consumes ignored generated data at `frontend/src/lib/static/graphData.json`. Do not commit this file. Step
 3 writes it from `backend/sql/step_3/04_export_frontend_graph_data.sql` after the final Step 3 tables are built.
-The export omits per-war descriptor fields that are not objectively available for the graph dropdowns, so the frontend
-does not need to receive fields that cannot be selected.
-
-Regenerate the frontend data snapshot from an already-built backend database:
-
-```bash
-npm run data:build
-```
-
-Run frontend checks:
-
-```bash
-npm run check
-npm run build
-```
-
-## Setup
-
-From `the_networks_of_war/backend`:
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
-```
+Generated graph rows include only descriptor fields that pass per-war availability checks, so the frontend does not
+receive fields that cannot be selected.
 
 ## Data Layout
 
 Source data is downloaded into `backend/data/`, which is ignored by git. Each external source table gets its own
 subdirectory named after the source key, such as `backend/data/interstate_mid_dyads/`. Source download metadata lives in
-`backend/manual/source_metadata.json`. The extra-state CSV encoding override is also defined there; that CSV is copied
-to UTF-8 under ignored `backend/.work/` before DuckDB reads it. The generated DuckDB database is ignored:
+`backend/manual/source_metadata.json`. Source CSVs that need explicit encoding handling use `latin-1` by default;
+prepared copies are written to UTF-8 under ignored `backend/.work/` before DuckDB reads them. The generated DuckDB
+database is ignored:
+
+Prepared source subdirectories keep only durable source CSVs and PDF documentation. Archive files, original Excel/Stata
+workbooks, text exports, and temporary download caches are discarded after extraction or conversion; `_downloads/` is
+not part of the expected `backend/data/` layout.
 
 - `the_networks_of_war/backend/data/`
 - `the_networks_of_war/backend/.work/`
 - `the_networks_of_war/backend/the_networks_of_war.duckdb`
 
-## Pipeline Commands
+## Commands
+
+### Pipeline Commands
 
 From `the_networks_of_war/backend`:
 
@@ -104,9 +110,8 @@ Pipeline parameters:
 | Parameter | Default | Demonstration |
 | --- | --- | --- |
 | `--data-dir PATH` | `backend/data/` | Source-data directory. Use `--data-dir data` for the default relative backend path. |
-| `--csv-dir PATH` | `backend/data/` | Backward-compatible alias for `--data-dir`; use `--csv-dir data` only for older scripts. |
 | `--db-path PATH` | `backend/the_networks_of_war.duckdb` | DuckDB database path. Use `--db-path the_networks_of_war.duckdb` for the default relative backend path. |
-| `--step {none,all,1,2,3}` | `all` | `all` rebuilds Steps 1, 2, and 3; `1` rebuilds Step 1; `2` rebuilds Step 2 source and descriptive tables against existing Step 1 outputs; `3` rebuilds final merge and D3/Svelte graph tables against existing Step 2 outputs; `none` skips preprocessing. |
+| `--step {none,all,1,2,3}` | `all` | `all` rebuilds Steps 1, 2, and 3; `1` rebuilds Step 1; `2` rebuilds Step 2 source and descriptive tables against existing Step 1 outputs; `3` rebuilds final merge and frontend graph-export tables against existing Step 2 outputs; `none` skips preprocessing. |
 | `--inspect` | off | Print table row counts after the selected step runs. |
 | `--prepare-data` | off | Download and validate missing source-data folders before opening the database. |
 | `--recreate-data` | off | Delete and recreate the full source-data directory before opening the database. |
@@ -169,12 +174,6 @@ Use non-default input or database paths:
 python src/pipeline.py --data-dir data --db-path the_networks_of_war.duckdb --step 1
 ```
 
-Use the legacy `--csv-dir` alias for older scripts:
-
-```bash
-python src/pipeline.py --csv-dir data --db-path the_networks_of_war.duckdb --step 1
-```
-
 Create missing source-data subdirectories without running a preprocessing step:
 
 ```bash
@@ -187,7 +186,7 @@ Recreate the full ignored source-data directory:
 python src/pipeline.py --recreate-data --step none
 ```
 
-## Test Commands
+### Test Commands
 
 From `the_networks_of_war/backend`:
 
@@ -223,6 +222,27 @@ pytest tests/test_step_1.py -vv
 
 The Step 1 expectation tests rebuild Step 1 into a temporary DuckDB database. They skip automatically if the ignored
 source files in `backend/data/` are not available locally.
+
+### Frontend Commands
+
+From `the_networks_of_war/frontend`, regenerate the frontend data snapshot from an already-built backend database:
+
+```bash
+npm run data:build
+```
+
+Run frontend checks:
+
+```bash
+npm run check
+npm run build
+```
+
+Build the embedded bundle for the legacy Jekyll-rendered surface when needed:
+
+```bash
+npm run rollup
+```
 
 ## Source Tables
 
@@ -262,8 +282,7 @@ supporting files from each source bundle when available.
 | `source_cow_trade_national` | Correlates of War Project (COW) | `National_COW_4.0.csv` | 4.0 | [Release](https://correlatesofwar.org/wp-content/uploads/COW_Trade_4.0.zip) |
 | `source_national_material_capabilities` | Correlates of War Project (COW) | `NMC-70-wsupplementary.csv` | 7.0 | [Release](https://correlatesofwar.org/wp-content/uploads/NMCv7.zip) |
 
-Other files in the legacy ignored `documentation/` directory correspond to datasets that have not yet been incorporated
-and were not used for the current Step 1 or Step 2 assumptions.
+## Materialized Tables
 
 Step 1 materializes reference tables:
 
@@ -279,14 +298,14 @@ Step 1 also materializes transformed tables:
 - `dyads_after_sources`
 - `war_participants`
 
-Step 1 also materializes compatibility tables:
+Step 1 also materializes base output tables:
 
 - `dyads`
 - `dyad_years`
 - `participants`
 - `wars`
 
-Step 2 also materializes descriptive compatibility tables:
+Step 2 also materializes descriptive output tables:
 
 - `country_year_descriptives`
 - `participant_year_descriptives`
@@ -302,12 +321,10 @@ Step 3 materializes final merge and graph-export tables:
 - `final_dyads`
 - `final_wars`
 
-The legacy Step 3 notebook saved `part_df.pkl`, `dyad_df.pkl`, `war_df.pkl`, one JSON file per war, and
-`war_file_list.csv`. The DuckDB rebuild keeps the same final concepts in tables instead of writing many JSON files.
 `final_wars.graph_json` stores one graph payload per `war_id`, while `final_participants` and `final_dyads` keep the
 normalized graph shape available for a Svelte app or API route. `pipeline.py` writes the single frontend payload after
-Step 3 completes. The frontend payload keeps base node/link fields for each graph and adds `_x`, `_y`, and `_z`
-descriptor fields only when they pass per-war availability checks.
+Step 3 completes. Node and link descriptor values are stored in `descriptor_timeframes` JSON keyed by `first_year`,
+`last_year`, and `all_years`; the frontend payload exposes those timeframe keys directly on each graph node or link.
 
 ## Ingestion Assumptions
 
@@ -337,7 +354,7 @@ descriptor fields only when they pass per-war availability checks.
 - Source columns that are documented as simple calculations from other source columns are not ingested. Currently
   excluded calculated fields are `batdths` and `durindx` from unversioned `directed_dyadic_war.csv`; `durindx`, `duration`, and
   `cumdurat` from `dyadic_mid_4.03.csv`; and `WDuratDays`, `WDuratMo`, and `TotalBDeaths` from
-  `INTRA-STATE_State_participants v5.1.csv`. Duration and day-count fields are excluded because they should be
+  `INTRA-STATE_State_participants v5.1 CSV.csv`. Duration and day-count fields are excluded because they should be
   calculated from the pipeline's resolved start and end dates, after applying the date assumptions below, such as using
   the last day of the year when only the end year is known.
 
@@ -362,10 +379,10 @@ descriptor fields only when they pass per-war availability checks.
 
 ### Encoding And Deduplication
 
-- `COW country codes.csv` is deduplicated by `c_code`; the first row per code is retained.
-- `Extra-StateWarData_v4.0.csv` is read as `cp1252` and copied to UTF-8 in `backend/.work/` before DuckDB reads it.
-- `directed_dyadic_war.csv`, `dyadic_mid_4.03.csv`, `Inter-StateWarData_v4.0.csv`, and
-  `INTRA-STATE_State_participants v5.1.csv` are read with `latin-1` encoding.
+- `COW-country-codes.csv` is deduplicated by `c_code`; the first row per code is retained.
+- Source CSVs that need explicit encoding handling use `latin-1` by default. The non-default source encoding is
+  `Extra-StateWarData_v4.0.csv` as `cp1252`; prepared copies are written as UTF-8 under `backend/.work/` before DuckDB
+  reads them.
 
 ### Field Normalization
 
@@ -386,8 +403,8 @@ descriptor fields only when they pass per-war availability checks.
   internally where needed.
 - After source date components are resolved, transformed tables carry `start_date`, `end_date`, and date-estimation
   flags instead of the original day/month/year component columns.
-- Step 2 final descriptive tables use suffixes to distinguish the timeframe summarized for each war participant or
-  dyad: `_x` is the first active year, `_y` is the last active year, and `_z` is the whole active span.
+- Step 2 final descriptive tables use a `timeframe` column to distinguish the span summarized for each war participant
+  or dyad: `First Year`, `Last Year`, and `All Years`.
 
 ### Source War Dyads And Participants
 
@@ -484,14 +501,16 @@ flowchart LR
 - Final dyads are deduplicated to one row per `war_id` and unordered participant pair. When duplicate spans exist, the
   final row keeps the earliest start date and latest end date from the unordered dyad pair.
 - `dyad_years` expands `dyads` into one row per year for years in the range `1500` through `2099`.
-- Step 3 final participant and dyad outputs apply the legacy final-fill rules to `_x`, `_y`, and `_z` descriptor
-  fields. Missing descriptor values are filled as zero for COW-coded states and left `null` for non-state participants
-  or dyads involving non-state participants; COW unknown/not-applicable sentinels `-9` and `-8` become `null`.
-- Step 3 participant outputs convert legacy unit-scaled fields before graph export: trade money flows to dollars,
-  NMC military/population and displacement counts to people, and iron/steel and energy figures to documented base units.
-- Step 3 frontend export prunes unavailable graph descriptor fields per war. Node descriptor fields are exported only
-  when they have a positive maximum value, fewer than half null values, and more than one coalesced value after treating
-  nulls as zero. Link descriptor fields are exported only when at least one dyad has a positive value.
+- Step 3 final participant and dyad outputs apply final-fill rules while building `descriptor_timeframes`. Missing
+  descriptor values are filled as zero for COW-coded states and left `null` for non-state participants or dyads involving
+  non-state participants; COW unknown/not-applicable sentinels `-9` and `-8` become `null`.
+- Step 3 participant outputs convert notebook-era unit-scaled fields while building `descriptor_timeframes`: trade money
+  flows to dollars, NMC military/population and displacement counts to people, and iron/steel and energy figures to
+  documented base units.
+- Step 3 prunes unavailable graph descriptor fields per war while building `final_participants` and `final_dyads`. Node
+  descriptor fields are kept only when they have a positive maximum value, fewer than half null values, and more than
+  one coalesced value after treating nulls as zero. Link descriptor fields are kept only when at least one dyad has a
+  positive value.
 - Step 3 does not write separate JSON files. `final_wars.graph_json` provides the per-war graph payload directly from
   DuckDB, and `pipeline.py` writes the single frontend payload from
   `backend/sql/step_3/04_export_frontend_graph_data.sql`.
@@ -517,20 +536,25 @@ flowchart LR
     appears in the dyadic MID records with `war = 1`, but no corresponding `war_id` exists for it in the interstate
     war data. Lebanon is assigned participant side `1`, and Israel is assigned participant side `2`.
   - These assignments are implemented as version-scoped source adjustments, not as transformation-time fallback logic.
-- `INTRA-STATE_State_participants v5.1.csv`
-  - War number is corrected from original value `977` to `979`.
-  - War `976` has `StartYr1` corrected from original value `2001` to `2011`.
+- `INTRA-STATE_State_participants v5.1 CSV.csv`
+  - War number `977` is corrected to `979`. The intra-state war-level CSV and codebook identify the Syrian Arab
+    Spring War as war `979`, and no war `977` exists there; the state-participant file has one `977` row for Iran with
+    the same Syrian war name and start date.
+  - War `976` has `StartYr1` corrected from original value `2001` to `2011`. The intra-state war-level CSV identifies
+    the Libyan Civil War of 2011 as war `976` with `StartYr1 = 2011`; the affected state-participant rows have March
+    2001 dates despite a 2011 war name and 2011 end year.
   - Wars `942`, `990.4`, `991`, `991.4`, and `992.5` are treated as ongoing because their source war names say
     `present` or `ongoing`; `EndYr1` is set to `-7` for these rows. The original source values include `-7`, `-8`, and
     `-9`, but only `-7` is treated as an ongoing end-year marker. Other negative end-year values are loaded as `null`
     because the codebooks use them for not applicable or unknown values.
 
-## Backend Update Notes
+## Embedded Build Artifacts
+
+- `npm run rollup` builds `frontend/dist/bundle.js` and `frontend/dist/bundle.css` for the Jekyll-rendered embedded
+  surface. Use the SvelteKit/Vite routes for normal local frontend development.
+
+## Maintainer Notes
 
 - Participant names for rows with COW codes come from `country_codes.state_name`. `participant_name_replacements.json`
   is reserved for formatting cleanup and uncoded participant consolidation, and replacement targets should not duplicate
   `country_codes.state_name` values.
-- Step 2 final descriptive table suffixes identify the summarized timeframe: `_x` is the first active year, `_y` is the
-  last active year, and `_z` is the whole active span.
-- Backend SQL table aliases use sequential single letters, and multi-line join predicates align continuation `and`
-  clauses beneath the preceding `on`.

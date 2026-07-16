@@ -10,12 +10,12 @@
 - Keep transformations as native DuckDB SQL in `.sql` files instead of embedding transformation SQL or Python transformation functions in pipeline code.
 - Keep numbered pipeline-stage SQL filenames as a numeric sequence without letter suffixes. Use separate numbered files for tightly related create/insert pairs.
 - When adding or splitting out a stage materialized table, add it as its own `create or replace table ... as` SQL file and update the stage SQL manifest, inspection SQL, README table lists/assumptions, and any tests that refer to the old table shape.
-- If the pipeline pre-drops existing relations for `create or replace` compatibility, apply that behavior generically to all table/view targets detected from the SQL file. Do not add one-off Python special cases for individual SQL files or relation names.
+- If the pipeline pre-drops existing relations before `create or replace`, apply that behavior generically to all table/view targets detected from the SQL file. Do not add one-off Python special cases for individual SQL files or relation names.
 - Before removing filters, joins, or selected columns after the reference-table steps, compare the affected stage deliverables and downstream tables or otherwise verify that the pipeline keeps the intended behavior.
 
 ## Data Modeling
 
-- Keep table grain explicit and separated by purpose: base compatibility tables hold base rows, yearly expansion tables hold one row per entity-year or dyad-year, and final dyad tables use stable canonical dyad keys with one row per unordered dyad.
+- Keep table grain explicit and separated by purpose: base output tables hold base rows, yearly expansion tables hold one row per entity-year or dyad-year, and final dyad tables use stable canonical dyad keys with one row per unordered dyad.
 - Do not add row identifiers unless a downstream transformation explicitly needs them.
 - Store open-ended lookup/reference data that is expected to grow independently in `backend/manual/*.json`, such as participant name replacements and source metadata. Keep small static reference data such as `war_types` inline in SQL, with table creation and row insertion in separate numbered reference files.
 - Keep related columns grouped consistently in source and transformed select lists. For dyadic A/B fields, put the same field for A and B adjacent before moving to the next field: for example, `c_code_a`, `c_code_b`, then `country_name_a`, `country_name_b`, rather than interleaving all A fields before all B fields. Keep repeated date components in source order by span and component. For resolved date-span fields, keep `start_date`, `end_date`, `start_year`, and `end_year` together in that order. Keep battle-death columns at the end with actual deaths before estimated values and estimate flags.
