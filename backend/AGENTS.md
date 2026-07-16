@@ -39,7 +39,7 @@
 - Choose `union all` for additive source stacking when later logic handles deduplication or duplicates are meaningful. Use plain `union` only when set semantics are required at that exact point. Do not write `union distinct`.
 - Avoid ordering tables or query results unless deterministic output order is explicitly needed. In tests, compare unordered results in Python unless the query prints or asserts on raw rows, where a deterministic `order by` makes diagnostics stable.
 - Avoid CTEs when a direct query is clearer, but prefer a CTE over a derived-table subselect when one of those shapes is needed. Do not use derived-table subselects in `from` or `join` clauses.
-- Prefer explicit `left join ... where matched_key is null` anti-joins over `not exists` filters in numbered pipeline-stage SQL. Keep anti-join null checks for `left join` patterns in the `where` clause, not inside the `on` clause; for inner joins, placing row filters in `on` is acceptable when it improves locality and does not obscure the join keys.
+- Prefer explicit `left join ... where matched_key is null` anti-joins over `not exists` filters in numbered pipeline-stage SQL. Keep anti-join `null` checks for `left join` patterns in the `where` clause, not inside the `on` clause; for inner joins, placing row filters in `on` is acceptable when it improves locality and does not obscure the join keys.
 - Prefer simple conditional expressions: use `if(...)` instead of a `case` statement with only one `when`, avoid nested `case` statements, and keep `if`, `least`, and `greatest` column calculations on one line even when the line is long.
 
 ## Source Ingestion And Adjustments
@@ -54,7 +54,7 @@
 - Keep source adjustments version-aware and lean: tie them to the applicable CSV/source version, reassess them when replacing a CSV, store only keys and values needed by downstream joins, and document rationale/facts in the README instead of adding narrative columns.
 - Do not add placeholder or convenience values to adjustment tables. Add an adjustment value only when it is used for a
   join, a source correction, or a downstream transformation; derive defaults in transformation SQL instead.
-- When upgrading a source CSV version, compare the previous and new CSV columns before changing ingestion. Keep currently ingested columns that still exist, remove columns that are truly absent instead of fabricating null source columns, and document any dropped or newly available columns in the README.
+- When upgrading a source CSV version, compare the previous and new CSV columns before changing ingestion. Keep currently ingested columns that still exist, remove columns that are truly absent instead of fabricating `null` source columns, and document any dropped or newly available columns in the README.
 
 ## Documentation
 

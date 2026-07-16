@@ -5,7 +5,7 @@ the Svelte frontend under `frontend/src`.
 
 ## Known Bug From Legacy Sizing
 
-- `main.html` assigned missing node-size descriptor values to the average non-null descriptor input. In Greek
+- `main.html` assigned missing node-size descriptor values to the average non-`null` descriptor input. In Greek
   Independence War, the `Greeks` node has `urban_population_z = "nan"`, so choosing `Urban Population` made an unknown
   value appear as a medium-sized node with only a `?` marker. The Svelte graph now keeps the `?` marker but renders
   missing selected descriptor values at the minimum radius so unknown data is not visually overstated.

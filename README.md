@@ -495,13 +495,13 @@ flowchart LR
 - Step 2 and Step 3 preserve the semantic difference between unknown values and known zeros. Missing descriptor values
   stay `null` unless the source coverage or project derivation makes the value known to be zero, such as
   `concurrent_wars` when no overlapping participant war exists. Source unknown/not-applicable sentinels such as `-9`
-  and `-8` become `null`, and the frontend displays null descriptor values as unknown rather than zero.
+  and `-8` become `null`, and the frontend displays `null` descriptor values as unknown rather than zero.
 - Step 3 participant outputs convert notebook-era unit-scaled fields while building `descriptor_timeframes`: trade money
   flows to dollars, NMC military/population and displacement counts to people, and iron/steel and energy figures to
   documented base units.
 - Step 3 prunes unavailable graph descriptor fields per war while building `final_participants` and `final_dyads`. Node
-  descriptor fields are kept only when they have a positive maximum value, fewer than half null values, and more than
-  one coalesced value after treating nulls as zero. Link descriptor fields are kept only when at least one dyad has a
+  descriptor fields are kept only when they have a positive maximum value, fewer than half `null` values, and more than
+  one coalesced value after treating `null` values as zero. Link descriptor fields are kept only when at least one dyad has a
   positive value.
 - Step 3 does not write separate JSON files. `final_wars.graph_json` provides the per-war graph payload directly from
   DuckDB, and `pipeline.py` writes the single frontend payload from
