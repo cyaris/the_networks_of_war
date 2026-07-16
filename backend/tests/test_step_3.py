@@ -11,6 +11,8 @@ SRC_ROOT = Path(__file__).resolve().parents[1] / "src"
 
 sys.path.insert(0, str(SRC_ROOT))
 
+from shared import fail_if_detected_rows  # noqa: E402
+
 from pipeline import STEP_1_SOURCE_KEYS, STEP_2_SOURCE_KEYS, STEP_3_SQL, Pipeline, sql_identifier
 
 STEP_3_TRANSFORMED_TABLES = ["final_participants", "final_dyads", "final_wars"]
@@ -207,7 +209,12 @@ def test_step_3_applies_legacy_participant_fill_and_conversion_rules(conn):
 
 def test_step_3_final_dyad_links_resolve_all_final_participants(conn):
     missing_nodes_sql = """
-    select count(*)
+    select
+        a.war_id,
+        a.source,
+        a.target,
+        b.id source_id,
+        c.id target_id
     from final_dyads a
     left join final_participants b on a.war_id = b.war_id
                                    and a.source = b.id
@@ -218,8 +225,39 @@ def test_step_3_final_dyad_links_resolve_all_final_participants(conn):
         or a.target is null
         or b.id is null
         or c.id is null
+    order by a.war_id, a.source, a.target
     """
-    assert scalar(conn, missing_nodes_sql) == 0
+    fail_if_detected_rows(
+        conn,
+        missing_nodes_sql,
+        "Final dyad links should resolve final participant nodes.",
+        "final_dyads unresolved nodes",
+        {"source", "target", "source_id", "target_id"},
+    )
+
+
+def test_step_3_final_participant_nodes_all_have_links(conn):
+    unlinked_nodes_sql = """
+    select
+        a.war_id,
+        a.war_name,
+        a.id,
+        a.c_code,
+        a.participant,
+        a.side
+    from final_participants a
+    left join final_dyads b on a.war_id = b.war_id
+                            and a.id in (b.source, b.target)
+    where b.war_id is null
+    order by a.war_id, a.id
+    """
+    fail_if_detected_rows(
+        conn,
+        unlinked_nodes_sql,
+        "Final participants should all be linked by at least one final dyad.",
+        "unlinked final_participants nodes",
+        {"id"},
+    )
 
 
 def test_step_3_materializes_valid_per_war_graph_json(conn):

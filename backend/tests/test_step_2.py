@@ -121,19 +121,17 @@ def test_global_terrorism_database_source_metadata_converts_workbooks():
 
 def test_global_terrorism_database_source_rows_do_not_overlap_on_event_id(conn):
     query = """
-    select a.event_id
+    select count(*)
     from source_global_terrorism_database a
     inner join source_global_terrorism_database b using (event_id)
     where
         a.source_file = 'globalterrorismdb_0522dist.csv'
         and b.source_file = 'globalterrorismdb_2021Jan-June_1222dist.csv'
         and a.event_id is not null
-    order by a.event_id
-    limit 50
     """
-    overlap = conn.execute(query).fetchall()
+    overlap_count = conn.execute(query).fetchone()[0]
 
-    assert overlap == []
+    assert overlap_count == 0
 
 
 def test_step_2_manifest_runs_source_ingestion(conn):

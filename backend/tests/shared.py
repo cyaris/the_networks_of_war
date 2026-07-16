@@ -91,21 +91,27 @@ def duplicate_values(values: list[str]) -> list[str]:
 
 
 def clean_text_python(value) -> str | None:
-    if value is not None:
-        text = str(value).strip()
+    if value is None:
+        return
 
-        if text != "" and text not in {"-7", "-8", "-9"}:
-            return text
+    text = str(value).strip()
+
+    if text == "" or text in {"-7", "-8", "-9"}:
+        return
+
+    return text
 
 
 def apply_legacy_participant_replacements(value: str | None) -> str | None:
     text = clean_text_python(value)
 
-    if text is not None:
-        for old, new in CLEAN_PARTICIPANT_NESTED_REPLACEMENTS:
-            text = text.replace(old, new)
+    if text is None:
+        return
 
-        return text
+    for old, new in CLEAN_PARTICIPANT_NESTED_REPLACEMENTS:
+        text = text.replace(old, new)
+
+    return text
 
 
 def participant_input_values(conn) -> set[str | None]:
@@ -238,6 +244,33 @@ def sql_check_failure(
         sql=sql,
         summary=failure_summary(label, row_count),
         detected_rows=highlighted_detected_rows(result, problem_cells),
+    )
+
+
+def fail_if_detected_rows(
+    conn,
+    sql: str,
+    title: str,
+    label: str,
+    problem_columns: set[str] | None = None,
+) -> None:
+    detected_rows = query_result(conn, sql)
+
+    if not detected_rows.rows:
+        return
+
+    problem_cells = problem_cells_for_columns(detected_rows, problem_columns or set())
+    fail_sql_check(
+        title,
+        failures=[
+            sql_check_failure(
+                label,
+                sql,
+                len(detected_rows.rows),
+                detected_rows,
+                problem_cells,
+            )
+        ],
     )
 
 
