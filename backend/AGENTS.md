@@ -3,6 +3,7 @@
 ## Backend Python
 
 - Format Python from `backend` with the repository's Black and isort settings. Avoid non-functional trailing commas that make Black preserve unnecessary multiline layouts; when an existing tuple, list, call, or assertion would fit under the configured line length, remove the non-functional trailing comma so Black can collapse it. Keep commas that are semantically required or improve readability.
+- Let functions that have no value to return fall through naturally instead of using bare `return` or `return None`. For conditional no-op paths, invert the condition and keep the real work inside the branch.
 - When backend code directly imports a runtime package, declare that package explicitly in `backend/pyproject.toml` rather than relying on transitive dependencies.
 
 ## Pipeline Structure

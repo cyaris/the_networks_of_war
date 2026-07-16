@@ -91,27 +91,21 @@ def duplicate_values(values: list[str]) -> list[str]:
 
 
 def clean_text_python(value) -> str | None:
-    if value is None:
-        return None
+    if value is not None:
+        text = str(value).strip()
 
-    text = str(value).strip()
-
-    if text == "" or text in {"-7", "-8", "-9"}:
-        return None
-
-    return text
+        if text != "" and text not in {"-7", "-8", "-9"}:
+            return text
 
 
 def apply_legacy_participant_replacements(value: str | None) -> str | None:
     text = clean_text_python(value)
 
-    if text is None:
-        return None
+    if text is not None:
+        for old, new in CLEAN_PARTICIPANT_NESTED_REPLACEMENTS:
+            text = text.replace(old, new)
 
-    for old, new in CLEAN_PARTICIPANT_NESTED_REPLACEMENTS:
-        text = text.replace(old, new)
-
-    return text
+        return text
 
 
 def participant_input_values(conn) -> set[str | None]:

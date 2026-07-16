@@ -955,28 +955,26 @@ def test_interstate_war_source_rows_are_valid(conn):
     """
     invalid_count = scalar(conn, count_sql)
 
-    if invalid_count == 0:
-        return
+    if invalid_count > 0:
+        detected_rows = query_result(conn, detected_rows_sql)
+        problem_cells = problem_cells_matching(
+            detected_rows,
+            lambda column, value: (column == "c_code" and value is None)
+            or (column == "side" and (value is None or value not in (1, 2))),
+        )
 
-    detected_rows = query_result(conn, detected_rows_sql)
-    problem_cells = problem_cells_matching(
-        detected_rows,
-        lambda column, value: (column == "c_code" and value is None)
-        or (column == "side" and (value is None or value not in (1, 2))),
-    )
-
-    fail_sql_check(
-        "Interstate war source rows should have participant codes and valid side assignments:",
-        failures=[
-            sql_check_failure(
-                "source_interstate_wars participant rows",
-                detected_rows_sql,
-                invalid_count,
-                detected_rows,
-                problem_cells,
-            )
-        ],
-    )
+        fail_sql_check(
+            "Interstate war source rows should have participant codes and valid side assignments:",
+            failures=[
+                sql_check_failure(
+                    "source_interstate_wars participant rows",
+                    detected_rows_sql,
+                    invalid_count,
+                    detected_rows,
+                    problem_cells,
+                )
+            ],
+        )
 
 
 def test_interstate_war_dyads_use_semantic_participant_sides(conn):
@@ -1021,22 +1019,20 @@ def test_interstate_war_dyads_use_semantic_participant_sides(conn):
     """
     detected_rows = query_result(conn, detected_rows_sql)
 
-    if not detected_rows.rows:
-        return
-
-    problem_cells = problem_cells_for_columns(detected_rows, {"sides"})
-    fail_sql_check(
-        "Transformed interstate war dyads should use semantic participant sides.",
-        failures=[
-            sql_check_failure(
-                "interstate war_dyads side conflicts",
-                detected_rows_sql,
-                len(detected_rows.rows),
-                detected_rows,
-                problem_cells,
-            )
-        ],
-    )
+    if detected_rows.rows:
+        problem_cells = problem_cells_for_columns(detected_rows, {"sides"})
+        fail_sql_check(
+            "Transformed interstate war dyads should use semantic participant sides.",
+            failures=[
+                sql_check_failure(
+                    "interstate war_dyads side conflicts",
+                    detected_rows_sql,
+                    len(detected_rows.rows),
+                    detected_rows,
+                    problem_cells,
+                )
+            ],
+        )
 
 
 def test_final_participant_side_assignments_are_present_and_valid(conn):
@@ -1049,35 +1045,33 @@ def test_final_participant_side_assignments_are_present_and_valid(conn):
     """
     invalid_count = scalar(conn, count_sql)
 
-    if invalid_count == 0:
-        return
+    if invalid_count > 0:
+        detected_rows_sql = """
+        select *
+        from participants
+        where
+            side is null
+            or side not in (1, 2, 3)
+        order by war_id, c_code, participant
+        limit 50
+        """
+        detected_rows = query_result(conn, detected_rows_sql)
+        problem_cells = problem_cells_matching(
+            detected_rows, lambda column, value: column == "side" and (value is None or value not in (1, 2, 3))
+        )
 
-    detected_rows_sql = """
-    select *
-    from participants
-    where
-        side is null
-        or side not in (1, 2, 3)
-    order by war_id, c_code, participant
-    limit 50
-    """
-    detected_rows = query_result(conn, detected_rows_sql)
-    problem_cells = problem_cells_matching(
-        detected_rows, lambda column, value: column == "side" and (value is None or value not in (1, 2, 3))
-    )
-
-    fail_sql_check(
-        "Final participant side assignments should be present and in (1, 2, 3):",
-        failures=[
-            sql_check_failure(
-                "participants missing or invalid side rows",
-                detected_rows_sql,
-                invalid_count,
-                detected_rows,
-                problem_cells,
-            )
-        ],
-    )
+        fail_sql_check(
+            "Final participant side assignments should be present and in (1, 2, 3):",
+            failures=[
+                sql_check_failure(
+                    "participants missing or invalid side rows",
+                    detected_rows_sql,
+                    invalid_count,
+                    detected_rows,
+                    problem_cells,
+                )
+            ],
+        )
 
 
 def test_mid_dyads_resolve_all_mid_war_ids(conn):

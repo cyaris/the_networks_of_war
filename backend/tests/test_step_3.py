@@ -254,5 +254,3 @@ def number_or_none(value):
         return int(value)
     if isinstance(value, (int, float)):
         return value
-
-    return None
