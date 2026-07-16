@@ -82,10 +82,11 @@ receive fields that cannot be selected.
 ## Data Layout
 
 Source data is downloaded into `backend/data/`, which is ignored by git. Each external source table gets its own
-subdirectory named after the source key, such as `backend/data/interstate_mid_dyads/`. Source download metadata lives in
-`backend/manual/source_metadata.json`. Source CSVs that need explicit encoding handling use `latin-1` by default;
-prepared copies are written to UTF-8 under ignored `backend/.work/` before DuckDB reads them. The generated DuckDB
-database is ignored:
+subdirectory named after the source key without the `source_` table prefix, such as
+`backend/data/interstate_mid_dyads/` for `source_interstate_mid_dyads`. The corresponding raw source data and source
+documentation live in that folder. Source download metadata lives in `backend/manual/source_metadata.json`. Source CSVs
+that need explicit encoding handling use `latin-1` by default; prepared copies are written to UTF-8 under ignored
+`backend/.work/` before DuckDB reads them. The generated DuckDB database is ignored:
 
 Prepared source subdirectories keep only durable source CSVs and PDF documentation. Archive files, original Excel/Stata
 workbooks, text exports, and temporary download caches are discarded after extraction or conversion; `_downloads/` is
@@ -330,7 +331,8 @@ Step 3 completes. Node and link descriptor values are stored in `descriptor_time
 - Version-scoped source adjustments live in `backend/sql/step_1/03_create_source_adjustment_tables.sql` and
   `backend/sql/step_1/04_insert_source_adjustments.sql`. The first file creates `source_file_versions` and adjustment
   tables; the second inserts adjustment rows for source facts that are not present in the source CSVs. Downstream
-  transformations join adjustment tables to `source_file_versions` when an assignment is version-scoped. Data-entry
+  transformations join adjustment tables to `source_file_versions` when an assignment is version-scoped. Adjustment
+  rows should stay lean: store only values used for joins, source corrections, or downstream transformations. Data-entry
   fixes applied while reading source CSVs are documented below.
 - Reference data that is not tied to an external source file, currently `war_types`, is created and inserted in
   `backend/sql/step_1/05_create_reference_tables.sql` and
@@ -429,6 +431,8 @@ Step 3 completes. Node and link descriptor values are stored in `descriptor_time
   version still needs them. If a future CSV version introduces a new unmatched MID war,
   `test_mid_dyads_resolve_all_mid_war_ids` should fail until the source adjustment file is updated or the new source
   data is accepted as authoritative.
+- Manual interstate war-dyad additions that are missing from `directed_dyadic_war.csv` are stored in
+  `source_interstate_war_dyad_adjustments` and merged after source and MID dyads.
 - Synthetic war metadata, such as the Lebanon-Israel MID conflict (`disno = 4182`) named
   `Israeli–Hezbollah Conflict (South Lebanon)`, is stored in `source_interstate_war_metadata_adjustments` and joined
   during transformation without adding partial rows to `source_interstate_wars`.
@@ -508,6 +512,11 @@ flowchart LR
   - Start month value `24` is treated as invalid and loaded as `null`; resolved start dates use the standard missing
     start-month default.
   - End year is corrected from original value `19118` to `1918`.
+  - The World War I Japan dyads against Germany and Austria-Hungary are added as version-scoped source adjustments
+    because Japan appears as a World War I participant in `Inter-StateWarData_v4.0.csv`, but the directed dyadic war
+    source has no World War I dyads involving Japan. Japan is linked to Germany from `1914-08-23` through
+    `1918-11-11` and to Austria-Hungary from `1914-08-23` through `1918-11-03`, using the overlapping participant
+    date spans from `Inter-StateWarData_v4.0.csv`.
   - The World War II Thailand dyad (`war_id = 139`, `statea = 800`, `stateb = 710`) is loaded with Thailand battle
     deaths corrected from original blank `batdtha` to `5,569`. The Thailand death count comes from Wikipedia's summary
     of [Thailand in World War II](https://en.wikipedia.org/wiki/Thailand_in_World_War_II).
