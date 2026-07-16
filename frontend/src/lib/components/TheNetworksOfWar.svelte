@@ -14,6 +14,9 @@
     { value: "last_year", label: "Last Year" },
     { value: "all_years", label: "All Years" },
   ]
+  const noTimeframeItemsMessage = "No timeframe fields available."
+  const noNodeSizeItemsMessage = "No node size fields available."
+  const noLinkDashItemsMessage = "No link dash fields available."
 
   function plural(value, noun) {
     return `${Number(value || 0).toLocaleString()} ${noun}${Number(value || 0) == 1 ? "" : "s"}`
@@ -709,10 +712,12 @@
       descriptorNodes.some(node => hasTimeframeDescriptor(node, item.value)) ||
       descriptorLinks.some(link => hasTimeframeDescriptor(link, item.value))
   )
-  $: if (availableTimeframeItems.length == 1 && timeframeValue?.value != availableTimeframeItems[0].value) {
+  $: if (!availableTimeframeItems.length) {
+    timeframeValue = null
+  } else if (availableTimeframeItems.length == 1 && timeframeValue?.value != availableTimeframeItems[0].value) {
     timeframeValue = availableTimeframeItems[0]
   } else if (!availableTimeframeItems.some(item => item.value == timeframeValue?.value)) {
-    timeframeValue = availableTimeframeItems[availableTimeframeItems.length - 1] || timeframeItems[2]
+    timeframeValue = availableTimeframeItems[availableTimeframeItems.length - 1]
   }
   $: nodeDescriptorItems = nodeFieldItems(descriptorNodes, timeframeValue?.value || "all_years")
   $: linkDescriptorItems = linkFieldItems(descriptorLinks, timeframeValue?.value || "all_years")
@@ -722,6 +727,9 @@
   $: if (linkDescriptorValue && !linkDescriptorItems.some(item => item.value == linkDescriptorValue.value)) {
     linkDescriptorValue = null
   }
+  $: timeframePlaceholder = !availableTimeframeItems.length && !timeframeValue ? noTimeframeItemsMessage : ""
+  $: nodeDescriptorPlaceholder = !nodeDescriptorItems.length && !nodeDescriptorValue ? noNodeSizeItemsMessage : "Choose a node size."
+  $: linkDescriptorPlaceholder = !linkDescriptorItems.length && !linkDescriptorValue ? noLinkDashItemsMessage : "Choose a link dash."
   $: sizingSignature = `${timeframeValue?.value || "all_years"}|${nodeDescriptorValue?.value || "none"}|${width}|${height}|${nodes.length}|${links.length}`
   $: if (nodes.length && sizingSignature != currentSizingSignature) {
     currentSizingSignature = sizingSignature
@@ -816,6 +824,8 @@
                   <Select
                     items={availableTimeframeItems}
                     bind:value={timeframeValue}
+                    placeholder={timeframePlaceholder}
+                    noItemsMessage={noTimeframeItemsMessage}
                     clearable={false}
                     disabled={availableTimeframeItems.length <= 1}
                   />
@@ -825,9 +835,10 @@
                   <Select
                     items={nodeDescriptorItems}
                     bind:value={nodeDescriptorValue}
-                    placeholder="Choose a node size."
-                    noItemsMessage="No node size fields available."
+                    placeholder={nodeDescriptorPlaceholder}
+                    noItemsMessage={noNodeSizeItemsMessage}
                     clearable={true}
+                    disabled={!nodeDescriptorItems.length && !nodeDescriptorValue}
                   />
                 </div>
                 <div>
@@ -835,9 +846,10 @@
                   <Select
                     items={linkDescriptorItems}
                     bind:value={linkDescriptorValue}
-                    placeholder="Choose a link dash."
-                    noItemsMessage="No link dash fields available."
+                    placeholder={linkDescriptorPlaceholder}
+                    noItemsMessage={noLinkDashItemsMessage}
                     clearable={true}
+                    disabled={!linkDescriptorItems.length && !linkDescriptorValue}
                     on:valueChange={updateLinkDescriptorValue}
                   />
                 </div>
