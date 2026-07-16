@@ -56,8 +56,8 @@ select
 from dyad_descriptor_values
 unpivot include nulls (value for field in (columns('^(territory_exchange|colonial_contiguity|contiguity|alliance|defense_cooperation_agreements|inter_governmental_organizations|diplomatic_exchange|trade_relations|same_leader_type|military_leaders|communist_leaders|royal_leaders|democratic_incumbent|unconstitutional_incumbent|democratic_regimes|dictatorships|collective_leaderships|direct_election|indirect_election|non_elected_leaders|no_legislature|non_elective_legislature|elective_legislature|no_partisan_legislature_legal|no_non_regime_legislature_parties_legal|multi_party_legislature_legal|all_parties_illegal|single_party_state_exists|multi_party_state_exists|no_parties_exist|one_party_exists|no_non_regime_parties_exist|leader_died|new_leader|transition_to_democracy|transition_to_dictatorship|atop|mtops)$'))) a
 join available_link_fields b on a.war_id = b.war_id
-                             and a.timeframe = b.timeframe
-                             and a.field = b.field
+                            and a.timeframe = b.timeframe
+                            and a.field = b.field
 group by 1, 2, 3, 4, 5, 6),
 
 link_descriptor_json as (
@@ -79,17 +79,17 @@ select
     d.payload descriptor_timeframes
 from dyad_rows a
 left join link_descriptor_json d on a.war_id = d.war_id
-                                 and a.c_code_a = d.c_code_a
-                                 and a.c_code_b = d.c_code_b
-                                 and a.participant_a = d.participant_a
-                                 and a.participant_b = d.participant_b)
+                                and a.c_code_a = d.c_code_a
+                                and a.c_code_b = d.c_code_b
+                                and a.participant_a = d.participant_a
+                                and a.participant_b = d.participant_b)
 
 select
     a.*,
-    b.id as source,
-    c.id as target
+    b.id "source",
+    c.id "target"
 from final_dyad_rows a
 join final_participants b on a.war_id = b.war_id
-                          and if(a.c_code_a > 0, a.c_code_a::varchar, a.participant_a) = b.node_key
+                         and if(a.c_code_a > 0, a.c_code_a::varchar, a.participant_a) = b.node_key
 join final_participants c on a.war_id = c.war_id
-                          and if(a.c_code_b > 0, a.c_code_b::varchar, a.participant_b) = c.node_key;
+                         and if(a.c_code_b > 0, a.c_code_b::varchar, a.participant_b) = c.node_key;

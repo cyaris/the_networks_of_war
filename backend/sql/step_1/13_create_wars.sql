@@ -98,7 +98,7 @@ select
     any_value(b.war_subtype) war_subtype
 from source_interstate_war_metadata_adjustments a
 join source_file_versions c on a.source_key = c.source_key
-                            and a.source_version = c.source_version
+                           and a.source_version = c.source_version
 left join war_types b on a.war_type_id = b.war_type_id
 group by 1),
 

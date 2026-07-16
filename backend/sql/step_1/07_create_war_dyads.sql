@@ -45,9 +45,9 @@ left join war_types c on b.war_type_id = c.war_type_id
 left join country_codes d on a.c_code_a = d.c_code
 left join country_codes e on a.c_code_b = e.c_code
 left join interstate_participant_sides f on a.war_id = f.war_id
-                                         and a.c_code_a = f.c_code
+                                        and a.c_code_a = f.c_code
 left join interstate_participant_sides g on a.war_id = g.war_id
-                                         and a.c_code_b = g.c_code
+                                        and a.c_code_b = g.c_code
 union all
 select
     a.war_id,
@@ -121,9 +121,9 @@ from war_dyads a
 left join country_codes b on a.c_code_a = b.c_code
 left join country_codes c on a.c_code_b = c.c_code
 left join participant_name_replacements d on b.c_code is null
-                                          and clean_text(a.participant_a) = d.source
+                                         and clean_text(a.participant_a) = d.source
 left join participant_name_replacements e on c.c_code is null
-                                          and clean_text(a.participant_b) = e.source
+                                         and clean_text(a.participant_b) = e.source
 where
     a.participant_a is not null
     and a.participant_b is not null
@@ -149,9 +149,9 @@ from war_dyads a
 left join country_codes b on a.c_code_b = b.c_code
 left join country_codes c on a.c_code_a = c.c_code
 left join participant_name_replacements d on b.c_code is null
-                                          and clean_text(a.participant_b) = d.source
+                                         and clean_text(a.participant_b) = d.source
 left join participant_name_replacements e on c.c_code is null
-                                          and clean_text(a.participant_a) = e.source
+                                         and clean_text(a.participant_a) = e.source
 where
     a.participant_a is not null
     and a.participant_b is not null

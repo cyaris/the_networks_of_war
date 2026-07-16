@@ -81,6 +81,7 @@
   let stdNullRadiusSize = 1
   let nodeMargins = emptyNodeMargins()
   let radiusScale = scaleLinear([0, maxDomain], [1, 125])
+  let primaryNode = null
 
   const graphTextSize = 12
   const height = 700
@@ -354,6 +355,8 @@
   }
 
   function getXAdjusted(id, xLoc) {
+    if (id == primaryNode && nodes.length > 2) return graphCenterX
+
     return Math.max(
       nodeMargins.added_left_margin[id] ?? addedMarginSize,
       Math.min(width - (nodeMargins.added_right_margin[id] ?? addedMarginSize), xLoc ?? graphCenterX)
@@ -361,6 +364,8 @@
   }
 
   function getYAdjusted(id, yLoc) {
+    if (id == primaryNode && nodes.length > 2) return graphCenterY
+
     return Math.max(
       nodeMargins.added_top_margin[id] ?? addedMarginSize,
       Math.min(height - (nodeMargins.added_bottom_margin[id] ?? addedMarginSize), yLoc ?? graphCenterY)
@@ -369,6 +374,24 @@
 
   function linkEndpointId(link, endpoint) {
     return typeof link[endpoint] == "object" ? link[endpoint].id : link[endpoint]
+  }
+
+  function identifyPrimaryNode() {
+    if (links.length <= 1) return null
+
+    let endpointCounts = new Map()
+
+    links.forEach(link => {
+      for (let id of [linkEndpointId(link, "source"), linkEndpointId(link, "target")]) {
+        endpointCounts.set(id, (endpointCounts.get(id) || 0) + 1)
+      }
+    })
+
+    let primaryNodes = Array.from(endpointCounts)
+      .filter(([, linkCount]) => linkCount == links.length)
+      .map(([id]) => id)
+
+    return primaryNodes.length == 1 ? primaryNodes[0] : null
   }
 
   function linkX(link, endpoint) {
@@ -467,6 +490,8 @@
     if (!nodes.length || !width || !height) return
 
     let nodeById = new Map(nodes.map(node => [node.id, node]))
+    primaryNode = identifyPrimaryNode()
+    let hasPrimaryNode = primaryNode != null
 
     linkNodes = links
       .map(link => ({
@@ -479,10 +504,10 @@
     let averageHorizontalNameShift = averageValue(Object.values(nodeMargins.horizontal_name_shift))
 
     simulation = forceSimulation(nodes.concat(linkNodes))
-      .force("charge", forceManyBody().strength(-1000))
+      .force("charge", forceManyBody().strength(hasPrimaryNode ? -7500 : -1000))
       .force("center", forceCenter(graphCenterX, graphCenterY))
-      .force("x", forceX(graphCenterX).strength(0.15))
-      .force("y", forceY(height - addedMarginSize * 2).strength(0.5))
+      .force("x", forceX(graphCenterX).strength(hasPrimaryNode ? 0.75 : 0.15))
+      .force("y", forceY(height - addedMarginSize * 2).strength(hasPrimaryNode ? 0.75 : 0.5))
       .force(
         "collision",
         forceCollide()
@@ -874,34 +899,37 @@
                         stroke-width={hoverNode?.id == node.id ? nodeStrokeWidth + 0.75 : nodeStrokeWidth}
                         style="transition: r 3000ms ease 500ms, stroke-width 150ms ease;"
                       />
-                      <text
-                        class="text-[12px] font-bold"
-                        x={label.x}
-                        y={label.y}
-                        text-anchor={label.anchor}
-                        fill={label.inside ? "white" : "#111827"}
-                        stroke={label.inside ? "none" : "white"}
-                        stroke-width={label.inside ? 0 : 3}
-                        paint-order="stroke"
-                        style="transition: x 2000ms ease 1500ms, y 2000ms ease 1500ms, fill 2000ms ease 1500ms, stroke 2000ms ease 1500ms;"
+                      <g
+                        style="transform: translate({label.x}px, {label.y}px); transition: transform 2000ms ease 1500ms;"
                       >
-                        {node.participant}
-                      </text>
-                      {#if showNodeSizeWarning(node)}
-                        {@const warningPosition = nodeSizeWarningPosition(node, label)}
                         <text
                           class="text-[12px] font-bold"
-                          x={warningPosition.x}
-                          y={warningPosition.y}
-                          text-anchor="middle"
-                          fill="#111827"
-                          stroke="white"
-                          stroke-width={3}
+                          text-anchor={label.anchor}
+                          fill={label.inside ? "white" : "#111827"}
+                          stroke={label.inside ? "none" : "white"}
+                          stroke-width={label.inside ? 0 : 3}
                           paint-order="stroke"
-                          style="transition: x 2000ms ease 1500ms, y 2000ms ease 1500ms;"
+                          style="transition: fill 2000ms ease 1500ms, stroke 2000ms ease 1500ms;"
                         >
-                          ?
+                          {node.participant}
                         </text>
+                      </g>
+                      {#if showNodeSizeWarning(node)}
+                        {@const warningPosition = nodeSizeWarningPosition(node, label)}
+                        <g
+                          style="transform: translate({warningPosition.x}px, {warningPosition.y}px); transition: transform 2000ms ease 1500ms;"
+                        >
+                          <text
+                            class="text-[12px] font-bold"
+                            text-anchor="middle"
+                            fill="#111827"
+                            stroke="white"
+                            stroke-width={3}
+                            paint-order="stroke"
+                          >
+                            ?
+                          </text>
+                        </g>
                       {/if}
                     </g>
                   {/each}

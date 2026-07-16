@@ -17,6 +17,46 @@ from pipeline import STEP_1_SOURCE_KEYS, STEP_2_SOURCE_KEYS, STEP_3_SQL, Pipelin
 
 STEP_3_TRANSFORMED_TABLES = ["final_participants", "final_dyads", "final_wars"]
 DESCRIPTOR_TIMEFRAMES = {"first_year", "last_year", "all_years"}
+DYADIC_DESCRIPTOR_COLUMNS = [
+    "territory_exchange",
+    "colonial_contiguity",
+    "contiguity",
+    "alliance",
+    "defense_cooperation_agreements",
+    "inter_governmental_organizations",
+    "diplomatic_exchange",
+    "trade_relations",
+    "same_leader_type",
+    "military_leaders",
+    "communist_leaders",
+    "royal_leaders",
+    "democratic_incumbent",
+    "unconstitutional_incumbent",
+    "democratic_regimes",
+    "dictatorships",
+    "collective_leaderships",
+    "direct_election",
+    "indirect_election",
+    "non_elected_leaders",
+    "no_legislature",
+    "non_elective_legislature",
+    "elective_legislature",
+    "no_partisan_legislature_legal",
+    "no_non_regime_legislature_parties_legal",
+    "multi_party_legislature_legal",
+    "all_parties_illegal",
+    "single_party_state_exists",
+    "multi_party_state_exists",
+    "no_parties_exist",
+    "one_party_exists",
+    "no_non_regime_parties_exist",
+    "leader_died",
+    "new_leader",
+    "transition_to_democracy",
+    "transition_to_dictatorship",
+    "atop",
+    "mtops",
+]
 
 
 @pytest.fixture(scope="session")
@@ -116,6 +156,7 @@ def test_step_3_exports_frontend_graph_data(step_3_outputs: tuple[Path, Path]):
     assert len(payload["wars"]) > 0
     assert len(payload["graphsByWarId"]) > 0
     assert all(js_war_id_key(war["war_id"]) in payload["graphsByWarId"] for war in payload["wars"])
+    assert set(payload["graphsByWarId"]) == {js_war_id_key(war["war_id"]) for war in payload["wars"]}
 
     with duckdb.connect(str(db_path), read_only=True) as conn:
         assert scalar(conn, "select count(*) from final_wars where graph_json is not null") > 0
@@ -133,6 +174,16 @@ def test_step_3_frontend_graph_data_prunes_unavailable_descriptor_fields(step_3_
 
         assert all(not is_legacy_timeframe_field(field) for node in nodes for field in node)
         assert all(not is_legacy_timeframe_field(field) for link in links for field in link)
+        assert all(
+            number_or_none(node.get(timeframe, {}).get(field)) not in (-9, -8)
+            for node in nodes
+            for timeframe, field in descriptor_fields(node)
+        )
+        assert all(
+            number_or_none(link.get(timeframe, {}).get(field)) not in (-9, -8)
+            for link in links
+            for timeframe, field in descriptor_fields(link)
+        )
 
         for timeframe, field in node_fields:
             values = [number_or_none(node.get(timeframe, {}).get(field)) for node in nodes]
@@ -172,8 +223,8 @@ def test_step_3_applies_participant_null_and_conversion_rules(conn):
     select count(*)
     from participant_descriptives a
     join final_participants b on a.war_id = b.war_id
-                              and a.c_code = b.c_code
-                              and a.participant = b.participant
+                             and a.c_code = b.c_code
+                             and a.participant = b.participant
     where
         a.timeframe = 'First Year'
         and a.c_code > 0
@@ -186,8 +237,8 @@ def test_step_3_applies_participant_null_and_conversion_rules(conn):
     select count(*)
     from participant_descriptives a
     join final_participants b on a.war_id = b.war_id
-                              and a.c_code = b.c_code
-                              and a.participant = b.participant
+                             and a.c_code = b.c_code
+                             and a.participant = b.participant
     where
         a.timeframe = 'First Year'
         and a.c_code > 0
@@ -196,6 +247,45 @@ def test_step_3_applies_participant_null_and_conversion_rules(conn):
         and json_extract(b.descriptor_timeframes, '$.first_year.population')::double = a.population * 1000
     """
     assert scalar(conn, population_conversion_sql) > 0
+
+    money_flow_conversion_sql = """
+    select count(*)
+    from participant_descriptives a
+    join final_participants b on a.war_id = b.war_id
+                             and a.c_code = b.c_code
+                             and a.participant = b.participant
+    where
+        a.timeframe = 'All Years'
+        and a.money_flow_in is not null
+        and json_extract(b.descriptor_timeframes, '$.all_years.money_flow_in')::double = a.money_flow_in * 1000000
+    """
+    assert scalar(conn, money_flow_conversion_sql) > 0
+
+    military_personnel_conversion_sql = """
+    select count(*)
+    from participant_descriptives a
+    join final_participants b on a.war_id = b.war_id
+                             and a.c_code = b.c_code
+                             and a.participant = b.participant
+    where
+        a.timeframe = 'All Years'
+        and a.military_personnel is not null
+        and json_extract(b.descriptor_timeframes, '$.all_years.military_personnel')::double = a.military_personnel * 1000
+    """
+    assert scalar(conn, military_personnel_conversion_sql) > 0
+
+    co2_conversion_sql = """
+    select count(*)
+    from participant_descriptives a
+    join final_participants b on a.war_id = b.war_id
+                             and a.c_code = b.c_code
+                             and a.participant = b.participant
+    where
+        a.timeframe = 'All Years'
+        and a.co2_emissions_per_capita is not null
+        and json_extract(b.descriptor_timeframes, '$.all_years.co2_emissions_per_capita')::double = a.co2_emissions_per_capita
+    """
+    assert scalar(conn, co2_conversion_sql) > 0
 
     non_state_descriptor_sql = """
     select count(*)
@@ -217,9 +307,9 @@ def test_step_3_final_dyad_links_resolve_all_final_participants(conn):
         c.id target_id
     from final_dyads a
     left join final_participants b on a.war_id = b.war_id
-                                   and a.source = b.id
+                                  and a.source = b.id
     left join final_participants c on a.war_id = c.war_id
-                                   and a.target = c.id
+                                  and a.target = c.id
     where
         a.source is null
         or a.target is null
@@ -236,6 +326,42 @@ def test_step_3_final_dyad_links_resolve_all_final_participants(conn):
     )
 
 
+def test_step_3_final_dyads_preserve_unknown_non_state_descriptors(conn):
+    descriptor_columns = ", ".join(DYADIC_DESCRIPTOR_COLUMNS)
+    query = f"""
+    select
+        a.war_id,
+        a.c_code_a,
+        a.c_code_b,
+        a.participant_a,
+        a.participant_b,
+        b.timeframe,
+        b.field,
+        b.source_value,
+        json_extract(a.descriptor_timeframes, '$.' || lower(replace(b.timeframe, ' ', '_')) || '.' || b.field)::double exported_value
+    from dyadic_descriptives
+    unpivot include nulls (source_value for field in ({descriptor_columns})) b
+    join final_dyads a on a.war_id = b.war_id
+                      and a.c_code_a = b.c_code_a
+                      and a.c_code_b = b.c_code_b
+                      and a.participant_a = b.participant_a
+                      and a.participant_b = b.participant_b
+    where
+        (a.c_code_a <= 0 or a.c_code_b <= 0)
+        and b.source_value is null
+        and json_extract(a.descriptor_timeframes, '$.' || lower(replace(b.timeframe, ' ', '_')) || '.' || b.field)::double = 0
+    order by a.war_id, a.c_code_a, a.c_code_b, b.timeframe, b.field
+    limit 50
+    """
+    fail_if_detected_rows(
+        conn,
+        query,
+        "Final non-state dyad descriptors should preserve unknown values instead of filling zero.",
+        "non-state dyad descriptor nulls exported as zero",
+        {"source_value", "exported_value"},
+    )
+
+
 def test_step_3_final_participant_nodes_all_have_links(conn):
     unlinked_nodes_sql = """
     select
@@ -247,7 +373,7 @@ def test_step_3_final_participant_nodes_all_have_links(conn):
         a.side
     from final_participants a
     left join final_dyads b on a.war_id = b.war_id
-                            and a.id in (b.source, b.target)
+                           and a.id in (b.source, b.target)
     where b.war_id is null
     order by a.war_id, a.id
     """
@@ -262,17 +388,26 @@ def test_step_3_final_participant_nodes_all_have_links(conn):
 
 def test_step_3_materializes_valid_per_war_graph_json(conn):
     query = """
-    select graph_json
+    select
+        war_id,
+        total_participants,
+        total_dyads,
+        graph_json
     from final_wars
-    where war_id = 419
+    order by war_id
     """
-    graph_json = conn.execute(query).fetchone()[0]
-    graph = json.loads(graph_json)
+    rows = conn.execute(query).fetchall()
 
-    assert set(graph) == {"war", "nodes", "links"}
-    assert len(graph["war"]) == 1
-    assert len(graph["nodes"]) == scalar(conn, "select count(*) from final_participants where war_id = 419")
-    assert len(graph["links"]) == scalar(conn, "select count(*) from final_dyads where war_id = 419")
+    assert len(rows) > 0
+
+    for war_id, total_participants, total_dyads, graph_json in rows:
+        graph = json.loads(graph_json)
+
+        assert set(graph) == {"war", "nodes", "links"}
+        assert len(graph["war"]) == 1
+        assert graph["war"][0]["war_id"] == war_id
+        assert len(graph["nodes"]) == total_participants
+        assert len(graph["links"]) == total_dyads
 
 
 def js_war_id_key(value: float) -> str:

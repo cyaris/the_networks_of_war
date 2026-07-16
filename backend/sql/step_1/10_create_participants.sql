@@ -30,8 +30,8 @@ select
     max(a.battle_deaths_estimated_a) battle_deaths_estimated
 from dyads_after_mid a
 left join war_participants c on a.war_id = c.war_id
-                             and a.c_code_a = c.c_code
-                             and a.participant_a = c.participant
+                            and a.c_code_a = c.c_code
+                            and a.participant_a = c.participant
 where c.c_code is null
 group by 1, 2, 3),
 
@@ -43,10 +43,10 @@ select
     if(count(distinct if(c.side = 3, 3, 3 - c.side)) = 1, min(if(c.side = 3, 3, 3 - c.side)), null) side
 from participant_union a
 join dyads_after_mid b on a.war_id = b.war_id
-                       and a.c_code = b.c_code_a
+                      and a.c_code = b.c_code_a
 join participant_union c on b.war_id = c.war_id
-                         and b.c_code_b = c.c_code
-                         and c.side is not null
+                        and b.c_code_b = c.c_code
+                        and c.side is not null
 where a.side is null
 group by 1, 2),
 
@@ -59,10 +59,10 @@ select
     a.side
 from source_participant_side_adjustments a
 join source_file_versions b on a.source_key = b.source_key
-                            and a.source_version = b.source_version
+                           and a.source_version = b.source_version
 left join country_codes c on a.c_code = c.c_code
 left join participant_name_replacements d on c.c_code is null
-                                          and clean_text(a.participant) = d.source)
+                                         and clean_text(a.participant) = d.source)
 
 select
     a.war_id,
@@ -77,7 +77,7 @@ select
     a.battle_deaths_estimated
 from participant_union a
 left join side_assignments b on a.war_id = b.war_id
-                             and a.c_code = b.c_code
+                            and a.c_code = b.c_code
 left join source_side_adjustments c on a.war_id = c.war_id
-                                    and a.c_code = c.c_code
-                                    and a.participant = c.participant;
+                                   and a.c_code = c.c_code
+                                   and a.participant = c.participant;

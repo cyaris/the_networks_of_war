@@ -778,7 +778,7 @@ def test_source_adjusted_mid_war_id_relationships_are_applied(conn):
         a.war_id
     from source_interstate_mid_war_id_adjustments a
     join source_file_versions b on a.source_key = b.source_key
-                                and a.source_version = b.source_version
+                               and a.source_version = b.source_version
     order by 1, 2
     """
     actual_assignments = set(conn.execute(query).fetchall())
@@ -793,7 +793,7 @@ def test_source_adjusted_mid_war_id_relationships_are_applied(conn):
         a.war_type_id
     from source_interstate_war_metadata_adjustments a
     join source_file_versions b on a.source_key = b.source_key
-                                and a.source_version = b.source_version
+                               and a.source_version = b.source_version
     where a.war_id = 4182
     """
     actual_war_metadata = conn.execute(query).fetchone()
@@ -930,9 +930,9 @@ def test_source_adjustment_inserts_do_not_duplicate_existing_source_facts(conn):
         null side
     from source_interstate_mid_war_id_adjustments a
     join source_file_versions b on a.source_key = b.source_key
-                                and a.source_version = b.source_version
+                               and a.source_version = b.source_version
     join source_interstate_war_dyads c on a.disno = c.disno
-                                       and a.war_id = c.war_id
+                                      and a.war_id = c.war_id
     union all
     select
         'source_interstate_war_metadata_adjustments' adjustment_table,
@@ -944,10 +944,10 @@ def test_source_adjustment_inserts_do_not_duplicate_existing_source_facts(conn):
         null side
     from source_interstate_war_metadata_adjustments a
     join source_file_versions b on a.source_key = b.source_key
-                                and a.source_version = b.source_version
+                               and a.source_version = b.source_version
     join source_interstate_wars c on a.war_id = c.war_id
-                                  and a.war_name = c.war_name
-                                  and a.war_type_id = c.war_type_id
+                                 and a.war_name = c.war_name
+                                 and a.war_type_id = c.war_type_id
     union all
     select
         'source_interstate_war_dyad_adjustments' adjustment_table,
@@ -959,7 +959,7 @@ def test_source_adjustment_inserts_do_not_duplicate_existing_source_facts(conn):
         null side
     from source_interstate_war_dyad_adjustments a
     join source_file_versions b on a.source_key = b.source_key
-                                and a.source_version = b.source_version
+                               and a.source_version = b.source_version
     join source_interstate_war_dyads c on a.war_id = c.war_id
                                       and (
                                           (a.c_code_a = c.c_code_a and a.c_code_b = c.c_code_b)
@@ -976,9 +976,9 @@ def test_source_adjustment_inserts_do_not_duplicate_existing_source_facts(conn):
         a.side
     from source_participant_side_adjustments a
     join source_file_versions b on a.source_key = b.source_key
-                                and a.source_version = b.source_version
+                               and a.source_version = b.source_version
     join source_interstate_wars c on a.war_id = c.war_id
-                                  and a.c_code = c.c_code
+                                 and a.c_code = c.c_code
     left join participant_name_replacements d on clean_text(a.participant) = d.source
     left join participant_name_replacements e on clean_text(c.participant) = e.source
     where
@@ -1099,9 +1099,9 @@ def test_mid_dyads_do_not_duplicate_source_dyad_overlaps(conn):
         a.end_date
     from dyads_after_mid a
     join dyads_after_sources b on a.war_id = b.war_id
-                               and a.c_code_a = b.c_code_a
-                               and a.c_code_b = b.c_code_b
-                               and least(a.end_date, b.end_date) >= greatest(a.start_date, b.start_date)
+                              and a.c_code_a = b.c_code_a
+                              and a.c_code_b = b.c_code_b
+                              and least(a.end_date, b.end_date) >= greatest(a.start_date, b.start_date)
     where
         a.battle_deaths_estimated_a = 1
         or a.battle_deaths_estimated_b = 1
@@ -1379,6 +1379,35 @@ def test_dyads_apply_final_transformation_assumptions(conn):
         {"year", "start_date", "end_date"},
     )
 
+    dyad_year_coverage_sql = """
+    select
+        a.war_id,
+        a.c_code_a,
+        a.participant_a,
+        a.c_code_b,
+        a.participant_b,
+        extract(year from a.start_date)::integer start_year,
+        extract(year from a.end_date)::integer end_year,
+        extract(year from a.end_date)::integer - extract(year from a.start_date)::integer + 1 expected_years,
+        count(b.year) actual_years
+    from dyads a
+    left join dyad_years b on a.war_id = b.war_id
+                          and a.c_code_a = b.c_code_a
+                          and a.c_code_b = b.c_code_b
+                          and a.participant_a = b.participant_a
+                          and a.participant_b = b.participant_b
+    group by 1, 2, 3, 4, 5, 6, 7
+    having count(b.year) != extract(year from a.end_date)::integer - extract(year from a.start_date)::integer + 1
+    order by a.war_id, a.c_code_a, a.participant_a, a.c_code_b, a.participant_b
+    """
+    fail_if_detected_rows(
+        conn,
+        dyad_year_coverage_sql,
+        "Dyad years should cover every year in each dyad date span.",
+        "dyad year coverage gaps",
+        {"expected_years", "actual_years"},
+    )
+
     self_dyads_sql = """
     select
         war_id,
@@ -1429,10 +1458,10 @@ def test_dyads_apply_final_transformation_assumptions(conn):
         a.participant_b
     from dyads a
     join dyads b on a.war_id = b.war_id
-                 and a.c_code_a = b.c_code_b
-                 and a.participant_a = b.participant_b
-                 and a.c_code_b = b.c_code_a
-                 and a.participant_b = b.participant_a
+                and a.c_code_a = b.c_code_b
+                and a.participant_a = b.participant_b
+                and a.c_code_b = b.c_code_a
+                and a.participant_b = b.participant_a
     order by a.war_id, a.c_code_a, a.participant_a, a.c_code_b, a.participant_b
     """
     fail_if_detected_rows(

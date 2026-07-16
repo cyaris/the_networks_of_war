@@ -79,6 +79,11 @@ The frontend consumes ignored generated data at `frontend/src/lib/static/graphDa
 Generated graph rows include only descriptor fields that pass per-war availability checks, so the frontend does not
 receive fields that cannot be selected.
 
+When a node-size descriptor is selected, known zero values render at the minimum node radius and unknown or `null` values also
+shrink to the minimum radius with a `?` marker. The frontend should not impute unknown selected descriptor values to an
+average node size, because that can make missing data look like a real mid-sized value. The no-descriptor default still
+uses equal fallback sizing so the graph remains readable before a size field is selected.
+
 ## Data Layout
 
 Source data is downloaded into `backend/data/`, which is ignored by git. Each external source table gets its own

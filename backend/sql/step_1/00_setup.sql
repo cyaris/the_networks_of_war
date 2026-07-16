@@ -1,8 +1,8 @@
 create or replace table participant_name_replacements as
 
 select
-    clean_text(source) as source,
-    clean_text(replacement) as replacement
+    clean_text(source) "source",
+    clean_text(replacement) replacement
 from read_json_auto({participant_name_replacements_path})
 where
     clean_text(source) is not null

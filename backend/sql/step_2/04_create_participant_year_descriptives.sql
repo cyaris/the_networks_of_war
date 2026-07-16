@@ -68,6 +68,7 @@ select
     b.urban_population,
     b.urban_population_growth_rate,
     b.cinc_score,
+    b.co2_emissions_per_capita,
     b.land_mass_exchange_gain,
     b.population_exchange_gain,
     b.land_mass_exchange_loss,
@@ -78,7 +79,7 @@ select
     coalesce(c.concurrent_wars, 0) concurrent_wars
 from participant_years a
 left join country_year_descriptives b on a.c_code = b.c_code
-                                      and a.year = b.year
+                                     and a.year = b.year
 left join concurrent_wars c on a.c_code = c.c_code
-                            and a.year = c.year
+                           and a.year = c.year
 where a.c_code > 0;

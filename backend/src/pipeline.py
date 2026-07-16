@@ -73,13 +73,8 @@ class Pipeline(SourceDataPreparationMixin, DuckDBProcessesMixin):
             return
 
         logger.info("Updating/recreating frontend graph data.")
-        query = f"""
-        select
-            json_pretty(graph_data_json),
-            war_count
-        from ({render_sql("step_3/04_export_frontend_graph_data.sql", self.sql_context())})
-        """
-        graph_data_json, war_count = conn.execute(query).fetchone()
+        query = render_sql("step_3/04_export_frontend_graph_data.sql", self.sql_context())
+        _, war_count, graph_data_json = conn.execute(query).fetchone()
         logger.info("Graphs to be rewritten: %s", f"{war_count:,d}")
 
         self.frontend_data_path.parent.mkdir(parents=True, exist_ok=True)
