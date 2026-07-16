@@ -14,9 +14,9 @@
     { value: "last_year", label: "Last Year" },
     { value: "all_years", label: "All Years" },
   ]
-  const noTimeframeItemsMessage = "No timeframe fields available."
-  const noNodeSizeItemsMessage = "No node size fields available."
-  const noLinkDashItemsMessage = "No link dash fields available."
+  const noTimeframeItemsMessage = "No timeframe data available."
+  const noNodeSizeItemsMessage = "No node size data available."
+  const noLinkDashItemsMessage = "No link dash data available."
 
   function plural(value, noun) {
     return `${Number(value || 0).toLocaleString()} ${noun}${Number(value || 0) == 1 ? "" : "s"}`
