@@ -28,7 +28,12 @@
 - Prefer compact DuckDB SQL idioms: concise aliases without `as` unless the grammar requires it, postfix casts, unquoted identifiers unless required, and `group by`-based row deduplication instead of `select distinct`. Do not quote aliases such as `source` or `target` when DuckDB accepts them unquoted with explicit `as`. When an alias is a reserved word such as `year`, prefer a quoted alias without `as`, such as `clean_int(year) "year"`, if that is accepted by DuckDB. Aggregate forms such as `count(distinct ...)` are acceptable when distinctness belongs inside the aggregate.
 - Do not use a table alias in SQL queries that read from only one relation. Add aliases when the query joins multiple relations or otherwise needs them for disambiguation.
 - Use sequential single-letter table aliases in SQL joins: `a`, `b`, `c`, `d`, and so on. Avoid mnemonic or suffix aliases such as `cc`, `dy`, `x`, `y`, or `z`.
-- For multi-line join predicates, vertically align each subsequent `and` directly beneath the `on` keyword in the join line above it, with `and` starting in the same column as `on`.
+- For multi-line join predicates, keep the first predicate on the join line and align each subsequent `and` so its
+  predicate expression starts under the first predicate expression after `on`:
+  ```sql
+  left join table_b b on a.id = b.id
+                      and a.year = b.year
+  ```
 - In `where` and `having` boolean predicate lists, keep leading `and` or `or` on the same line as the predicate it introduces. Do not leave a boolean operator alone on its own line.
 - In numbered pipeline-stage SQL union blocks, order branches by the stage's source/table construction order. When a source or table contributes mirrored A/B branches, put the original non-flipped branch before the flipped branch for that same source or table.
 - Choose `union all` for additive source stacking when later logic handles deduplication or duplicates are meaningful. Use plain `union` only when set semantics are required at that exact point. Do not write `union distinct`.
