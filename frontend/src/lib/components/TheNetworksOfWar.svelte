@@ -788,7 +788,12 @@
               <div class="grid gap-3 md:grid-cols-3">
                 <div>
                   <div class="mb-1 text-sm font-extrabold text-[#596b64]">Timeframe</div>
-                  <Select items={availableTimeframeItems} bind:value={timeframeValue} clearable={false} />
+                  <Select
+                    items={availableTimeframeItems}
+                    bind:value={timeframeValue}
+                    clearable={false}
+                    disabled={availableTimeframeItems.length <= 1}
+                  />
                 </div>
                 <div>
                   <div class="mb-1 text-sm font-extrabold text-[#596b64]">Node Size</div>
