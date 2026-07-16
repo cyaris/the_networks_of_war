@@ -174,8 +174,7 @@ def test_step_3_applies_legacy_participant_fill_and_conversion_rules(conn):
                               and a.participant = b.participant
     where
         a.timeframe = 'First Year'
-        and
-        a.c_code > 0
+        and a.c_code > 0
         and a.money_flow_in is null
         and json_extract(b.descriptor_timeframes, '$.first_year.money_flow_in')::double = 0
     """
@@ -189,8 +188,7 @@ def test_step_3_applies_legacy_participant_fill_and_conversion_rules(conn):
                               and a.participant = b.participant
     where
         a.timeframe = 'First Year'
-        and
-        a.c_code > 0
+        and a.c_code > 0
         and a.population is not null
         and a.population not in (-9, -8)
         and json_extract(b.descriptor_timeframes, '$.first_year.population')::double = a.population * 1000
