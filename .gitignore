@@ -4,6 +4,7 @@ __pycache__/
 
 documentation
 backend/.venv/
+backend/.work/
 backend/data/
 backend/*.duckdb
 backend/*.duckdb.wal
