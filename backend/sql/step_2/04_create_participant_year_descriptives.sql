@@ -75,7 +75,7 @@ select
     b.refugees_originated,
     b.refugees_hosted,
     b.internally_displaced_persons,
-    c.concurrent_wars
+    coalesce(c.concurrent_wars, 0) concurrent_wars
 from participant_years a
 left join country_year_descriptives b on a.c_code = b.c_code
                                       and a.year = b.year

@@ -7,6 +7,9 @@
 - Split long README assumption sections into small, scannable subsections rather than maintaining one long bullet list.
 - For data-related questions, consult the relevant source documentation in `backend/data/` before concluding whether a
   source value, adjustment, or transformation is correct.
+- Preserve the semantic difference between `null` and zero in data transformations and frontend displays. Coalesce
+  missing values to `0` only when the source coverage or derivation makes the overall value known to be zero; keep
+  unknown values as `null` so the frontend can show them as unknown instead of silently displaying zero.
 - Treat `backend/data/<source_key>/` folder names as matching source-data table keys without the `source_` prefix; the
   corresponding raw source data and documentation live inside each folder.
 - Keep source adjustments minimal and only add values that downstream joins, corrections, or transformations actually

@@ -138,6 +138,8 @@
   }
 
   function numberValue(value) {
+    if (value == null || value === "") return null
+
     let parsed = Number(value)
 
     return Number.isFinite(parsed) ? parsed : null
@@ -442,8 +444,14 @@
     return value == null ? "Unknown" : value.toLocaleString()
   }
 
+  function displayNumber(value) {
+    let parsed = numberValue(value)
+
+    return parsed == null ? "Unknown" : parsed.toLocaleString()
+  }
+
   function linkHasDescriptor(link) {
-    return linkDescriptorValue?.value && Number(descriptorValue(link, linkDescriptorValue.value) || 0) > 0
+    return linkDescriptorValue?.value && (numberValue(descriptorValue(link, linkDescriptorValue.value)) ?? 0) > 0
   }
 
   function applyLegacySizing() {
@@ -903,7 +911,7 @@
                 >
                   <div class="font-extrabold">{tooltip.node.participant}</div>
                   <div class="text-[#50615b]">
-                    Battle Deaths: {Number(tooltip.node.battle_deaths || 0).toLocaleString()}
+                    Battle Deaths: {displayNumber(tooltip.node.battle_deaths)}
                   </div>
                   {#if nodeDescriptorValue?.value && nodeDescriptorValue.value != "battle_deaths"}
                     <div class="text-[#50615b]">

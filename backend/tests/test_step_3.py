@@ -166,7 +166,7 @@ def test_step_3_frontend_graph_data_omits_first_and_last_year_for_single_year_wa
         assert descriptor_keys <= {"all_years"}
 
 
-def test_step_3_applies_legacy_participant_fill_and_conversion_rules(conn):
+def test_step_3_applies_participant_null_and_conversion_rules(conn):
 
     state_null_fill_sql = """
     select count(*)
@@ -180,7 +180,7 @@ def test_step_3_applies_legacy_participant_fill_and_conversion_rules(conn):
         and a.money_flow_in is null
         and json_extract(b.descriptor_timeframes, '$.first_year.money_flow_in')::double = 0
     """
-    assert scalar(conn, state_null_fill_sql) > 0
+    assert scalar(conn, state_null_fill_sql) == 0
 
     population_conversion_sql = """
     select count(*)

@@ -208,6 +208,32 @@ def test_step_2_manifest_runs_descriptive_transformations(conn):
     assert not any(column.endswith(("_x", "_y", "_z")) for column in dyad_columns)
 
 
+def test_step_2_preserves_unknown_descriptive_values(conn):
+    displaced_population_unknown_sql = """
+    select
+        a.c_code,
+        a.year,
+        b.refugees_originated,
+        b.refugees_hosted,
+        b.internally_displaced_persons
+    from source_forcibly_displaced_populations a
+    join country_year_descriptives b on a.c_code = b.c_code
+                                     and a.year = b.year
+    where
+        a.source is null
+        and a.hosted_refugees is null
+        and a.internally_displaced_persons is null
+        and (
+            b.refugees_originated is not null
+            or b.refugees_hosted is not null
+            or b.internally_displaced_persons is not null
+        )
+    """
+    displaced_population_unknown_rows = conn.execute(displaced_population_unknown_sql).fetchall()
+
+    assert displaced_population_unknown_rows == []
+
+
 def test_step_2_source_metadata_files_match_known_downloads():
     metadata_by_key = {metadata["key"]: metadata for metadata in SOURCE_METADATA}
 

@@ -492,9 +492,10 @@ flowchart LR
 - Final dyads are deduplicated to one row per `war_id` and unordered participant pair. When duplicate spans exist, the
   final row keeps the earliest start date and latest end date from the unordered dyad pair.
 - `dyad_years` expands `dyads` into one row per year for years in the range `1500` through `2099`.
-- Step 3 final participant and dyad outputs apply final-fill rules while building `descriptor_timeframes`. Missing
-  descriptor values are filled as zero for COW-coded states and left `null` for non-state participants or dyads involving
-  non-state participants; COW unknown/not-applicable sentinels `-9` and `-8` become `null`.
+- Step 2 and Step 3 preserve the semantic difference between unknown values and known zeros. Missing descriptor values
+  stay `null` unless the source coverage or project derivation makes the value known to be zero, such as
+  `concurrent_wars` when no overlapping participant war exists. Source unknown/not-applicable sentinels such as `-9`
+  and `-8` become `null`, and the frontend displays null descriptor values as unknown rather than zero.
 - Step 3 participant outputs convert notebook-era unit-scaled fields while building `descriptor_timeframes`: trade money
   flows to dollars, NMC military/population and displacement counts to people, and iron/steel and energy figures to
   documented base units.

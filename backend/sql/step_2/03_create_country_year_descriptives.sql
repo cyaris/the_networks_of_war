@@ -7,7 +7,7 @@ terrorism_country_years as (
 select
     c.c_code,
     a.year,
-    sum(greatest(coalesce(a.killed, 0), 0)) terrorism_deaths
+    sum(if(a.killed >= 0, a.killed, null)) terrorism_deaths
 from source_global_terrorism_database a
 left join participant_name_replacements b on a.country_name = b.source
 left join source_country_codes c on if(a.country_name = 'Hong Kong' and a.year <= 1997, 'United Kingdom', coalesce(b.replacement, a.country_name)) = c.state_name
@@ -77,8 +77,8 @@ select
     year,
     c_code_a,
     c_code_b,
-    greatest(coalesce(flow_1, 0), 0) money_flow_in,
-    greatest(coalesce(flow_2, 0), 0) money_flow_out
+    if(flow_1 >= 0, flow_1, null) money_flow_in,
+    if(flow_2 >= 0, flow_2, null) money_flow_out
 from source_cow_trade_dyadic
 where flow_1 > 0 or flow_2 > 0
 group by 1, 2, 3, 4, 5
@@ -87,8 +87,8 @@ select
     year,
     c_code_b c_code_a,
     c_code_a c_code_b,
-    greatest(coalesce(flow_2, 0), 0) money_flow_in,
-    greatest(coalesce(flow_1, 0), 0) money_flow_out
+    if(flow_2 >= 0, flow_2, null) money_flow_in,
+    if(flow_1 >= 0, flow_1, null) money_flow_out
 from source_cow_trade_dyadic
 where flow_1 > 0 or flow_2 > 0
 group by 1, 2, 3, 4, 5),
@@ -98,8 +98,8 @@ dyadic_trade_country_years as (
 select
     year,
     c_code_a c_code,
-    sum(money_flow_in) money_flow_in,
-    sum(money_flow_out) money_flow_out,
+    if(count(*) filter (where money_flow_in is null) > 0, null, sum(money_flow_in)) money_flow_in,
+    if(count(*) filter (where money_flow_out is null) > 0, null, sum(money_flow_out)) money_flow_out,
     count(distinct c_code_b) trade_countries
 from dyadic_trade_country_year_rows
 group by 1, 2),
@@ -109,10 +109,9 @@ national_trade_country_years as (
 select
     year,
     c_code,
-    sum(greatest(coalesce(imports, 0), 0)) imports,
-    sum(greatest(coalesce(exports, 0), 0)) exports
+    if(count(*) filter (where imports is null or imports < 0) > 0, null, sum(greatest(imports, 0))) imports,
+    if(count(*) filter (where exports is null or exports < 0) > 0, null, sum(greatest(exports, 0))) exports
 from source_cow_trade_national
-where imports > 0 or exports > 0
 group by 1, 2),
 
 national_capability_country_years as (
@@ -136,20 +135,20 @@ territorial_change_country_year_rows as (
 select
     year,
     gainer c_code,
-    sum(greatest(coalesce(area, 0), 0)) land_mass_exchange_gain,
-    sum(greatest(coalesce(area, 0), 0)) * -1 land_mass_exchange_loss,
-    sum(greatest(coalesce(population, 0), 0)) population_exchange_gain,
-    sum(greatest(coalesce(population, 0), 0)) * -1 population_exchange_loss
+    if(count(*) filter (where area is null or area < 0) > 0, null, sum(greatest(area, 0))) land_mass_exchange_gain,
+    if(count(*) filter (where area is null or area < 0) > 0, null, sum(greatest(area, 0))) * -1 land_mass_exchange_loss,
+    if(count(*) filter (where population is null or population < 0) > 0, null, sum(greatest(population, 0))) population_exchange_gain,
+    if(count(*) filter (where population is null or population < 0) > 0, null, sum(greatest(population, 0))) * -1 population_exchange_loss
 from source_territorial_changes
 group by 1, 2
 union
 select
     year,
     loser c_code,
-    sum(greatest(coalesce(area, 0), 0)) * -1 land_mass_exchange_gain,
-    sum(greatest(coalesce(area, 0), 0)) land_mass_exchange_loss,
-    sum(greatest(coalesce(population, 0), 0)) * -1 population_exchange_gain,
-    sum(greatest(coalesce(population, 0), 0)) population_exchange_loss
+    if(count(*) filter (where area is null or area < 0) > 0, null, sum(greatest(area, 0))) * -1 land_mass_exchange_gain,
+    if(count(*) filter (where area is null or area < 0) > 0, null, sum(greatest(area, 0))) land_mass_exchange_loss,
+    if(count(*) filter (where population is null or population < 0) > 0, null, sum(greatest(population, 0))) * -1 population_exchange_gain,
+    if(count(*) filter (where population is null or population < 0) > 0, null, sum(greatest(population, 0))) population_exchange_loss
 from source_territorial_changes
 group by 1, 2),
 
@@ -170,9 +169,9 @@ displaced_population_country_years as (
 select
     year,
     c_code,
-    sum(coalesce(source, 0)) refugees_originated,
-    sum(coalesce(hosted_refugees, 0)) refugees_hosted,
-    sum(coalesce(internally_displaced_persons, 0)) internally_displaced_persons
+    if(count(*) filter (where source is null) > 0, null, sum(source)) refugees_originated,
+    if(count(*) filter (where hosted_refugees is null) > 0, null, sum(hosted_refugees)) refugees_hosted,
+    if(count(*) filter (where internally_displaced_persons is null) > 0, null, sum(internally_displaced_persons)) internally_displaced_persons
 from source_forcibly_displaced_populations
 group by 1, 2),
 
