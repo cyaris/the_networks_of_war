@@ -95,9 +95,9 @@ unknown selected descriptor values; if many nodes are unknown, per-node markers 
 displays the selected descriptor as `Unknown`. The no-descriptor default still uses equal fallback sizing so the graph
 remains readable before a size field is selected.
 
-Tooltip numbers are rounded to two decimal places. Values of at least one million are shortened to readable million,
-billion, or trillion labels without showing the full underlying value. For example, `1,400,000` displays as
-`1.40 million`, `1,400,010` also displays as `1.40 million`, and `56,546,000,000` displays as `56.55 billion`. Smaller
+Tooltip numbers are rounded to at most two decimal places. Values of at least one million are shortened to readable
+million, billion, or trillion labels without showing the full underlying value. For example, `1,400,000` displays as
+`1.4 million`, `1,400,010` also displays as `1.4 million`, and `56,546,000,000` displays as `56.55 billion`. Smaller
 values continue to display in comma-separated form.
 
 ## Data Layout
