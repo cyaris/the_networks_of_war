@@ -84,6 +84,11 @@ The frontend consumes ignored generated data at `frontend/src/lib/static/graphDa
 Generated graph rows include only descriptor fields that pass per-war availability checks, so the frontend receives
 only selectable fields.
 
+The graph metric data dictionary lives at
+[`frontend/src/lib/static/metricDataDictionary.json`](frontend/src/lib/static/metricDataDictionary.json). It is written
+for non-technical users and records each graph metric's source organization or study, high-level calculation, and display
+unit. Keep this file aligned with backend metric changes and with any README metric summaries.
+
 When a node-size descriptor is selected, known zero values render at the minimum node radius and unknown or `null`
 values also shrink to the minimum radius. A small `?` marker is shown beside node labels only when there are a few
 unknown selected descriptor values; if many nodes are unknown, per-node markers are suppressed and the tooltip still
@@ -527,9 +532,9 @@ Those anchors are then linked to every overlapping participant on the opposite s
   stay `null` unless the source coverage or project derivation makes the value known to be zero, such as
   `concurrent_wars` when no overlapping participant war exists. Source unknown/not-applicable codes such as `-9`
   and `-8` become `null`, and the frontend displays `null` descriptor values as unknown rather than zero.
-- Step 3 participant outputs convert notebook-era unit-scaled fields while building `descriptor_timeframes`: trade money
-  flows to dollars, NMC military/population and displacement counts to people, and iron/steel and energy figures to
-  documented base units.
+- Step 3 participant outputs convert notebook-era unit-scaled fields while building `descriptor_timeframes`: COW trade
+  currency values from millions to dollars; NMC military expenditure, military personnel, population, iron/steel, and
+  energy values from thousands to base units; and displacement counts from thousands to people.
 - Step 3 prunes unavailable graph descriptor fields per war while building `final_participants` and `final_dyads`. Node
   descriptor fields are kept only when they have a positive maximum value, fewer than half `null` values, and more than
   one coalesced value after treating `null` values as zero. Link descriptor fields are kept only when at least one dyad has a

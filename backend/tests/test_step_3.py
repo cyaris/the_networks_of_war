@@ -262,6 +262,19 @@ def test_step_3_applies_participant_null_and_conversion_rules(conn):
     """
     assert scalar(conn, money_flow_conversion_sql) > 0
 
+    imports_conversion_sql = """
+    select count(*)
+    from participant_descriptives a
+    join final_participants b on a.war_id = b.war_id
+                             and a.c_code = b.c_code
+                             and a.participant = b.participant
+    where
+        a.timeframe = 'All Years'
+        and a.imports is not null
+        and json_extract(b.descriptor_timeframes, '$.all_years.imports')::double = a.imports * 1000000
+    """
+    assert scalar(conn, imports_conversion_sql) > 0
+
     military_personnel_conversion_sql = """
     select count(*)
     from participant_descriptives a
@@ -274,6 +287,32 @@ def test_step_3_applies_participant_null_and_conversion_rules(conn):
         and json_extract(b.descriptor_timeframes, '$.all_years.military_personnel')::double = a.military_personnel * 1000
     """
     assert scalar(conn, military_personnel_conversion_sql) > 0
+
+    iron_steel_conversion_sql = """
+    select count(*)
+    from participant_descriptives a
+    join final_participants b on a.war_id = b.war_id
+                             and a.c_code = b.c_code
+                             and a.participant = b.participant
+    where
+        a.timeframe = 'All Years'
+        and a.iron_steel_production is not null
+        and json_extract(b.descriptor_timeframes, '$.all_years.iron_steel_production')::double = a.iron_steel_production * 1000
+    """
+    assert scalar(conn, iron_steel_conversion_sql) > 0
+
+    energy_conversion_sql = """
+    select count(*)
+    from participant_descriptives a
+    join final_participants b on a.war_id = b.war_id
+                             and a.c_code = b.c_code
+                             and a.participant = b.participant
+    where
+        a.timeframe = 'All Years'
+        and a.energy_consumption is not null
+        and json_extract(b.descriptor_timeframes, '$.all_years.energy_consumption')::double = a.energy_consumption * 1000
+    """
+    assert scalar(conn, energy_conversion_sql) > 0
 
     co2_conversion_sql = """
     select count(*)

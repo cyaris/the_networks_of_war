@@ -44,10 +44,10 @@ select
     b.c_code,
     b.participant,
     c.timeframe,
-    if(columns('^(terrorism_deaths|mid_dyads|mid_dyads_initiated|mid_dyads_targeted|mid_dyads_joined|allied_countries|trade_countries|imports|exports|urban_population_growth_rate|cinc_score|arms_technologies_used|co2_emissions_per_capita|land_mass_exchange_gain|population_exchange_gain|land_mass_exchange_loss|population_exchange_loss|concurrent_wars)$') in (-9, -8), null, columns('^(terrorism_deaths|mid_dyads|mid_dyads_initiated|mid_dyads_targeted|mid_dyads_joined|allied_countries|trade_countries|imports|exports|urban_population_growth_rate|cinc_score|arms_technologies_used|co2_emissions_per_capita|land_mass_exchange_gain|population_exchange_gain|land_mass_exchange_loss|population_exchange_loss|concurrent_wars)$')),
-    if(columns('^(money_flow_in|money_flow_out)$') in (-9, -8), null, columns('^(money_flow_in|money_flow_out)$') * 1000000),
+    if(columns('^(terrorism_deaths|mid_dyads|mid_dyads_initiated|mid_dyads_targeted|mid_dyads_joined|allied_countries|trade_countries|urban_population_growth_rate|cinc_score|arms_technologies_used|co2_emissions_per_capita|land_mass_exchange_gain|population_exchange_gain|land_mass_exchange_loss|population_exchange_loss|concurrent_wars)$') in (-9, -8), null, columns('^(terrorism_deaths|mid_dyads|mid_dyads_initiated|mid_dyads_targeted|mid_dyads_joined|allied_countries|trade_countries|urban_population_growth_rate|cinc_score|arms_technologies_used|co2_emissions_per_capita|land_mass_exchange_gain|population_exchange_gain|land_mass_exchange_loss|population_exchange_loss|concurrent_wars)$')),
+    if(columns('^(money_flow_in|money_flow_out|imports|exports)$') in (-9, -8), null, columns('^(money_flow_in|money_flow_out|imports|exports)$') * 1000000),
     if(columns('^(military_expenditure|military_personnel|population|urban_population|refugees_originated|refugees_hosted|internally_displaced_persons)$') in (-9, -8), null, columns('^(military_expenditure|military_personnel|population|urban_population|refugees_originated|refugees_hosted|internally_displaced_persons)$') * 1000),
-    if(columns('^(iron_steel_production|energy_consumption)$') in (-9, -8), null, columns('^(iron_steel_production|energy_consumption)$') * 2000000)
+    if(columns('^(iron_steel_production|energy_consumption)$') in (-9, -8), null, columns('^(iron_steel_production|energy_consumption)$') * 1000)
 from participant_rows b
 join participant_timeframes c on b.war_id = c.war_id
 left join participant_descriptives a on b.war_id = a.war_id

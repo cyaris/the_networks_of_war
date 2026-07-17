@@ -2,9 +2,10 @@
   import { forceCenter, forceCollide, forceLink, forceManyBody, forceSimulation, forceX, forceY } from "d3-force"
   import { scaleLinear } from "d3-scale"
   import { onDestroy } from "svelte"
-  import { CheckboxFilter, Select } from "svelte-lib/components"
+  import { CheckboxFilter, InfoIcon, Select } from "svelte-lib/components"
 
   import graphData from "../static/graphData.json"
+  import dataDictionary from "../static/metricDataDictionary.json"
 
   let wars = graphData.wars
   let graphsByWarId = graphData.graphsByWarId
@@ -17,6 +18,8 @@
   const noTimeframeItemsMessage = "No timeframe data available."
   const noNodeSizeItemsMessage = "No node size data available."
   const noLinkDashItemsMessage = "No link dash data available."
+  const metricDictionary = dataDictionary.metrics || {}
+  const controlTooltips = dataDictionary.controls || {}
 
   function plural(value, noun) {
     return `${Number(value || 0).toLocaleString()} ${noun}${Number(value || 0) == 1 ? "" : "s"}`
@@ -212,13 +215,27 @@
 
     if (!unit) return displayExactNumber(value)
 
-    let roundedScaledValue = Math.round((value / unit.value) * 10 ** tooltipFractionDigits) / 10 ** tooltipFractionDigits
+    let roundedScaledValue =
+      Math.round((value / unit.value) * 10 ** tooltipFractionDigits) / 10 ** tooltipFractionDigits
     let compactValue = roundedScaledValue.toLocaleString("en-US", {
       minimumFractionDigits: tooltipFractionDigits,
       maximumFractionDigits: tooltipFractionDigits,
     })
 
     return `${compactValue} ${unit.label}`
+  }
+
+  function displayMetricNumber(value, field) {
+    let parsed = numberValue(value)
+
+    if (parsed == null) return "Unknown"
+
+    let metric = metricDictionary[field] || {}
+    let prefix = metric.valuePrefix || ""
+    let suffix = metric.valueSuffix || ""
+    let suffixSeparator = suffix && !suffix.startsWith("%") ? " " : ""
+
+    return `${prefix}${displayCompactNumber(parsed)}${suffix ? `${suffixSeparator}${suffix}` : ""}`
   }
 
   function coalescedUniqueValues(values) {
@@ -236,7 +253,21 @@
   }
 
   function fieldLabel(field) {
-    return field.replaceAll("_", " ").replace(/\b\w/g, value => value.toUpperCase())
+    return metricDictionary[field]?.label || field.replaceAll("_", " ").replace(/\b\w/g, value => value.toUpperCase())
+  }
+
+  function metricTooltip(field, fallback) {
+    let metric = metricDictionary[field]
+
+    if (!metric) return fallback
+
+    return [
+      `${metric.label}${metric.unit ? ` (${metric.unit})` : ""}`,
+      metric.source ? `Source: ${metric.source}` : "",
+      metric.calculation ? `Calculation: ${metric.calculation}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n\n")
   }
 
   function descriptorFields(rows, timeframe) {
@@ -246,7 +277,11 @@
   function descriptorItems(fields) {
     return fields
       .sort((a, b) => fieldLabel(a).localeCompare(fieldLabel(b)))
-      .map(field => ({ value: field, label: fieldLabel(field), secondaryLabel: field }))
+      .map(field => ({
+        value: field,
+        label: fieldLabel(field),
+        secondaryLabel: metricDictionary[field]?.unit || field,
+      }))
   }
 
   function descriptorValue(row, field, timeframe = timeframeValue?.value || "all_years") {
@@ -264,10 +299,13 @@
 
     if (field == "battle_deaths_per_day") {
       let totalDays = dateDays(node.start_date, Number(node.ongoing_war) == 1 ? null : node.end_date)
-      let daysAtWar = totalDays == null ? null : totalDays - (numberValue(descriptorValue(node, "days_not_at_war")) ?? 0)
+      let daysAtWar =
+        totalDays == null ? null : totalDays - (numberValue(descriptorValue(node, "days_not_at_war")) ?? 0)
       let battleDeaths = numberValue(descriptorValue(node, "battle_deaths")) ?? numberValue(node.battle_deaths)
 
-      return Number.isFinite(daysAtWar) && battleDeaths != null ? Math.round((battleDeaths / daysAtWar) * 100) / 100 : null
+      return Number.isFinite(daysAtWar) && battleDeaths != null
+        ? Math.round((battleDeaths / daysAtWar) * 100) / 100
+        : null
     }
 
     return numberValue(descriptorValue(node, field))
@@ -564,13 +602,11 @@
     let nodeSizing = nodeSizingById[node.id]
     let value = nodeSizing ? nodeSizing.value : nodeDescriptorNumericValue(node, nodeDescriptorValue.value)
 
-    return value == null ? "Unknown" : displayCompactNumber(value)
+    return displayMetricNumber(value, nodeDescriptorValue.value)
   }
 
-  function displayNumber(value) {
-    let parsed = numberValue(value)
-
-    return parsed == null ? "Unknown" : displayCompactNumber(parsed)
+  function displayNumber(value, field = null) {
+    return field ? displayMetricNumber(value, field) : displayMetricNumber(value, null)
   }
 
   function linkHasDescriptor(link) {
@@ -829,6 +865,12 @@
     !nodeDescriptorItems.length && !nodeDescriptorValue ? noNodeSizeItemsMessage : "Choose a node size."
   $: linkDescriptorPlaceholder =
     !linkDescriptorItems.length && !linkDescriptorValue ? noLinkDashItemsMessage : "Choose a link dash."
+  $: nodeDescriptorTooltip = nodeDescriptorValue?.value
+    ? metricTooltip(nodeDescriptorValue.value, controlTooltips.node_size)
+    : controlTooltips.node_size
+  $: linkDescriptorTooltip = linkDescriptorValue?.value
+    ? metricTooltip(linkDescriptorValue.value, controlTooltips.link_dash)
+    : controlTooltips.link_dash
   $: sizingSignature = `${timeframeValue?.value || "all_years"}|${nodeDescriptorValue?.value || "none"}|${width}|${height}|${nodes.length}|${links.length}`
   $: if (nodes.length && sizingSignature != currentSizingSignature) {
     currentSizingSignature = sizingSignature
@@ -844,9 +886,9 @@
   $: unknownNodeSizeCount = Object.values(nodeSizingById).filter(sizing => sizing?.isUnknown).length
   $: showNodeSizeWarnings = Boolean(
     nodeDescriptorValue?.value &&
-      hasNodeSizeSignal &&
-      unknownNodeSizeCount > 0 &&
-      unknownNodeSizeCount <= maxVisibleNodeSizeWarnings
+    hasNodeSizeSignal &&
+    unknownNodeSizeCount > 0 &&
+    unknownNodeSizeCount <= maxVisibleNodeSizeWarnings
   )
   $: if (tooltip) {
     let point = clampTooltipCoordinates(tooltip.x, tooltip.y, tooltipBounds())
@@ -863,7 +905,11 @@
 </script>
 
 <svelte:window on:pointermove={drag} on:pointerup={endDrag} />
-<main class="flex h-full w-full flex-col items-center justify-center" bind:clientWidth={pageWidth}>
+<main
+  class="relative flex h-full w-full flex-col items-center justify-center"
+  bind:clientWidth={pageWidth}
+  data-svelte-lib-tooltip-root
+>
   <div class="px-8 py-12 text-center text-lg min-[1300px]:hidden">
     This visualization is best viewed on a larger screen. So, grab a computer and come back soon!
   </div>
@@ -889,7 +935,10 @@
           </div>
         </div>
         <div>
-          <div class="mb-1 text-sm font-extrabold text-[#596b64]">Country</div>
+          <div class="mb-1 flex items-center gap-2 text-sm font-extrabold text-[#596b64]">
+            Country
+            <InfoIcon title={controlTooltips.country} tooltipClasses="max-w-80" />
+          </div>
           <Select
             items={countryCodeItems}
             bind:value={selectedCountryCodeItem}
@@ -901,7 +950,10 @@
           />
         </div>
         <div>
-          <div class="mb-1 text-sm font-extrabold text-[#596b64]">War</div>
+          <div class="mb-1 flex items-center gap-2 text-sm font-extrabold text-[#596b64]">
+            War
+            <InfoIcon title={controlTooltips.war} tooltipClasses="max-w-80" />
+          </div>
           <Select
             items={warItems}
             bind:value={selectedWarItem}
@@ -946,7 +998,10 @@
             {#if nodes.length}
               <div class="grid gap-3 md:grid-cols-3">
                 <div>
-                  <div class="mb-1 text-sm font-extrabold text-[#596b64]">Timeframe</div>
+                  <div class="mb-1 flex items-center gap-2 text-sm font-extrabold text-[#596b64]">
+                    Timeframe
+                    <InfoIcon title={controlTooltips.timeframe} tooltipClasses="max-w-80" />
+                  </div>
                   <Select
                     items={availableTimeframeItems}
                     bind:value={timeframeValue}
@@ -957,7 +1012,10 @@
                   />
                 </div>
                 <div>
-                  <div class="mb-1 text-sm font-extrabold text-[#596b64]">Node Size</div>
+                  <div class="mb-1 flex items-center gap-2 text-sm font-extrabold text-[#596b64]">
+                    Node Size
+                    <InfoIcon title={nodeDescriptorTooltip} tooltipClasses="max-w-96" />
+                  </div>
                   <Select
                     items={nodeDescriptorItems}
                     bind:value={nodeDescriptorValue}
@@ -968,7 +1026,10 @@
                   />
                 </div>
                 <div>
-                  <div class="mb-1 text-sm font-extrabold text-[#596b64]">Link Dash</div>
+                  <div class="mb-1 flex items-center gap-2 text-sm font-extrabold text-[#596b64]">
+                    Link Dash
+                    <InfoIcon title={linkDescriptorTooltip} tooltipClasses="max-w-96" />
+                  </div>
                   <Select
                     items={linkDescriptorItems}
                     bind:value={linkDescriptorValue}
@@ -1083,7 +1144,7 @@
                 >
                   <div class="font-extrabold">{tooltip.node.participant}</div>
                   <div class="text-[#50615b]">
-                    Battle Deaths: {displayNumber(tooltip.node.battle_deaths)}
+                    Battle Deaths: {displayNumber(tooltip.node.battle_deaths, "battle_deaths")}
                   </div>
                   {#if nodeDescriptorValue?.value && nodeDescriptorValue.value != "battle_deaths"}
                     <div class="text-[#50615b]">

@@ -1,0 +1,544 @@
+{
+  "metadata": {
+    "description": "Plain-language data dictionary for the metrics used in the Networks of War graph.",
+    "timeframes": "The graph can show metrics from a war participant's first year, last year, or all available years in the selected war.",
+    "missingValues": "Unknown or not-applicable values stay unknown. They are not silently treated as zero unless the project can tell that zero is the correct value."
+  },
+  "controls": {
+    "country": "Filter the war list to conflicts that include the selected country. Some wars also include non-state participants, which remain visible after a war is selected.",
+    "war": "Choose the conflict network to display. The list follows the selected war-type and country filters.",
+    "timeframe": "Choose whether the metric describes the first year, last year, or all available years of the selected war.",
+    "node_size": "Choose a participant metric to scale node sizes. Larger values make larger nodes; unknown selected values are labeled Unknown in participant tooltips.",
+    "link_dash": "Choose a relationship metric to draw dashed blue links. A dashed link means that relationship is present for the pair in the selected timeframe."
+  },
+  "metrics": {
+    "terrorism_deaths": {
+      "label": "Terrorism Deaths",
+      "kind": "node",
+      "unit": "deaths",
+      "valueSuffix": "deaths",
+      "source": "START, Global Terrorism Database",
+      "calculation": "Counts people killed in terrorist incidents associated with the participant country, then averages those yearly counts across the selected timeframe."
+    },
+    "mid_dyads": {
+      "label": "MID Dyads",
+      "kind": "node",
+      "unit": "dyads",
+      "valueSuffix": "dyads",
+      "source": "Correlates of War, Militarized Interstate Disputes",
+      "calculation": "Counts distinct militarized dispute dyads involving the participant country, then averages those yearly counts across the selected timeframe."
+    },
+    "mid_dyads_initiated": {
+      "label": "MID Dyads Initiated",
+      "kind": "node",
+      "unit": "dyads",
+      "valueSuffix": "dyads",
+      "source": "Correlates of War, Militarized Interstate Disputes",
+      "calculation": "Counts distinct militarized dispute dyads where the participant country is coded as an initiator, then averages those yearly counts across the selected timeframe."
+    },
+    "mid_dyads_targeted": {
+      "label": "MID Dyads Targeted",
+      "kind": "node",
+      "unit": "dyads",
+      "valueSuffix": "dyads",
+      "source": "Correlates of War, Militarized Interstate Disputes",
+      "calculation": "Counts distinct militarized dispute dyads where the participant country is coded as a target, then averages those yearly counts across the selected timeframe."
+    },
+    "mid_dyads_joined": {
+      "label": "MID Dyads Joined",
+      "kind": "node",
+      "unit": "dyads",
+      "valueSuffix": "dyads",
+      "source": "Correlates of War, Militarized Interstate Disputes",
+      "calculation": "Counts distinct militarized dispute dyads where the participant country is coded as joining an existing dispute, then averages those yearly counts across the selected timeframe."
+    },
+    "allied_countries": {
+      "label": "Allied Countries",
+      "kind": "node",
+      "unit": "countries",
+      "valueSuffix": "countries",
+      "source": "Correlates of War, Formal Alliances",
+      "calculation": "Counts countries with a defense, neutrality, nonaggression, or entente alliance with the participant country, then averages those yearly counts across the selected timeframe."
+    },
+    "trade_countries": {
+      "label": "Trade Countries",
+      "kind": "node",
+      "unit": "countries",
+      "valueSuffix": "countries",
+      "source": "Correlates of War, Trade Data Set",
+      "calculation": "Counts countries that traded with the participant country in a year, then averages those yearly counts across the selected timeframe."
+    },
+    "money_flow_in": {
+      "label": "Money Flow In",
+      "kind": "node",
+      "unit": "current-year US dollars",
+      "valuePrefix": "$",
+      "source": "Correlates of War, Trade Data Set",
+      "calculation": "Sums imports into the participant country from its trade partners, then averages those yearly totals across the selected timeframe. The source reports millions of dollars; the graph displays dollars."
+    },
+    "money_flow_out": {
+      "label": "Money Flow Out",
+      "kind": "node",
+      "unit": "current-year US dollars",
+      "valuePrefix": "$",
+      "source": "Correlates of War, Trade Data Set",
+      "calculation": "Sums partner imports from the participant country, then averages those yearly totals across the selected timeframe. The source reports millions of dollars; the graph displays dollars."
+    },
+    "imports": {
+      "label": "Imports",
+      "kind": "node",
+      "unit": "current-year US dollars",
+      "valuePrefix": "$",
+      "source": "Correlates of War, Trade Data Set",
+      "calculation": "Uses the participant country's national import totals, then averages those yearly totals across the selected timeframe. The source reports millions of dollars; the graph displays dollars."
+    },
+    "exports": {
+      "label": "Exports",
+      "kind": "node",
+      "unit": "current-year US dollars",
+      "valuePrefix": "$",
+      "source": "Correlates of War, Trade Data Set",
+      "calculation": "Uses the participant country's national export totals, then averages those yearly totals across the selected timeframe. The source reports millions of dollars; the graph displays dollars."
+    },
+    "military_expenditure": {
+      "label": "Military Expenditure",
+      "kind": "node",
+      "unit": "historical currency units",
+      "valuePrefix": "£/$",
+      "source": "Correlates of War, National Material Capabilities",
+      "calculation": "Uses the participant country's military spending from the National Material Capabilities study, then averages yearly values across the selected timeframe. The source reports thousands of historical currency units; the graph displays single units. Values before 1914 are British pounds, and values from 1914 onward are US dollars."
+    },
+    "military_personnel": {
+      "label": "Military Personnel",
+      "kind": "node",
+      "unit": "people",
+      "valueSuffix": "people",
+      "source": "Correlates of War, National Material Capabilities",
+      "calculation": "Uses the participant country's active military personnel, then averages yearly values across the selected timeframe. The source reports thousands of people; the graph displays people."
+    },
+    "iron_steel_production": {
+      "label": "Iron And Steel Production",
+      "kind": "node",
+      "unit": "tons",
+      "valueSuffix": "tons",
+      "source": "Correlates of War, National Material Capabilities",
+      "calculation": "Uses the participant country's iron and steel production, then averages yearly values across the selected timeframe. The source reports thousands of tons; the graph displays tons."
+    },
+    "energy_consumption": {
+      "label": "Energy Consumption",
+      "kind": "node",
+      "unit": "coal-ton equivalents",
+      "valueSuffix": "coal-ton equivalents",
+      "source": "Correlates of War, National Material Capabilities",
+      "calculation": "Uses the participant country's primary energy consumption, then averages yearly values across the selected timeframe. The source reports thousands of coal-ton equivalents; the graph displays coal-ton equivalents."
+    },
+    "population": {
+      "label": "Population",
+      "kind": "node",
+      "unit": "people",
+      "valueSuffix": "people",
+      "source": "Correlates of War, National Material Capabilities",
+      "calculation": "Uses the participant country's total population, then averages yearly values across the selected timeframe. The source reports thousands of people; the graph displays people."
+    },
+    "urban_population": {
+      "label": "Urban Population",
+      "kind": "node",
+      "unit": "people",
+      "valueSuffix": "people",
+      "source": "Correlates of War, National Material Capabilities",
+      "calculation": "Uses the participant country's urban population, then averages yearly values across the selected timeframe. The source reports thousands of people; the graph displays people."
+    },
+    "urban_population_growth_rate": {
+      "label": "Urban Population Growth Rate",
+      "kind": "node",
+      "unit": "percent",
+      "valueSuffix": "%",
+      "source": "Correlates of War, National Material Capabilities",
+      "calculation": "Uses the participant country's urban population growth rate, then averages yearly values across the selected timeframe."
+    },
+    "cinc_score": {
+      "label": "CINC Score",
+      "kind": "node",
+      "unit": "index score",
+      "source": "Correlates of War, National Material Capabilities",
+      "calculation": "Calculates each country's share of the world total for six capability components: military spending, military personnel, iron and steel production, energy use, total population, and urban population. The six shares are averaged into one capability score."
+    },
+    "arms_technologies_used": {
+      "label": "Arms Technologies Used",
+      "kind": "node",
+      "unit": "technologies",
+      "valueSuffix": "technologies",
+      "source": "Correlates of War, Arms Technology Dataset",
+      "calculation": "Counts arms technologies used by the participant country in a year, excluding the source's aggregate total row, then averages those yearly counts across the selected timeframe."
+    },
+    "co2_emissions_per_capita": {
+      "label": "CO2 Emissions Per Capita",
+      "kind": "node",
+      "unit": "tonnes per person",
+      "valueSuffix": "t/person",
+      "source": "Our World in Data, CO2 Emissions Per Capita",
+      "calculation": "Uses fossil carbon dioxide emissions per person for the participant country, then averages yearly values across the selected timeframe. These figures exclude land-use change emissions."
+    },
+    "land_mass_exchange_gain": {
+      "label": "Land Mass Exchange Gain",
+      "kind": "node",
+      "unit": "square kilometers",
+      "valueSuffix": "km2",
+      "source": "Correlates of War, Territorial Change Dataset",
+      "calculation": "Sums territory gained by the participant country in a year, then averages yearly gains across the selected timeframe."
+    },
+    "population_exchange_gain": {
+      "label": "Population Exchange Gain",
+      "kind": "node",
+      "unit": "people",
+      "valueSuffix": "people",
+      "source": "Correlates of War, Territorial Change Dataset",
+      "calculation": "Sums the population living in territory gained by the participant country in a year, then averages yearly gains across the selected timeframe."
+    },
+    "land_mass_exchange_loss": {
+      "label": "Land Mass Exchange Loss",
+      "kind": "node",
+      "unit": "square kilometers",
+      "valueSuffix": "km2",
+      "source": "Correlates of War, Territorial Change Dataset",
+      "calculation": "Sums territory lost by the participant country in a year, then averages yearly losses across the selected timeframe."
+    },
+    "population_exchange_loss": {
+      "label": "Population Exchange Loss",
+      "kind": "node",
+      "unit": "people",
+      "valueSuffix": "people",
+      "source": "Correlates of War, Territorial Change Dataset",
+      "calculation": "Sums the population living in territory lost by the participant country in a year, then averages yearly losses across the selected timeframe."
+    },
+    "refugees_originated": {
+      "label": "Refugees Originated",
+      "kind": "node",
+      "unit": "people",
+      "valueSuffix": "people",
+      "source": "United States Committee for Refugees and Immigrants, Forcibly Displaced Populations",
+      "calculation": "Uses the number of refugees originating from the participant country, then averages yearly values across the selected timeframe. The source reports thousands of people; the graph displays people."
+    },
+    "refugees_hosted": {
+      "label": "Refugees Hosted",
+      "kind": "node",
+      "unit": "people",
+      "valueSuffix": "people",
+      "source": "United States Committee for Refugees and Immigrants, Forcibly Displaced Populations",
+      "calculation": "Uses the number of refugees hosted by the participant country, then averages yearly values across the selected timeframe. The source reports thousands of people; the graph displays people."
+    },
+    "internally_displaced_persons": {
+      "label": "Internally Displaced Persons",
+      "kind": "node",
+      "unit": "people",
+      "valueSuffix": "people",
+      "source": "United States Committee for Refugees and Immigrants, Forcibly Displaced Populations",
+      "calculation": "Uses the number of internally displaced people in the participant country, then averages yearly values across the selected timeframe. The source reports thousands of people; the graph displays people."
+    },
+    "concurrent_wars": {
+      "label": "Concurrent Wars",
+      "kind": "node",
+      "unit": "wars",
+      "valueSuffix": "wars",
+      "source": "Calculated from this project's war-participant data",
+      "calculation": "Counts how many other wars involved the same country in the same year, then averages those yearly counts across the selected timeframe."
+    },
+    "days_at_war": {
+      "label": "Days At War",
+      "kind": "node",
+      "unit": "days",
+      "valueSuffix": "days",
+      "source": "Calculated from this project's participant start and end dates",
+      "calculation": "Counts the inclusive number of days the participant is active in the war. For ongoing wars, the current date is used as the temporary end date."
+    },
+    "battle_deaths": {
+      "label": "Battle Deaths",
+      "kind": "node",
+      "unit": "deaths",
+      "valueSuffix": "deaths",
+      "source": "Correlates of War interstate, intra-state, extra-state, and dyadic war studies, with documented project adjustments",
+      "calculation": "Uses the participant's battle-death total from the war records. When a source provides only a range or category, the project uses its documented representative estimate."
+    },
+    "battle_deaths_per_day": {
+      "label": "Battle Deaths Per Day",
+      "kind": "node",
+      "unit": "deaths per day",
+      "valueSuffix": "deaths/day",
+      "source": "Calculated from this project's battle-death totals and participant date spans",
+      "calculation": "Divides participant battle deaths by days at war and rounds to two decimal places."
+    },
+    "territory_exchange": {
+      "label": "Territory Exchange",
+      "kind": "link",
+      "unit": "yes/no",
+      "source": "Correlates of War, Territorial Change Dataset",
+      "calculation": "Marks a pair when one country gained or lost territory to the other during the selected timeframe."
+    },
+    "colonial_contiguity": {
+      "label": "Colonial Contiguity",
+      "kind": "link",
+      "unit": "yes/no",
+      "source": "Correlates of War, Colonial Dependency Contiguity Dataset",
+      "calculation": "Marks a pair when the countries are connected through colonial dependency contiguity during the selected timeframe."
+    },
+    "contiguity": {
+      "label": "Contiguity",
+      "kind": "link",
+      "unit": "yes/no",
+      "source": "Correlates of War, Direct Contiguity Dataset",
+      "calculation": "Marks a pair when the countries share a direct land or sea contiguity relationship during the selected timeframe."
+    },
+    "alliance": {
+      "label": "Alliance",
+      "kind": "link",
+      "unit": "yes/no",
+      "source": "Correlates of War, Formal Alliances",
+      "calculation": "Marks a pair when the countries have a defense, neutrality, nonaggression, or entente alliance during the selected timeframe."
+    },
+    "defense_cooperation_agreements": {
+      "label": "Defense Cooperation Agreements",
+      "kind": "link",
+      "unit": "yes/no",
+      "source": "Defense Cooperation Agreement Dataset",
+      "calculation": "Marks a pair when the countries have a defense cooperation agreement during the selected timeframe."
+    },
+    "inter_governmental_organizations": {
+      "label": "Intergovernmental Organizations",
+      "kind": "link",
+      "unit": "yes/no",
+      "source": "Correlates of War, Intergovernmental Organizations Dataset",
+      "calculation": "Marks a pair when the countries share at least one intergovernmental organization membership during the selected timeframe."
+    },
+    "diplomatic_exchange": {
+      "label": "Diplomatic Exchange",
+      "kind": "link",
+      "unit": "yes/no",
+      "source": "Correlates of War, Diplomatic Exchange Dataset",
+      "calculation": "Marks a pair when the countries have a diplomatic exchange relationship during the selected timeframe."
+    },
+    "trade_relations": {
+      "label": "Trade Relations",
+      "kind": "link",
+      "unit": "yes/no",
+      "source": "Correlates of War, Trade Data Set",
+      "calculation": "Marks a pair when either country reports positive trade with the other during the selected timeframe."
+    },
+    "same_leader_type": {
+      "label": "Same Leader Type",
+      "kind": "link",
+      "unit": "yes/no",
+      "source": "Democracy and Dictatorship Revisited",
+      "calculation": "Marks a pair when both countries have the same broad leader-type profile during the selected timeframe."
+    },
+    "military_leaders": {
+      "label": "Military Leaders",
+      "kind": "link",
+      "unit": "yes/no",
+      "source": "Democracy and Dictatorship Revisited",
+      "calculation": "Marks a pair when both countries are led by military leaders during the selected timeframe."
+    },
+    "communist_leaders": {
+      "label": "Communist Leaders",
+      "kind": "link",
+      "unit": "yes/no",
+      "source": "Democracy and Dictatorship Revisited",
+      "calculation": "Marks a pair when both countries are led by communist leaders during the selected timeframe."
+    },
+    "royal_leaders": {
+      "label": "Royal Leaders",
+      "kind": "link",
+      "unit": "yes/no",
+      "source": "Democracy and Dictatorship Revisited",
+      "calculation": "Marks a pair when both countries are led by royal leaders during the selected timeframe."
+    },
+    "democratic_incumbent": {
+      "label": "Democratic Incumbent",
+      "kind": "link",
+      "unit": "yes/no",
+      "source": "Democracy and Dictatorship Revisited",
+      "calculation": "Marks a pair when both countries have democratically selected incumbents during the selected timeframe."
+    },
+    "unconstitutional_incumbent": {
+      "label": "Unconstitutional Incumbent",
+      "kind": "link",
+      "unit": "yes/no",
+      "source": "Democracy and Dictatorship Revisited",
+      "calculation": "Marks a pair when both countries have unconstitutional incumbents during the selected timeframe."
+    },
+    "democratic_regimes": {
+      "label": "Democratic Regimes",
+      "kind": "link",
+      "unit": "yes/no",
+      "source": "Democracy and Dictatorship Revisited",
+      "calculation": "Marks a pair when both countries are coded as democratic regimes during the selected timeframe."
+    },
+    "dictatorships": {
+      "label": "Dictatorships",
+      "kind": "link",
+      "unit": "yes/no",
+      "source": "Democracy and Dictatorship Revisited",
+      "calculation": "Marks a pair when both countries are coded as dictatorships during the selected timeframe."
+    },
+    "collective_leaderships": {
+      "label": "Collective Leaderships",
+      "kind": "link",
+      "unit": "yes/no",
+      "source": "Democracy and Dictatorship Revisited",
+      "calculation": "Marks a pair when both countries have collective leadership during the selected timeframe."
+    },
+    "direct_election": {
+      "label": "Direct Election",
+      "kind": "link",
+      "unit": "yes/no",
+      "source": "Democracy and Dictatorship Revisited",
+      "calculation": "Marks a pair when both countries choose leaders by direct election during the selected timeframe."
+    },
+    "indirect_election": {
+      "label": "Indirect Election",
+      "kind": "link",
+      "unit": "yes/no",
+      "source": "Democracy and Dictatorship Revisited",
+      "calculation": "Marks a pair when both countries choose leaders by indirect election during the selected timeframe."
+    },
+    "non_elected_leaders": {
+      "label": "Non-Elected Leaders",
+      "kind": "link",
+      "unit": "yes/no",
+      "source": "Democracy and Dictatorship Revisited",
+      "calculation": "Marks a pair when both countries have non-elected leaders during the selected timeframe."
+    },
+    "no_legislature": {
+      "label": "No Legislature",
+      "kind": "link",
+      "unit": "yes/no",
+      "source": "Democracy and Dictatorship Revisited",
+      "calculation": "Marks a pair when neither country has a legislature during the selected timeframe."
+    },
+    "non_elective_legislature": {
+      "label": "Non-Elective Legislature",
+      "kind": "link",
+      "unit": "yes/no",
+      "source": "Democracy and Dictatorship Revisited",
+      "calculation": "Marks a pair when both countries have non-elective legislatures during the selected timeframe."
+    },
+    "elective_legislature": {
+      "label": "Elective Legislature",
+      "kind": "link",
+      "unit": "yes/no",
+      "source": "Democracy and Dictatorship Revisited",
+      "calculation": "Marks a pair when both countries have elective legislatures during the selected timeframe."
+    },
+    "no_partisan_legislature_legal": {
+      "label": "No Partisan Legislature Legal",
+      "kind": "link",
+      "unit": "yes/no",
+      "source": "Democracy and Dictatorship Revisited",
+      "calculation": "Marks a pair when neither country legally allows partisan activity in the legislature during the selected timeframe."
+    },
+    "no_non_regime_legislature_parties_legal": {
+      "label": "No Non-Regime Legislature Parties Legal",
+      "kind": "link",
+      "unit": "yes/no",
+      "source": "Democracy and Dictatorship Revisited",
+      "calculation": "Marks a pair when both countries legally restrict legislature parties outside the ruling regime during the selected timeframe."
+    },
+    "multi_party_legislature_legal": {
+      "label": "Multi-Party Legislature Legal",
+      "kind": "link",
+      "unit": "yes/no",
+      "source": "Democracy and Dictatorship Revisited",
+      "calculation": "Marks a pair when both countries legally allow multi-party legislatures during the selected timeframe."
+    },
+    "all_parties_illegal": {
+      "label": "All Parties Illegal",
+      "kind": "link",
+      "unit": "yes/no",
+      "source": "Democracy and Dictatorship Revisited",
+      "calculation": "Marks a pair when all political parties are illegal in both countries during the selected timeframe."
+    },
+    "single_party_state_exists": {
+      "label": "Single-Party State Exists",
+      "kind": "link",
+      "unit": "yes/no",
+      "source": "Democracy and Dictatorship Revisited",
+      "calculation": "Marks a pair when both countries have single-party state systems during the selected timeframe."
+    },
+    "multi_party_state_exists": {
+      "label": "Multi-Party State Exists",
+      "kind": "link",
+      "unit": "yes/no",
+      "source": "Democracy and Dictatorship Revisited",
+      "calculation": "Marks a pair when both countries have multi-party state systems during the selected timeframe."
+    },
+    "no_parties_exist": {
+      "label": "No Parties Exist",
+      "kind": "link",
+      "unit": "yes/no",
+      "source": "Democracy and Dictatorship Revisited",
+      "calculation": "Marks a pair when no political parties exist in either country during the selected timeframe."
+    },
+    "one_party_exists": {
+      "label": "One Party Exists",
+      "kind": "link",
+      "unit": "yes/no",
+      "source": "Democracy and Dictatorship Revisited",
+      "calculation": "Marks a pair when one political party exists in both countries during the selected timeframe."
+    },
+    "no_non_regime_parties_exist": {
+      "label": "No Non-Regime Parties Exist",
+      "kind": "link",
+      "unit": "yes/no",
+      "source": "Democracy and Dictatorship Revisited",
+      "calculation": "Marks a pair when no parties outside the ruling regime exist in either country during the selected timeframe."
+    },
+    "leader_died": {
+      "label": "No Leader Death",
+      "kind": "link",
+      "unit": "yes/no",
+      "source": "Democracy and Dictatorship Revisited",
+      "calculation": "Marks a pair when neither country is coded with a leader death during the selected timeframe."
+    },
+    "new_leader": {
+      "label": "New Leader",
+      "kind": "link",
+      "unit": "yes/no",
+      "source": "Democracy and Dictatorship Revisited",
+      "calculation": "Marks a pair when both countries are coded with a new leader during the selected timeframe."
+    },
+    "transition_to_democracy": {
+      "label": "Transition To Democracy",
+      "kind": "link",
+      "unit": "yes/no",
+      "source": "Democracy and Dictatorship Revisited",
+      "calculation": "Marks a pair when both countries transition to democracy during the selected timeframe."
+    },
+    "transition_to_dictatorship": {
+      "label": "Transition To Dictatorship",
+      "kind": "link",
+      "unit": "yes/no",
+      "source": "Democracy and Dictatorship Revisited",
+      "calculation": "Marks a pair when both countries transition to dictatorship during the selected timeframe."
+    },
+    "atop": {
+      "label": "ATOP Alliance",
+      "kind": "link",
+      "unit": "yes/no",
+      "source": "Alliance Treaty Obligations and Provisions Project",
+      "calculation": "Marks a pair when the countries are linked by an alliance treaty in the ATOP study during the selected timeframe."
+    },
+    "mtops": {
+      "label": "MTOPS Territorial Claim",
+      "kind": "link",
+      "unit": "yes/no",
+      "source": "Issue Correlates of War, Militarized Territorial Claims",
+      "calculation": "Marks a pair when the countries have a militarized territorial claim relationship during the selected timeframe."
+    },
+    "shared_arms_technology": {
+      "label": "Shared Arms Technology",
+      "kind": "link",
+      "unit": "yes/no",
+      "source": "Correlates of War, Arms Technology Dataset",
+      "calculation": "Marks a pair when both countries use at least one of the same arms technologies during the selected timeframe."
+    }
+  }
+}

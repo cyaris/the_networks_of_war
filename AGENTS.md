@@ -4,6 +4,9 @@
 
 - Keep README link behavior intentional and consistent. Use standard Markdown links by default, and use HTML anchors with `target="_blank"` and `rel="noopener noreferrer"` only when links should explicitly open in a new tab.
 - Keep README pipeline command documentation in sync with `backend/src/pipeline.py` CLI parser behavior.
+- When backend metrics are added, removed, renamed, or recalculated, update
+  `frontend/src/lib/static/metricDataDictionary.json` in the same change. Keep README references and any README metric
+  summaries aligned with that JSON so users never see conflicting source, calculation, or unit descriptions.
 - Split long README assumption sections into small, scannable subsections rather than maintaining one long bullet list.
 - In Markdown files, always format the literal as `null`.
 - For data-related questions, consult the relevant source documentation in `backend/data/` before concluding whether a
