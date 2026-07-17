@@ -3,6 +3,7 @@
     "key": "country_codes",
     "file": "COW-country-codes.csv",
     "version": "unversioned",
+    "release_date": "2022-09-07",
     "downloads": [
       {
         "url": "https://correlatesofwar.org/wp-content/uploads/COW-country-codes.csv",
@@ -15,6 +16,7 @@
     "key": "extrastate_wars",
     "file": "Extra-StateWarData_v4.0.csv",
     "version": "4.0",
+    "release_date": "2011-12-08",
     "encoding": "cp1252",
     "downloads": [
       {
@@ -245,6 +247,7 @@
     "key": "interstate_mid_dyads",
     "file": "dyadic_mid_4.03.csv",
     "version": "4.03",
+    "release_date": "2025-04-06",
     "downloads": [
       {
         "url": "https://correlatesofwar.org/wp-content/uploads/dyadic_mid_4.03_update.zip",
@@ -257,6 +260,7 @@
     "key": "interstate_war_dyads",
     "file": "directed_dyadic_war.csv",
     "version": "unversioned",
+    "release_date": "2022-07-12",
     "downloads": [
       {
         "url": "https://correlatesofwar.org/wp-content/uploads/Dyadic-Interstate-War-Dataset.zip",
@@ -269,6 +273,7 @@
     "key": "interstate_wars",
     "file": "Inter-StateWarData_v4.0.csv",
     "version": "4.0",
+    "release_date": "2011-03-01",
     "downloads": [
       {
         "url": "https://correlatesofwar.org/wp-content/uploads/Inter-StateWarData_v4.0.csv",
@@ -316,6 +321,7 @@
     "key": "intrastate_wars",
     "file": "INTRA-STATE_State_participants v5.1 CSV.csv",
     "version": "5.1",
+    "release_date": "2020-04-06",
     "downloads": [
       {
         "url": "https://correlatesofwar.org/wp-content/uploads/Intra-State-Wars-v5.1.zip",

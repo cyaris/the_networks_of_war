@@ -62,6 +62,25 @@ SOURCE_DATE_PAIR_TABLES = [
     ("source_intrastate_wars", 4),
 ]
 
+SOURCE_TABLE_KEYS = {
+    "source_interstate_wars": "interstate_wars",
+    "source_interstate_war_dyads": "interstate_war_dyads",
+    "source_interstate_mid_dyads": "interstate_mid_dyads",
+    "source_extrastate_wars": "extrastate_wars",
+    "source_intrastate_wars": "intrastate_wars",
+}
+
+SOURCE_COW_CODE_COLUMNS = [
+    ("source_country_codes", ["c_code"]),
+    ("source_interstate_war_dyads", ["c_code_a", "c_code_b"]),
+    ("source_interstate_mid_dyads", ["c_code_a", "c_code_b"]),
+    ("source_extrastate_wars", ["c_code_a", "c_code_b"]),
+    ("source_interstate_wars", ["c_code"]),
+    ("source_intrastate_wars", ["c_code_a", "c_code_b"]),
+]
+
+SQL_ROOT = Path(__file__).resolve().parents[1] / "sql"
+
 RAW_SOURCE_DATE_COMPONENTS = [
     (
         "interstate_war_dyads",
@@ -103,8 +122,32 @@ RAW_SOURCE_DATE_COMPONENTS = [
 ]
 
 
-def test_negative_date_sentinels_are_cleaned_except_ongoing_end_year(conn):
-    query = """
+def test_war_transition_columns_stay_adjacent_in_sql():
+    violations = []
+
+    for sql_path in sorted(SQL_ROOT.rglob("*.sql")):
+        lines = sql_path.read_text().splitlines()
+
+        for index, line in enumerate(lines):
+            if "lagging_war" in line:
+                next_line = lines[index + 1] if index + 1 < len(lines) else ""
+                if "leading_war" not in next_line:
+                    violations.append(
+                        f"{sql_path.relative_to(SQL_ROOT)}:{index + 1} lagging_war not followed by leading_war"
+                    )
+
+            if "leading_war" in line:
+                previous_line = lines[index - 1] if index > 0 else ""
+                if "lagging_war" not in previous_line:
+                    violations.append(
+                        f"{sql_path.relative_to(SQL_ROOT)}:{index + 1} leading_war not preceded by lagging_war"
+                    )
+
+    assert violations == []
+
+
+def test_negative_date_special_codes_are_cleaned_except_ongoing_end_year(conn):
+    date_columns_sql = """
     select
         table_name,
         column_name
@@ -114,7 +157,7 @@ def test_negative_date_sentinels_are_cleaned_except_ongoing_end_year(conn):
         and regexp_matches(column_name, '^(start|end)_(day|month|year)_[0-9]+$')
     order by table_name, column_name
     """
-    date_columns = conn.execute(query).fetchall()
+    date_columns = conn.execute(date_columns_sql).fetchall()
     failures = []
 
     for table_name, column_name in date_columns:
@@ -144,7 +187,7 @@ def test_negative_date_sentinels_are_cleaned_except_ongoing_end_year(conn):
         )
 
     if failures:
-        fail_sql_check("Negative date sentinels should be cleaned except ongoing end years:", failures=failures)
+        fail_sql_check("Negative date special codes should be cleaned except ongoing end years:", failures=failures)
 
 
 @pytest.mark.parametrize(
@@ -158,6 +201,7 @@ def test_negative_date_sentinels_are_cleaned_except_ongoing_end_year(conn):
         ("clean_date_year(-7)", None),
         ("clean_end_year(-7)", -7),
         ("clean_end_year(-8)", None),
+        ("cow_end_date(-7, null, null, '2020-04-06'::date)", "2020-04-06"),
         ("ongoing_war(-7)", 1),
         ("ongoing_war(null)", 0),
         ("date_estimated(2012, null, 1)", 1),
@@ -225,25 +269,6 @@ def test_participant_name_replacements_are_unique_and_materialized(conn):
     actual_replacements = set(conn.execute(query).fetchall())
 
     assert actual_replacements == set(participant_name_replacements())
-
-
-def test_participant_name_replacements_do_not_duplicate_country_code_names(conn):
-    query = """
-    select
-        a.source,
-        a.replacement,
-        b.c_code
-    from participant_name_replacements a
-    join country_codes b on a.replacement = b.state_name
-    order by 1
-    """
-    fail_if_detected_rows(
-        conn,
-        query,
-        "Participant name replacements should not duplicate country-code names.",
-        "replacement targets matching country-code names",
-        {"replacement"},
-    )
 
 
 def test_shared_participant_replacement_targets_do_not_cross_country_codes(conn):
@@ -336,6 +361,32 @@ def test_expected_cow_code_fields_are_not_null(conn):
 
     if failures:
         fail_sql_check("Expected COW code fields should not be null:", failures=failures)
+
+
+def test_step_1_source_cow_code_fields_resolve_country_codes(conn):
+    for table_name, column_names in SOURCE_COW_CODE_COLUMNS:
+        for column_name in column_names:
+            unresolved_codes_sql = f"""
+            select
+                {table_name!r} table_name,
+                {column_name!r} column_name,
+                a.{sql_identifier(column_name)} c_code,
+                count(*) row_count
+            from {sql_identifier(table_name)} a
+            left join country_codes b on a.{sql_identifier(column_name)} = b.c_code
+            where
+                a.{sql_identifier(column_name)} > 0
+                and b.c_code is null
+            group by 1, 2, 3
+            order by 1, 2, 3
+            """
+            fail_if_detected_rows(
+                conn,
+                unresolved_codes_sql,
+                "Positive c_code/c_code_a/c_code_b values should resolve through country_codes.",
+                f"unresolved {table_name}.{column_name}",
+                {"c_code"},
+            )
 
 
 def test_coded_participant_names_come_from_country_codes(conn):
@@ -458,10 +509,19 @@ def test_source_resolved_date_pairs_do_not_start_after_they_end(conn):
         output_columns = ", ".join(
             sql_identifier(column_name) for column_name in output_column_allowlist if column_name in existing_columns
         )
+        source_key = SOURCE_TABLE_KEYS[table_name]
+        source_release_date = scalar(
+            conn,
+            f"""
+            select source_release_date
+            from source_file_versions
+            where source_key = '{source_key}'
+            """,
+        )
         date_pair_values_sql = ",\n            ".join([f"""(
                 {date_pair},
                 cow_date(start_year_{date_pair}, start_month_{date_pair}, start_day_{date_pair}, 1, 1),
-                cow_end_date(end_year_{date_pair}, end_month_{date_pair}, end_day_{date_pair})
+                cow_end_date(end_year_{date_pair}, end_month_{date_pair}, end_day_{date_pair}, '{source_release_date}'::date)
             )""" for date_pair in range(1, date_pair_count + 1)])
         flagged_rows_sql = f"""
         select
@@ -642,7 +702,7 @@ def test_source_transition_war_references_are_positive_or_null(conn):
 
 
 def test_source_interstate_war_dyad_data_entry_fixes_are_applied(conn):
-    query = """
+    start_date_fix_sql = """
     select
         start_month_1,
         start_year_1
@@ -653,9 +713,9 @@ def test_source_interstate_war_dyad_data_entry_fixes_are_applied(conn):
         and c_code_a = 2
         and c_code_b = 300
     """
-    assert conn.execute(query).fetchone() == (None, 1918)
+    assert conn.execute(start_date_fix_sql).fetchone() == (None, 1918)
 
-    query = """
+    end_year_fix_sql = """
     select end_year_1
     from source_interstate_war_dyads
     where
@@ -665,9 +725,9 @@ def test_source_interstate_war_dyad_data_entry_fixes_are_applied(conn):
         and c_code_b = 355
         and source_year = 1916
     """
-    assert scalar(conn, query) == 1918
+    assert scalar(conn, end_year_fix_sql) == 1918
 
-    query = """
+    battle_death_fix_sql = """
     select battle_deaths_a
     from source_interstate_war_dyads
     where
@@ -676,7 +736,7 @@ def test_source_interstate_war_dyad_data_entry_fixes_are_applied(conn):
         and c_code_a = 800
         and c_code_b = 710
     """
-    assert scalar(conn, query) == 5569
+    assert scalar(conn, battle_death_fix_sql) == 5569
 
 
 def test_source_interstate_mid_fatality_levels_are_converted_to_estimates(conn):
@@ -702,7 +762,7 @@ def test_source_interstate_mid_fatality_levels_are_converted_to_estimates(conn):
         {"battle_deaths_estimated_a", "battle_deaths_estimated_b"},
     )
 
-    query = """
+    estimates_sql = """
     select battle_deaths_estimated_a battle_deaths_estimated
     from source_interstate_mid_dyads
     where battle_deaths_estimated_a is not null
@@ -713,7 +773,7 @@ def test_source_interstate_mid_fatality_levels_are_converted_to_estimates(conn):
     where battle_deaths_estimated_b is not null
     group by 1
     """
-    actual_estimates = {row[0] for row in conn.execute(query).fetchall()}
+    actual_estimates = {row[0] for row in conn.execute(estimates_sql).fetchall()}
 
     assert actual_estimates == {0, 25, 100, 250, 500, 999, 1000}
 
@@ -761,31 +821,32 @@ def test_required_source_battle_death_fields_are_not_null(conn):
 
 
 def test_source_adjusted_mid_war_id_relationships_are_applied(conn):
-    query = """
+    source_file_version_sql = """
     select
         source_file,
-        source_version
+        source_version,
+        source_release_date
     from source_file_versions
     where source_key = 'interstate_mid_dyads'
     """
-    actual_source_file_version = conn.execute(query).fetchone()
+    actual_source_file_version = conn.execute(source_file_version_sql).fetchone()
 
-    assert actual_source_file_version == ("dyadic_mid_4.03.csv", "4.03")
+    assert actual_source_file_version == ("dyadic_mid_4.03.csv", "4.03", date(2025, 4, 6))
 
-    query = """
+    assignments_sql = """
     select
         a.disno,
         a.war_id
     from source_interstate_mid_war_id_adjustments a
     join source_file_versions b on a.source_key = b.source_key
-                               and a.source_version = b.source_version
+                                and a.source_version = b.source_version
     order by 1, 2
     """
-    actual_assignments = set(conn.execute(query).fetchall())
+    actual_assignments = set(conn.execute(assignments_sql).fetchall())
 
     assert actual_assignments == {(3582, 139), (3583, 139), (3585, 139), (4182, 4182), (4339, 905)}
 
-    query = """
+    war_metadata_sql = """
     select
         a.source_key,
         a.source_version,
@@ -793,10 +854,10 @@ def test_source_adjusted_mid_war_id_relationships_are_applied(conn):
         a.war_type_id
     from source_interstate_war_metadata_adjustments a
     join source_file_versions b on a.source_key = b.source_key
-                               and a.source_version = b.source_version
+                                and a.source_version = b.source_version
     where a.war_id = 4182
     """
-    actual_war_metadata = conn.execute(query).fetchone()
+    actual_war_metadata = conn.execute(war_metadata_sql).fetchone()
 
     assert actual_war_metadata == ("interstate_mid_dyads", "4.03", "Israeli–Hezbollah Conflict (South Lebanon)", 1)
 
@@ -843,7 +904,7 @@ def test_source_adjusted_mid_war_id_relationships_are_applied(conn):
         {"c_code_a", "c_code_b"},
     )
 
-    query = """
+    war_sql = """
     select
         war_name,
         war_type_id,
@@ -852,7 +913,7 @@ def test_source_adjusted_mid_war_id_relationships_are_applied(conn):
     from wars
     where war_id = 4182
     """
-    actual_war = conn.execute(query).fetchone()
+    actual_war = conn.execute(war_sql).fetchone()
 
     assert actual_war == ("Israeli–Hezbollah Conflict (South Lebanon)", 1, 2, 1)
 
@@ -873,7 +934,7 @@ def test_source_adjusted_mid_participant_side_assignments_are_applied(conn):
 
 
 def test_source_adjusted_interstate_war_dyads_are_applied(conn):
-    query = """
+    adjustments_sql = """
     select
         source_key,
         source_version,
@@ -885,19 +946,19 @@ def test_source_adjusted_interstate_war_dyads_are_applied(conn):
     from source_interstate_war_dyad_adjustments
     order by c_code_a, c_code_b
     """
-    actual_adjustments = conn.execute(query).fetchall()
+    actual_adjustments = conn.execute(adjustments_sql).fetchall()
 
     assert actual_adjustments == [
         ("interstate_war_dyads", "unversioned", 106, 740, 255, date(1914, 8, 23), date(1918, 11, 11)),
         ("interstate_war_dyads", "unversioned", 106, 740, 300, date(1914, 8, 23), date(1918, 11, 3)),
     ]
 
-    query = """
+    adjusted_dyads_sql = """
     select
         war_id,
         c_code_a,
-        participant_a,
         c_code_b,
+        participant_a,
         participant_b,
         start_date,
         end_date
@@ -910,11 +971,11 @@ def test_source_adjusted_interstate_war_dyads_are_applied(conn):
         )
     order by c_code_a, c_code_b
     """
-    actual_dyads = conn.execute(query).fetchall()
+    actual_dyads = conn.execute(adjusted_dyads_sql).fetchall()
 
     assert actual_dyads == [
-        (106, 255, "Germany", 740, "Japan", date(1914, 8, 23), date(1918, 11, 11)),
-        (106, 300, "Austria-Hungary", 740, "Japan", date(1914, 8, 23), date(1918, 11, 3)),
+        (106, 255, 740, "Germany", "Japan", date(1914, 8, 23), date(1918, 11, 11)),
+        (106, 300, 740, "Austria-Hungary", "Japan", date(1914, 8, 23), date(1918, 11, 3)),
     ]
 
 
@@ -930,9 +991,9 @@ def test_source_adjustment_inserts_do_not_duplicate_existing_source_facts(conn):
         null side
     from source_interstate_mid_war_id_adjustments a
     join source_file_versions b on a.source_key = b.source_key
-                               and a.source_version = b.source_version
+                                and a.source_version = b.source_version
     join source_interstate_war_dyads c on a.disno = c.disno
-                                      and a.war_id = c.war_id
+                                       and a.war_id = c.war_id
     union all
     select
         'source_interstate_war_metadata_adjustments' adjustment_table,
@@ -944,10 +1005,10 @@ def test_source_adjustment_inserts_do_not_duplicate_existing_source_facts(conn):
         null side
     from source_interstate_war_metadata_adjustments a
     join source_file_versions b on a.source_key = b.source_key
-                               and a.source_version = b.source_version
+                                and a.source_version = b.source_version
     join source_interstate_wars c on a.war_id = c.war_id
-                                 and a.war_name = c.war_name
-                                 and a.war_type_id = c.war_type_id
+                                  and a.war_name = c.war_name
+                                  and a.war_type_id = c.war_type_id
     union all
     select
         'source_interstate_war_dyad_adjustments' adjustment_table,
@@ -959,12 +1020,12 @@ def test_source_adjustment_inserts_do_not_duplicate_existing_source_facts(conn):
         null side
     from source_interstate_war_dyad_adjustments a
     join source_file_versions b on a.source_key = b.source_key
-                               and a.source_version = b.source_version
+                                and a.source_version = b.source_version
     join source_interstate_war_dyads c on a.war_id = c.war_id
-                                      and (
-                                          (a.c_code_a = c.c_code_a and a.c_code_b = c.c_code_b)
-                                          or (a.c_code_a = c.c_code_b and a.c_code_b = c.c_code_a)
-                                      )
+                                       and (
+                                           (a.c_code_a = c.c_code_a and a.c_code_b = c.c_code_b)
+                                           or (a.c_code_a = c.c_code_b and a.c_code_b = c.c_code_a)
+                                       )
     union all
     select
         'source_participant_side_adjustments' adjustment_table,
@@ -976,9 +1037,9 @@ def test_source_adjustment_inserts_do_not_duplicate_existing_source_facts(conn):
         a.side
     from source_participant_side_adjustments a
     join source_file_versions b on a.source_key = b.source_key
-                               and a.source_version = b.source_version
+                                and a.source_version = b.source_version
     join source_interstate_wars c on a.war_id = c.war_id
-                                 and a.c_code = c.c_code
+                                  and a.c_code = c.c_code
     left join participant_name_replacements d on clean_text(a.participant) = d.source
     left join participant_name_replacements e on clean_text(c.participant) = e.source
     where
@@ -1014,16 +1075,16 @@ def test_source_intrastate_war_data_entry_fixes_are_applied(conn):
         {"war_id"},
     )
 
-    query = """
+    start_years_sql = """
     select start_year_1
     from source_intrastate_wars
     where war_id = 976
     """
-    actual_start_years = {row[0] for row in conn.execute(query).fetchall()}
+    actual_start_years = {row[0] for row in conn.execute(start_years_sql).fetchall()}
 
     assert actual_start_years == {2011}
 
-    query = """
+    ongoing_end_years_sql = """
     select
         war_id,
         end_year_1
@@ -1031,7 +1092,7 @@ def test_source_intrastate_war_data_entry_fixes_are_applied(conn):
     where war_id in (942, 990.4, 991, 991.4, 992.5)
     order by 1
     """
-    actual_end_years = set(conn.execute(query).fetchall())
+    actual_end_years = set(conn.execute(ongoing_end_years_sql).fetchall())
 
     assert actual_end_years == {(942, -7), (990.4, -7), (991, -7), (991.4, -7), (992.5, -7)}
 
@@ -1099,9 +1160,9 @@ def test_mid_dyads_do_not_duplicate_source_dyad_overlaps(conn):
         a.end_date
     from dyads_after_mid a
     join dyads_after_sources b on a.war_id = b.war_id
-                              and a.c_code_a = b.c_code_a
-                              and a.c_code_b = b.c_code_b
-                              and least(a.end_date, b.end_date) >= greatest(a.start_date, b.start_date)
+                               and a.c_code_a = b.c_code_a
+                               and a.c_code_b = b.c_code_b
+                               and least(a.end_date, b.end_date) >= greatest(a.start_date, b.start_date)
     where
         a.battle_deaths_estimated_a = 1
         or a.battle_deaths_estimated_b = 1
@@ -1311,7 +1372,7 @@ def test_mid_dyads_resolve_all_mid_war_ids(conn):
         {"war_id"},
     )
 
-    query = """
+    adjusted_mid_dyads_sql = """
     select
         war_id,
         war_name,
@@ -1323,7 +1384,7 @@ def test_mid_dyads_resolve_all_mid_war_ids(conn):
     where war_id = 4182
     order by 1, 2, 3, 4, 5, 6
     """
-    actual_dyads = set(conn.execute(query).fetchall())
+    actual_dyads = set(conn.execute(adjusted_mid_dyads_sql).fetchall())
 
     assert actual_dyads == {
         (4182, "Israeli–Hezbollah Conflict (South Lebanon)", 660, 666, "Lebanon", "Israel"),
@@ -1336,8 +1397,8 @@ def test_dyads_apply_final_transformation_assumptions(conn):
     select
         war_id,
         c_code_a,
-        participant_a,
         c_code_b,
+        participant_a,
         participant_b
     from dyads
     where
@@ -1345,7 +1406,7 @@ def test_dyads_apply_final_transformation_assumptions(conn):
         or participant_b is null
         or participant_a = '-8'
         or participant_b = '-8'
-    order by war_id, c_code_a, participant_a, c_code_b, participant_b
+    order by war_id, c_code_a, c_code_b, participant_a, participant_b
     """
     fail_if_detected_rows(
         conn,
@@ -1359,8 +1420,8 @@ def test_dyads_apply_final_transformation_assumptions(conn):
     select
         war_id,
         c_code_a,
-        participant_a,
         c_code_b,
+        participant_a,
         participant_b,
         start_date,
         end_date,
@@ -1369,7 +1430,7 @@ def test_dyads_apply_final_transformation_assumptions(conn):
     where
         year < extract(year from start_date)::integer
         or year > extract(year from end_date)::integer
-    order by war_id, c_code_a, participant_a, c_code_b, participant_b, year
+    order by war_id, c_code_a, c_code_b, participant_a, participant_b, year
     """
     fail_if_detected_rows(
         conn,
@@ -1383,8 +1444,8 @@ def test_dyads_apply_final_transformation_assumptions(conn):
     select
         a.war_id,
         a.c_code_a,
-        a.participant_a,
         a.c_code_b,
+        a.participant_a,
         a.participant_b,
         extract(year from a.start_date)::integer start_year,
         extract(year from a.end_date)::integer end_year,
@@ -1392,13 +1453,13 @@ def test_dyads_apply_final_transformation_assumptions(conn):
         count(b.year) actual_years
     from dyads a
     left join dyad_years b on a.war_id = b.war_id
-                          and a.c_code_a = b.c_code_a
-                          and a.c_code_b = b.c_code_b
-                          and a.participant_a = b.participant_a
-                          and a.participant_b = b.participant_b
+                           and a.c_code_a = b.c_code_a
+                           and a.c_code_b = b.c_code_b
+                           and a.participant_a = b.participant_a
+                           and a.participant_b = b.participant_b
     group by 1, 2, 3, 4, 5, 6, 7
     having count(b.year) != extract(year from a.end_date)::integer - extract(year from a.start_date)::integer + 1
-    order by a.war_id, a.c_code_a, a.participant_a, a.c_code_b, a.participant_b
+    order by a.war_id, a.c_code_a, a.c_code_b, a.participant_a, a.participant_b
     """
     fail_if_detected_rows(
         conn,
@@ -1412,29 +1473,29 @@ def test_dyads_apply_final_transformation_assumptions(conn):
     select
         war_id,
         c_code_a,
-        participant_a,
         c_code_b,
+        participant_a,
         participant_b
     from dyads
     where
         c_code_a = c_code_b
         and participant_a = participant_b
-    order by war_id, c_code_a, participant_a
+    order by war_id, c_code_a, c_code_b, participant_a, participant_b
     """
     fail_if_detected_rows(
         conn,
         self_dyads_sql,
         "Dyads should not link participants to themselves.",
         "self dyads",
-        {"c_code_a", "participant_a", "c_code_b", "participant_b"},
+        {"c_code_a", "c_code_b", "participant_a", "participant_b"},
     )
 
-    query = """
+    duplicate_dyads_sql = """
     select
         war_id,
         c_code_a,
-        participant_a,
         c_code_b,
+        participant_a,
         participant_b
     from dyads
     group by 1, 2, 3, 4, 5
@@ -1443,33 +1504,33 @@ def test_dyads_apply_final_transformation_assumptions(conn):
     """
     fail_if_detected_rows(
         conn,
-        query,
+        duplicate_dyads_sql,
         "Dyads should be unique per war and participant pair.",
         "duplicate dyads",
-        {"war_id", "c_code_a", "participant_a", "c_code_b", "participant_b"},
+        {"war_id", "c_code_a", "c_code_b", "participant_a", "participant_b"},
     )
 
     mirrored_dyads_sql = """
     select
         a.war_id,
         a.c_code_a,
-        a.participant_a,
         a.c_code_b,
+        a.participant_a,
         a.participant_b
     from dyads a
     join dyads b on a.war_id = b.war_id
-                and a.c_code_a = b.c_code_b
-                and a.participant_a = b.participant_b
-                and a.c_code_b = b.c_code_a
-                and a.participant_b = b.participant_a
-    order by a.war_id, a.c_code_a, a.participant_a, a.c_code_b, a.participant_b
+                 and a.c_code_a = b.c_code_b
+                 and a.participant_a = b.participant_b
+                 and a.c_code_b = b.c_code_a
+                 and a.participant_b = b.participant_a
+    order by a.war_id, a.c_code_a, a.c_code_b, a.participant_a, a.participant_b
     """
     fail_if_detected_rows(
         conn,
         mirrored_dyads_sql,
         "Dyads should not retain mirrored participant pairs.",
         "mirrored dyads",
-        {"war_id", "c_code_a", "participant_a", "c_code_b", "participant_b"},
+        {"war_id", "c_code_a", "c_code_b", "participant_a", "participant_b"},
     )
     assert scalar(conn, "select sum(total_dyads) from wars") == scalar(conn, "select count(*) from dyads")
 

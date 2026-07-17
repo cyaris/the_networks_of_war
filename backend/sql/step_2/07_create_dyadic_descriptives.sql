@@ -45,7 +45,8 @@ select
     max(transition_to_democracy) transition_to_democracy,
     max(transition_to_dictatorship) transition_to_dictatorship,
     max(atop) atop,
-    max(mtops) mtops
+    max(mtops) mtops,
+    max(shared_arms_technology) shared_arms_technology
 from dyad_year_descriptives a
 join wars b on a.war_id = b.war_id
 where
@@ -98,7 +99,8 @@ select
     max(transition_to_democracy) transition_to_democracy,
     max(transition_to_dictatorship) transition_to_dictatorship,
     max(atop) atop,
-    max(mtops) mtops
+    max(mtops) mtops,
+    max(shared_arms_technology) shared_arms_technology
 from dyad_year_descriptives a
 join wars b on a.war_id = b.war_id
 where
@@ -151,6 +153,7 @@ select
     max(transition_to_democracy) transition_to_democracy,
     max(transition_to_dictatorship) transition_to_dictatorship,
     max(atop) atop,
-    max(mtops) mtops
+    max(mtops) mtops,
+    max(shared_arms_technology) shared_arms_technology
 from dyad_year_descriptives
 group by 1, 2, 3, 4, 5, 6, 7;

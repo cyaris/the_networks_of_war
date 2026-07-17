@@ -25,6 +25,7 @@
     "d3-force": "3",
     "d3-scale": "4",
     "linklocal": "^2.8.2",
+    "pluralize": "^8.0.0",
     "svelte": "4.2.20",
     "svelte-lib": "file:../../svelte-lib",
     "svelte-routing": "^2.3.0",

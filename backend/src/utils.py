@@ -29,6 +29,7 @@ class LoggerFormatter(logging.Formatter):
             fmt = "%(asctime)s %(levelname)s %(name)s %(funcName)s %(filename)s:%(lineno)d %(message)s"
 
         formatter = logging.Formatter(fmt=fmt, datefmt="%Y-%m-%d %H:%M:%S")
+
         return formatter.format(record)
 
 

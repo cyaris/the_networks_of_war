@@ -193,7 +193,6 @@ select
     clean_text(techtype) technology_type,
     clean_int(year) "year",
     clean_int("use") used,
-    clean_int(total_use) total_use,
     clean_number(version) source_version
 from read_csv_auto({arms_technology_path}, normalize_names = false, all_varchar = true);
 
@@ -321,6 +320,5 @@ select
     clean_int(upopanomalycode) urban_population_anomaly_code,
     clean_number(upopgrowth) urban_population_growth,
     clean_text(upopgrowthsource) urban_population_growth_source,
-    clean_number(cinc) composite_index_of_national_capability,
     clean_number(version) source_version
 from read_csv_auto({national_material_capabilities_path}, normalize_names = false, all_varchar = true);

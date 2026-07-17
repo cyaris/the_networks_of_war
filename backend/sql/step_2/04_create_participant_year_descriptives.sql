@@ -68,6 +68,7 @@ select
     b.urban_population,
     b.urban_population_growth_rate,
     b.cinc_score,
+    b.arms_technologies_used,
     b.co2_emissions_per_capita,
     b.land_mass_exchange_gain,
     b.population_exchange_gain,

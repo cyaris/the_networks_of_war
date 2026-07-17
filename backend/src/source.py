@@ -55,6 +55,10 @@ def sql_literal(value: str | Path) -> str:
     return "'" + str(value).replace("'", "''") + "'"
 
 
+def sql_nullable_literal(value: str | Path | None) -> str:
+    return "null" if value is None else sql_literal(value)
+
+
 @dataclass(frozen=True)
 class SourceDataIssue:
     source_key: str
@@ -115,6 +119,7 @@ class SourceDataPreparationMixin:
                         shutil.rmtree(target)
                     else:
                         target.unlink()
+
                 shutil.move(str(path), target)
 
     def extracted_file_path(self, source_dir: Path, filename: str) -> Path:
@@ -285,6 +290,7 @@ class SourceDataPreparationMixin:
             key = metadata["key"]
             context[f"{key}_source_file"] = sql_literal(Path(metadata["file"]).name)
             context[f"{key}_source_version"] = sql_literal(metadata["version"])
+            context[f"{key}_source_release_date"] = sql_nullable_literal(metadata.get("release_date"))
             for index, relative in enumerate(SOURCE_PREPARED_FILES[key], start=1):
                 context[f"{key}_path_{index}"] = sql_literal(self.prepared_path_for_file(key, relative))
 

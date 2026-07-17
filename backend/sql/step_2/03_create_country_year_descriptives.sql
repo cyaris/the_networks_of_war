@@ -114,7 +114,7 @@ select
 from source_cow_trade_national
 group by 1, 2),
 
-national_capability_country_years as (
+national_capability_country_year_rows as (
 
 select
     year,
@@ -125,21 +125,21 @@ select
     any_value(if(primary_energy_consumption in (-9, -8), null, primary_energy_consumption)) energy_consumption,
     any_value(if(total_population in (-9, -8), null, total_population)) population,
     any_value(if(urban_population in (-9, -8), null, urban_population)) urban_population,
-    any_value(if(urban_population_growth in (-9, -8), null, urban_population_growth)) urban_population_growth_rate,
-    any_value(if(composite_index_of_national_capability in (-9, -8), null, composite_index_of_national_capability)) cinc_score
+    any_value(if(urban_population_growth in (-9, -8), null, urban_population_growth)) urban_population_growth_rate
 from source_national_material_capabilities
 group by 1, 2),
 
-co2_country_name_replacements(source_name, state_name) as (
+arms_technology_country_years as (
 
-values
-        ('Cote d''Ivoire', 'Ivory Coast'),
-        ('Czechia', 'Czech Republic'),
-        ('Democratic Republic of Congo', 'Democratic Republic of the Congo'),
-        ('Eswatini', 'Swaziland'),
-        ('Micronesia (country)', 'Federated States of Micronesia'),
-        ('North Macedonia', 'Macedonia'),
-        ('United States', 'United States of America')),
+select
+    year,
+    c_code,
+    count(*) filter (where used in (1, 9)) arms_technologies_used
+from source_arms_technology
+where
+    c_code > 0
+    and technology_name != 'Adopted technologies'
+group by 1, 2),
 
 co2_country_years as (
 
@@ -148,8 +148,8 @@ select
     a.year,
     avg(a.co2_emissions_per_capita) co2_emissions_per_capita
 from source_co_emissions_per_capita a
-left join co2_country_name_replacements b on a.country_name = b.source_name
-join country_codes c on coalesce(b.state_name, a.country_name) = c.state_name
+left join participant_name_replacements b on a.country_name = b.source
+join country_codes c on coalesce(b.replacement, a.country_name) = c.state_name
 where a.co2_emissions_per_capita is not null
 group by 1, 2),
 
@@ -200,23 +200,55 @@ group by 1, 2),
 
 country_year_keys as (
 
-select c_code, year from terrorism_country_years
+select
+    c_code,
+    year
+from terrorism_country_years
 union
-select c_code, year from mid_country_years
+select
+    c_code,
+    year
+from mid_country_years
 union
-select c_code, year from alliance_country_years
+select
+    c_code,
+    year
+from alliance_country_years
 union
-select c_code, year from dyadic_trade_country_years
+select
+    c_code,
+    year
+from dyadic_trade_country_years
 union
-select c_code, year from national_trade_country_years
+select
+    c_code,
+    year
+from national_trade_country_years
 union
-select c_code, year from national_capability_country_years
+select
+    c_code,
+    year
+from national_capability_country_year_rows
 union
-select c_code, year from co2_country_years
+select
+    c_code,
+    year
+from arms_technology_country_years
 union
-select c_code, year from territorial_change_country_years
+select
+    c_code,
+    year
+from co2_country_years
 union
-select c_code, year from displaced_population_country_years)
+select
+    c_code,
+    year
+from territorial_change_country_years
+union
+select
+    c_code,
+    year
+from displaced_population_country_years)
 
 select
     a.c_code,
@@ -239,15 +271,16 @@ select
     g.population,
     g.urban_population,
     g.urban_population_growth_rate,
-    g.cinc_score,
-    h.co2_emissions_per_capita,
-    i.land_mass_exchange_gain,
-    i.population_exchange_gain,
-    i.land_mass_exchange_loss,
-    i.population_exchange_loss,
-    j.refugees_originated,
-    j.refugees_hosted,
-    j.internally_displaced_persons
+    if(g.military_expenditure is null or g.military_personnel is null or g.iron_steel_production is null or g.energy_consumption is null or g.population is null or g.urban_population is null, null, ((g.military_expenditure / nullif(sum(g.military_expenditure) over (partition by a.year), 0)) + (g.military_personnel / nullif(sum(g.military_personnel) over (partition by a.year), 0)) + (g.iron_steel_production / nullif(sum(g.iron_steel_production) over (partition by a.year), 0)) + (g.energy_consumption / nullif(sum(g.energy_consumption) over (partition by a.year), 0)) + (g.population / nullif(sum(g.population) over (partition by a.year), 0)) + (g.urban_population / nullif(sum(g.urban_population) over (partition by a.year), 0))) / 6) cinc_score,
+    h.arms_technologies_used,
+    i.co2_emissions_per_capita,
+    j.land_mass_exchange_gain,
+    j.population_exchange_gain,
+    j.land_mass_exchange_loss,
+    j.population_exchange_loss,
+    l.refugees_originated,
+    l.refugees_hosted,
+    l.internally_displaced_persons
 from country_year_keys a
 join country_codes k on a.c_code = k.c_code
 left join terrorism_country_years b on a.c_code = b.c_code
@@ -260,11 +293,13 @@ left join dyadic_trade_country_years e on a.c_code = e.c_code
                                        and a.year = e.year
 left join national_trade_country_years f on a.c_code = f.c_code
                                          and a.year = f.year
-left join national_capability_country_years g on a.c_code = g.c_code
-                                              and a.year = g.year
-left join co2_country_years h on a.c_code = h.c_code
-                              and a.year = h.year
-left join territorial_change_country_years i on a.c_code = i.c_code
-                                             and a.year = i.year
-left join displaced_population_country_years j on a.c_code = j.c_code
-                                               and a.year = j.year;
+left join national_capability_country_year_rows g on a.c_code = g.c_code
+                                                  and a.year = g.year
+left join arms_technology_country_years h on a.c_code = h.c_code
+                                          and a.year = h.year
+left join co2_country_years i on a.c_code = i.c_code
+                              and a.year = i.year
+left join territorial_change_country_years j on a.c_code = j.c_code
+                                             and a.year = j.year
+left join displaced_population_country_years l on a.c_code = l.c_code
+                                               and a.year = l.year;

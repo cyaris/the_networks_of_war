@@ -1,10 +1,12 @@
 <script>
   import { forceCenter, forceCollide, forceLink, forceManyBody, forceSimulation, forceX, forceY } from "d3-force"
   import { scaleLinear } from "d3-scale"
+  import pluralize from "pluralize"
   import { onDestroy } from "svelte"
-  import { Select } from "svelte-lib/components"
+  import { CheckboxFilter, InfoIcon, Select } from "svelte-lib/components"
 
   import graphData from "../static/graphData.json"
+  import dataDictionary from "../static/metricDataDictionary.json"
 
   let wars = graphData.wars
   let graphsByWarId = graphData.graphsByWarId
@@ -12,14 +14,18 @@
   const timeframeItems = [
     { value: "first_year", label: "First Year" },
     { value: "last_year", label: "Last Year" },
-    { value: "all_years", label: "All Years" },
+    { value: "all_years", label: "All Years" }
   ]
   const noTimeframeItemsMessage = "No timeframe data available."
   const noNodeSizeItemsMessage = "No node size data available."
   const noLinkDashItemsMessage = "No link dash data available."
+  const metricDictionary = dataDictionary.metrics || {}
+  const controlTooltips = dataDictionary.controls || {}
 
   function plural(value, noun) {
-    return `${Number(value || 0).toLocaleString()} ${noun}${Number(value || 0) == 1 ? "" : "s"}`
+    let parsed = Number(value || 0)
+
+    return `${parsed.toLocaleString()} ${pluralize(noun, parsed)}`
   }
 
   function warSecondaryLabel(war) {
@@ -45,14 +51,64 @@
     return items.find(item => item.linkDashFieldCount > 0) || items[0]
   }
 
+  function emptyNodeMargins() {
+    return {
+      name: {},
+      radius_size: {},
+      vertical_name_shift: {},
+      name_fits_in_node: {},
+      horizontal_name_shift: {},
+      name_lengths: {},
+      added_top_margin: {},
+      added_bottom_margin: {},
+      added_left_margin: {},
+      added_right_margin: {}
+    }
+  }
+
+  let countryFiltersByCCode = {}
+
+  Object.values(graphsByWarId).forEach(graph => {
+    let graphNodes = graph.nodes || []
+
+    graphNodes.forEach(node => {
+      if (Number(node.c_code) <= 0) return
+
+      let cCode = String(node.c_code)
+
+      if (!countryFiltersByCCode[cCode]) {
+        countryFiltersByCCode[cCode] = { c_code: node.c_code, names: new Set(), warIds: new Set() }
+      }
+
+      countryFiltersByCCode[cCode].names.add(node.participant)
+      countryFiltersByCCode[cCode].warIds.add(String(node.war_id))
+    })
+  })
+
   let linkDashFieldCountsByWarId = Object.fromEntries(wars.map(war => [String(war.war_id), linkDashFieldCount(war)]))
   let warTypeItems = Array.from(new Set(wars.map(war => war.war_type)))
     .sort()
     .map(warType => ({
       value: warType,
-      label: warType,
+      label: warType
     }))
-  let selectedWarTypes = [...warTypeItems]
+  let countryCodeItems = Object.values(countryFiltersByCCode)
+    .map(country => {
+      let label = Array.from(country.names).sort((a, b) => a.localeCompare(b))[0]
+
+      return {
+        value: String(country.c_code),
+        label,
+        selectedLabel: label,
+        secondaryLabel: plural(country.warIds.size, "war"),
+        c_code: country.c_code,
+        warIds: country.warIds
+      }
+    })
+    .sort((a, b) => a.label.localeCompare(b.label))
+  let selectedWarTypes = warTypeItems.map(item => item.value)
+  let deselectedWarTypes = []
+  let selectedCountryCodeItem = null
   let selectedWarItem = null
   let graph = { nodes: [], links: [] }
   let selectedWar = null
@@ -77,7 +133,8 @@
   let currentLinkDescriptorSignature = null
   let linkDashPulseTimer = null
   let linkDashStrokeWidth = 3
-  let nodeDescriptiveValues = []
+  let nodeSizingValues = []
+  let nodeSizingById = {}
   let maxDomain = 2
   let stdNullRadiusSize = 1
   let nodeMargins = emptyNodeMargins()
@@ -88,13 +145,48 @@
   const height = 700
   const minRadiusSize = 1
   const maxRadiusSize = 125
+  const dyadMinLinkDistance = 380
   const linkNodeSize = 2.5
   const nodeStrokeWidth = 1
   const nodeSizeWarningOffset = 10
+  const nodeSizeWarningLabelGap = 14
+  const maxVisibleNodeSizeWarnings = 6
   const graphCenterY = height * 0.5
   const addedMarginSize = Math.max(linkNodeSize, 10)
   const tooltipOffset = 16
   const tooltipPadding = 8
+  const compactNumberUnits = [
+    { value: 1_000_000_000_000, label: "trillion" },
+    { value: 1_000_000_000, label: "billion" },
+    { value: 1_000_000, label: "million" }
+  ]
+  const compactNumberMinimum = 1_000_000
+  const tooltipFractionDigits = 2
+  const alwaysShowZeroMetricFields = new Set(["battle_deaths", "battle_deaths_per_day"])
+  const metricSuffixOmittedByField = new Set([
+    "allied_countries",
+    "arms_technologies_used",
+    "battle_deaths",
+    "concurrent_wars",
+    "days_at_war",
+    "mid_dyads",
+    "mid_dyads_initiated",
+    "mid_dyads_joined",
+    "mid_dyads_targeted",
+    "terrorism_deaths",
+    "trade_countries"
+  ])
+  const pluralizedMetricSuffixes = new Set([
+    "coal-ton equivalents",
+    "countries",
+    "days",
+    "deaths",
+    "dyads",
+    "people",
+    "technologies",
+    "tons",
+    "wars"
+  ])
 
   let timeframeValue = timeframeItems[2]
   let nodeDescriptorValue = null
@@ -103,10 +195,13 @@
   const sideColors = { 1: "#2f7f66", 2: "#b54f72", 3: "#5f70b8", null: "#71717a", undefined: "#71717a" }
 
   $: graphCenterX = width * 0.5
-  $: selectedWarTypeValues = selectedWarTypes?.length ? selectedWarTypes.map(d => d.value) : []
-  $: filteredWars = selectedWarTypeValues.length
-    ? wars.filter(war => selectedWarTypeValues.includes(war.war_type))
-    : wars
+  $: selectedWarTypeValues = selectedWarTypes?.length ? selectedWarTypes : []
+  $: selectedCountryWarIds = selectedCountryCodeItem?.warIds
+  $: filteredWars = wars.filter(
+    war =>
+      selectedWarTypeValues.includes(war.war_type) &&
+      (!selectedCountryWarIds || selectedCountryWarIds.has(String(war.war_id)))
+  )
   $: warItems = filteredWars.map(war => ({
     value: String(war.war_id),
     label: war.war_name,
@@ -114,28 +209,15 @@
     secondaryLabel: warSecondaryLabel(war),
     war_type: war.war_type,
     linkDashFieldCount: linkDashFieldCountsByWarId[String(war.war_id)] || 0,
-    war,
+    war
   }))
-  $: if (warItems.length && !warItems.some(item => item.value == selectedWarItem?.value)) {
+  $: if (!warItems.length && selectedWarItem) {
+    selectedWarItem = null
+  } else if (warItems.length && !warItems.some(item => item.value == selectedWarItem?.value)) {
     selectedWarItem = preferredWarItem(warItems)
   }
   $: selectedWar = selectedWarItem?.war
   $: graph = selectedWar ? graphForWar(selectedWar) : { nodes: [], links: [] }
-
-  function emptyNodeMargins() {
-    return {
-      name: {},
-      radius_size: {},
-      vertical_name_shift: {},
-      name_fits_in_node: {},
-      horizontal_name_shift: {},
-      name_lengths: {},
-      added_top_margin: {},
-      added_bottom_margin: {},
-      added_left_margin: {},
-      added_right_margin: {},
-    }
-  }
 
   function numberValue(value) {
     if (value == null || value === "") return null
@@ -145,22 +227,92 @@
     return Number.isFinite(parsed) ? parsed : null
   }
 
-  function coalescedUniqueValues(values) {
-    return Array.from(new Set(values.map(value => (Number.isFinite(value) ? value : 0))))
+  function displayExactNumber(value) {
+    return value.toLocaleString("en-US", { maximumFractionDigits: tooltipFractionDigits })
   }
 
-  function maxValue(values) {
-    return Math.max(...values.map(value => (Number.isFinite(value) ? value : 0)), 0)
+  function displayCompactNumber(value) {
+    let absoluteValue = Math.abs(value)
+
+    if (absoluteValue < compactNumberMinimum) return displayExactNumber(value)
+
+    let unit = compactNumberUnits.find(({ value: unitValue }) => absoluteValue >= unitValue)
+
+    if (!unit) return displayExactNumber(value)
+
+    let roundedScaledValue =
+      Math.round((value / unit.value) * 10 ** tooltipFractionDigits) / 10 ** tooltipFractionDigits
+    let compactValue = roundedScaledValue.toLocaleString("en-US", {
+      maximumFractionDigits: tooltipFractionDigits
+    })
+
+    return `${compactValue} ${unit.label}`
+  }
+
+  function displayMetricSuffix(value, field, suffix) {
+    if (!suffix || metricSuffixOmittedByField.has(field)) return ""
+    if (!pluralizedMetricSuffixes.has(suffix)) return suffix
+
+    return pluralize(suffix, value)
+  }
+
+  function displayMetricNumber(value, field) {
+    let parsed = numberValue(value)
+
+    if (parsed == null) return "Unknown"
+
+    let metric = metricDictionary[field] || {}
+    let prefix = metric.valuePrefix || ""
+    let suffix = displayMetricSuffix(parsed, field, metric.valueSuffix || "")
+    let suffixSeparator = suffix && !suffix.startsWith("%") ? " " : ""
+
+    return `${prefix}${displayCompactNumber(parsed)}${suffix ? `${suffixSeparator}${suffix}` : ""}`
+  }
+
+  function displayDate(value, estimated = false) {
+    if (!value) return "Unknown"
+
+    let formatted = String(value)
+
+    return `${formatted}${Number(estimated) == 1 ? " (estimated)" : ""}`
+  }
+
+  function finiteValues(values) {
+    return values.filter(Number.isFinite)
+  }
+
+  function hasPositiveFiniteValue(values) {
+    return values.some(value => Number.isFinite(value) && value > 0)
+  }
+
+  function hasSizingVariation({ values, nullRadiusNodes }) {
+    let uniqueValues = Array.from(new Set(finiteValues(values)))
+
+    return uniqueValues.length > 1 || (nullRadiusNodes > 0 && hasPositiveFiniteValue(uniqueValues))
   }
 
   function averageValue(values) {
-    let finiteValues = values.filter(Number.isFinite)
+    let knownValues = finiteValues(values)
 
-    return finiteValues.length ? finiteValues.reduce((total, value) => total + value, 0) / finiteValues.length : 0
+    return knownValues.length ? knownValues.reduce((total, value) => total + value, 0) / knownValues.length : 0
   }
 
   function fieldLabel(field) {
-    return field.replaceAll("_", " ").replace(/\b\w/g, value => value.toUpperCase())
+    return metricDictionary[field]?.label || field.replaceAll("_", " ").replace(/\b\w/g, value => value.toUpperCase())
+  }
+
+  function metricTooltip(field, fallback) {
+    let metric = metricDictionary[field]
+
+    if (!metric) return fallback
+
+    return [
+      `${metric.label}${metric.unit ? ` (${metric.unit})` : ""}`,
+      metric.source ? `Source: ${metric.source}` : "",
+      metric.calculation ? `Calculation: ${metric.calculation}` : ""
+    ]
+      .filter(Boolean)
+      .join("\n\n")
   }
 
   function descriptorFields(rows, timeframe) {
@@ -170,42 +322,65 @@
   function descriptorItems(fields) {
     return fields
       .sort((a, b) => fieldLabel(a).localeCompare(fieldLabel(b)))
-      .map(field => ({ value: field, label: fieldLabel(field), secondaryLabel: field }))
+      .map(field => ({
+        value: field,
+        label: fieldLabel(field),
+        secondaryLabel: metricDictionary[field]?.unit || field
+      }))
   }
 
   function descriptorValue(row, field, timeframe = timeframeValue?.value || "all_years") {
     return row?.[timeframe]?.[field]
   }
 
+  function dateDays(startDate, endDate) {
+    let start = new Date(`${startDate}T00:00:00`)
+    let end = endDate ? new Date(`${endDate}T00:00:00`) : new Date()
+    let days = Math.round((end - start) / 86400000) + 1
+
+    return Number.isFinite(days) ? Math.max(1, days) : null
+  }
+
+  function nodeDescriptorNumericValue(node, field) {
+    if (field == "days_at_war") {
+      let totalDays = dateDays(node.start_date, Number(node.ongoing_war) == 1 ? null : node.end_date)
+
+      return totalDays == null ? null : totalDays - (numberValue(descriptorValue(node, "days_not_at_war")) ?? 0)
+    }
+
+    if (field == "battle_deaths") return numberValue(node.battle_deaths)
+
+    if (field == "battle_deaths_per_day") {
+      let totalDays = dateDays(node.start_date, Number(node.ongoing_war) == 1 ? null : node.end_date)
+      let daysAtWar =
+        totalDays == null ? null : totalDays - (numberValue(descriptorValue(node, "days_not_at_war")) ?? 0)
+      let battleDeaths = numberValue(descriptorValue(node, "battle_deaths")) ?? numberValue(node.battle_deaths)
+
+      return Number.isFinite(daysAtWar) && battleDeaths != null
+        ? Math.round((battleDeaths / daysAtWar) * 100) / 100
+        : null
+    }
+
+    return numberValue(descriptorValue(node, field))
+  }
+
   function getNodeDescriptiveValues(sizeField) {
     let values = []
+    let byId = {}
     let descriptorMaxDomain = 0
     let descriptorNullRadiusNodes = 0
 
     descriptorNodes.forEach(node => {
-      let sizeValue
+      let sizeValue = nodeDescriptorNumericValue(node, sizeField)
 
-      if (sizeField == "days_at_war") {
-        let totalDays = dateDays(node.start_date, Number(node.ongoing_war) == 1 ? null : node.end_date)
-        sizeValue = totalDays == null ? NaN : totalDays - (numberValue(descriptorValue(node, "days_not_at_war")) ?? 0)
-      } else if (sizeField == "battle_deaths") {
-        sizeValue = numberValue(node.battle_deaths) ?? NaN
-      } else if (sizeField == "battle_deaths_per_day") {
-        let totalDays = dateDays(node.start_date, Number(node.ongoing_war) == 1 ? null : node.end_date)
-        let daysAtWar =
-          totalDays == null ? null : totalDays - (numberValue(descriptorValue(node, "days_not_at_war")) ?? 0)
-        let battleDeaths = numberValue(descriptorValue(node, "battle_deaths")) ?? numberValue(node.battle_deaths)
-        sizeValue =
-          Number.isFinite(daysAtWar) && battleDeaths != null ? Math.round((battleDeaths / daysAtWar) * 100) / 100 : NaN
-      } else {
-        sizeValue = Number.parseFloat(descriptorValue(node, sizeField))
-      }
-
-      if (Number.isNaN(sizeValue)) {
+      if (sizeValue == null) {
         descriptorNullRadiusNodes += 1
+        byId[node.id] = { value: null, isUnknown: true }
         values.push(NaN)
       } else {
         let value = Math.max(0, sizeValue)
+
+        byId[node.id] = { value, isUnknown: false }
         descriptorMaxDomain += value
         values.push(value)
       }
@@ -227,9 +402,10 @@
 
     return {
       values,
+      byId,
       maxDomain: descriptorMaxDomain,
       stdNullRadiusSize: descriptorStdNullRadiusSize,
-      nullRadiusNodes: descriptorNullRadiusNodes,
+      nullRadiusNodes: descriptorNullRadiusNodes
     }
   }
 
@@ -248,20 +424,20 @@
       fields = Array.from(new Set([...fields, "days_at_war", "battle_deaths", "battle_deaths_per_day"]))
     }
 
-    let daysAtWarUniqueValues = coalescedUniqueValues(getNodeDescriptiveValues("days_at_war").values)
-    let daysNotAtWarUniqueValues = coalescedUniqueValues(getNodeDescriptiveValues("days_not_at_war").values)
+    let daysAtWarSizing = getNodeDescriptiveValues("days_at_war")
+    let daysNotAtWarSizing = getNodeDescriptiveValues("days_not_at_war")
 
     return descriptorItems(
       fields.filter(field => {
-        let { values, nullRadiusNodes } = getNodeDescriptiveValues(field)
-        let uniqueValues = coalescedUniqueValues(values)
+        let sizing = getNodeDescriptiveValues(field)
+        let { values, nullRadiusNodes } = sizing
 
-        if (maxValue(uniqueValues) == 0) return false
-        if (uniqueValues.length == 1) return false
+        if (!hasPositiveFiniteValue(values)) return false
+        if (!hasSizingVariation(sizing)) return false
         if (nullRadiusNodes / values.length >= 0.5) return false
-        if (field == "days_at_war" && daysAtWarUniqueValues.length == 1) return false
-        if (field == "days_not_at_war" && daysNotAtWarUniqueValues.length == 1) return false
-        if (field == "battle_deaths_per_day" && daysAtWarUniqueValues.length == 1) return false
+        if (field == "days_at_war" && !hasSizingVariation(daysAtWarSizing)) return false
+        if (field == "days_not_at_war" && !hasSizingVariation(daysNotAtWarSizing)) return false
+        if (field == "battle_deaths_per_day" && !hasSizingVariation(daysAtWarSizing)) return false
 
         return true
       })
@@ -270,34 +446,35 @@
 
   function linkFieldItems(rows, timeframe) {
     return descriptorItems(
-      descriptorFields(rows, timeframe).filter(field => maxValue(getLinkDescriptiveValues(field)) == 1)
+      descriptorFields(rows, timeframe).filter(field => hasPositiveFiniteValue(getLinkDescriptiveValues(field)))
     )
-  }
-
-  function dateDays(startDate, endDate) {
-    let start = new Date(`${startDate}T00:00:00`)
-    let end = endDate ? new Date(`${endDate}T00:00:00`) : new Date()
-    let days = Math.round((end - start) / 86400000) + 1
-
-    return Number.isFinite(days) ? Math.max(1, days) : null
   }
 
   function enrichedNodes(rawNodes) {
     return rawNodes.map(node => {
       let daysAtWar = dateDays(node.start_date, node.ongoing_war ? null : node.end_date)
       let battleDeaths = numberValue(node.battle_deaths)
+      let battleDeathsPerDay =
+        Number.isFinite(daysAtWar) && battleDeaths != null ? Math.round((battleDeaths / daysAtWar) * 100) / 100 : null
+      let allYearMetrics = {
+        ...(node.metrics?.all_years || {}),
+        battle_deaths: battleDeaths,
+        days_at_war: daysAtWar,
+        battle_deaths_per_day: battleDeathsPerDay
+      }
 
       return {
         ...node,
+        metrics: {
+          ...(node.metrics || {}),
+          all_years: allYearMetrics
+        },
         all_years: {
           ...(node.all_years || {}),
           battle_deaths: battleDeaths,
           days_at_war: daysAtWar,
-          battle_deaths_per_day:
-            Number.isFinite(daysAtWar) && battleDeaths != null
-              ? Math.round((battleDeaths / daysAtWar) * 100) / 100
-              : null,
-        },
+          battle_deaths_per_day: battleDeathsPerDay
+        }
       }
     })
   }
@@ -316,13 +493,14 @@
     radiusScale = scaleLinear([0, maxDomain], [minRadiusSize, maxRadiusSize])
 
     nodes.forEach(node => {
-      let nodeValue = nodeDescriptiveValues[node.id]
+      let nodeSizing = nodeSizingById[node.id]
+      let nodeIsUnknown = !nodeSizing || nodeSizing.isUnknown
       let nodeHasSelectedDescriptor = Boolean(nodeDescriptorValue?.value)
-      let currentRadiusSize = Number.isNaN(Number.parseFloat(nodeValue))
+      let currentRadiusSize = nodeIsUnknown
         ? nodeHasSelectedDescriptor
           ? minRadiusSize
           : radiusScale(stdNullRadiusSize)
-        : radiusScale(nodeValue)
+        : radiusScale(nodeSizing?.value ?? stdNullRadiusSize)
       let nameFits = nameFitsInNode(currentRadiusSize, node.participant)
       let currentNameLength = textWidth(node.participant)
       let currentNameLengthHalf = currentNameLength / 2
@@ -432,7 +610,7 @@
         x: nodeMargins.horizontal_name_shift[id] ?? 0,
         y: nodeMargins.vertical_name_shift[id] ?? 5,
         anchor: "middle",
-        inside: true,
+        inside: true
       }
     }
 
@@ -440,53 +618,94 @@
       x: (nodeMargins.horizontal_name_shift[id] ?? 30) * xOperator,
       y: (nodeMargins.vertical_name_shift[id] ?? nodeRadius(node) + 22.5) * yOperator + yAdjustment,
       anchor: "middle",
-      inside: false,
+      inside: false
     }
   }
 
   function nodeSizeWarningPosition(node, label = labelPosition(node)) {
-    let offset = Math.max(nodeMargins.horizontal_name_shift[node.id] ?? 0, nodeRadius(node) + nodeSizeWarningOffset)
-    let outsideXOperator = label.x < 0 ? 1 : -1
-    let outsideYOperator = label.y < 0 ? 1 : -1
+    if (label.inside) {
+      let offset = (nodeRadius(node) + nodeSizeWarningOffset) / Math.SQRT2
 
-    return nodeMargins.name_fits_in_node[node.id]
-      ? { x: offset, y: offset }
-      : { x: offset * outsideXOperator, y: offset * outsideYOperator }
+      return { x: offset, y: -offset }
+    }
+
+    let labelDirection = label.x < 0 ? -1 : 1
+    let labelWidth = nodeMargins.name_lengths[node.id] ?? textWidth(node.participant)
+
+    return {
+      x: label.x + labelDirection * (labelWidth / 2 + nodeSizeWarningLabelGap),
+      y: label.y
+    }
   }
 
   function showNodeSizeWarning(node) {
-    if (!nodeDescriptorValue?.value || !hasNodeSizeSignal) return false
+    if (!showNodeSizeWarnings || !nodeDescriptorValue?.value || !hasNodeSizeSignal) return false
 
-    return !Number.isFinite(nodeDescriptiveValues[node.id])
+    let nodeSizing = nodeSizingById[node.id]
+
+    return !nodeSizing || nodeSizing.isUnknown == true
   }
 
-  function nodeDescriptorDisplayValue(node) {
-    if (!nodeDescriptorValue?.value) return null
+  function nodeMetricValue(node, metrics, field) {
+    let value = displayMetricNumber(metrics[field], field)
 
-    let value =
-      nodeDescriptorValue.value == "battle_deaths"
-        ? numberValue(node.battle_deaths)
-        : numberValue(descriptorValue(node, nodeDescriptorValue.value))
+    if (field == "battle_deaths" && Number(node.battle_deaths_estimated) == 1) return `${value} (estimated)`
+    if (field == "concurrent_wars") return `${value} (avg)`
 
-    return value == null ? "Unknown" : value.toLocaleString()
+    return value
   }
 
-  function displayNumber(value) {
-    let parsed = numberValue(value)
+  function nodeMetricRows(node) {
+    let metrics = node.metrics?.[timeframeValue?.value || "all_years"] || {}
 
-    return parsed == null ? "Unknown" : parsed.toLocaleString()
+    return Object.keys(metrics)
+      .filter(field => {
+        let value = numberValue(metrics[field])
+
+        if (field == "days_at_war" || value == null) return false
+        if (value != 0 || alwaysShowZeroMetricFields.has(field)) return true
+
+        return field == nodeDescriptorValue?.value
+      })
+      .sort((a, b) => fieldLabel(a).localeCompare(fieldLabel(b)))
+      .map(field => ({
+        field,
+        label: fieldLabel(field),
+        value: nodeMetricValue(node, metrics, field)
+      }))
   }
 
   function linkHasDescriptor(link) {
     return linkDescriptorValue?.value && (numberValue(descriptorValue(link, linkDescriptorValue.value)) ?? 0) > 0
   }
 
+  function refreshGraph() {
+    nodes = nodes
+    links = links
+  }
+
+  function stopSimulation() {
+    if (simulation) {
+      simulation.stop()
+    }
+  }
+
   function applyLegacySizing() {
     let sizing = getNodeDescriptiveValues(nodeDescriptorValue?.value || null)
-    nodeDescriptiveValues = sizing.values
+    nodeSizingValues = sizing.values
+    nodeSizingById = sizing.byId
     maxDomain = sizing.maxDomain
     stdNullRadiusSize = sizing.stdNullRadiusSize
     nodeMargins = getNodeMargins()
+  }
+
+  function forceLinkDistance(link) {
+    let baseDistance =
+      (nodeMargins.radius_size[link.source.id] ?? linkNodeSize) +
+      (nodeMargins.radius_size[link.target.id] ?? linkNodeSize) +
+      Math.max(maxRadiusSize, addedMarginSize, 15)
+
+    return nodes.length == 2 ? Math.max(baseDistance, dyadMinLinkDistance) : baseDistance
   }
 
   function createLegacySimulation() {
@@ -501,7 +720,7 @@
     linkNodes = links
       .map(link => ({
         source: nodeById.get(linkEndpointId(link, "source")),
-        target: nodeById.get(linkEndpointId(link, "target")),
+        target: nodeById.get(linkEndpointId(link, "target"))
       }))
       .filter(linkNode => linkNode.source && linkNode.target)
 
@@ -534,12 +753,7 @@
         "link",
         forceLink(links)
           .id(d => Number.parseInt(d.id))
-          .distance(
-            d =>
-              (nodeMargins.radius_size[d.source.id] ?? linkNodeSize) +
-              (nodeMargins.radius_size[d.target.id] ?? linkNodeSize) +
-              Math.max(maxRadiusSize, addedMarginSize, 15)
-          )
+          .distance(forceLinkDistance)
           .strength(0.75)
       )
       .on("tick", () => {
@@ -562,7 +776,7 @@
 
     return {
       x: ((event.clientX - rect.left) / rect.width) * width,
-      y: ((event.clientY - rect.top) / rect.height) * height,
+      y: ((event.clientY - rect.top) / rect.height) * height
     }
   }
 
@@ -571,14 +785,14 @@
 
     return {
       width: rect.width || width,
-      height: rect.height || height,
+      height: rect.height || height
     }
   }
 
   function clampTooltipCoordinates(x, y, bounds) {
     return {
       x: Math.max(tooltipPadding, Math.min(bounds.width - tooltipWidth - tooltipPadding, x)),
-      y: Math.max(tooltipPadding, Math.min(bounds.height - tooltipHeight - tooltipPadding, y)),
+      y: Math.max(tooltipPadding, Math.min(bounds.height - tooltipHeight - tooltipPadding, y))
     }
   }
 
@@ -608,11 +822,6 @@
     if (hoverNode && !dragNode) {
       tooltip = { node: hoverNode, ...tooltipPoint(event) }
     }
-  }
-
-  function refreshGraph() {
-    nodes = nodes
-    links = links
   }
 
   function startDrag(node, event) {
@@ -691,14 +900,15 @@
     refreshGraph()
   }
 
-  function stopSimulation() {
-    if (simulation) {
-      simulation.stop()
-    }
-  }
-
   function hasTimeframeDescriptor(row, timeframe) {
     return Object.values(row[timeframe] || {}).some(value => numberValue(value) != null)
+  }
+
+  function hasNodeTimeframeData(node, timeframe) {
+    return (
+      hasTimeframeDescriptor(node, timeframe) ||
+      Object.values(node.metrics?.[timeframe] || {}).some(value => numberValue(value) != null)
+    )
   }
 
   $: if (graph !== currentGraph || width !== currentWidth) {
@@ -709,7 +919,7 @@
 
   $: availableTimeframeItems = timeframeItems.filter(
     item =>
-      descriptorNodes.some(node => hasTimeframeDescriptor(node, item.value)) ||
+      descriptorNodes.some(node => hasNodeTimeframeData(node, item.value)) ||
       descriptorLinks.some(link => hasTimeframeDescriptor(link, item.value))
   )
   $: if (!availableTimeframeItems.length) {
@@ -732,6 +942,12 @@
     !nodeDescriptorItems.length && !nodeDescriptorValue ? noNodeSizeItemsMessage : "Choose a node size."
   $: linkDescriptorPlaceholder =
     !linkDescriptorItems.length && !linkDescriptorValue ? noLinkDashItemsMessage : "Choose a link dash."
+  $: nodeDescriptorTooltip = nodeDescriptorValue?.value
+    ? metricTooltip(nodeDescriptorValue.value, controlTooltips.node_size)
+    : controlTooltips.node_size
+  $: linkDescriptorTooltip = linkDescriptorValue?.value
+    ? metricTooltip(linkDescriptorValue.value, controlTooltips.link_dash)
+    : controlTooltips.link_dash
   $: sizingSignature = `${timeframeValue?.value || "all_years"}|${nodeDescriptorValue?.value || "none"}|${width}|${height}|${nodes.length}|${links.length}`
   $: if (nodes.length && sizingSignature != currentSizingSignature) {
     currentSizingSignature = sizingSignature
@@ -743,7 +959,14 @@
     currentLinkDescriptorSignature = linkDescriptorSignature
     triggerLinkDashPulse()
   }
-  $: hasNodeSizeSignal = maxValue(coalescedUniqueValues(nodeDescriptiveValues)) != 0
+  $: hasNodeSizeSignal = hasPositiveFiniteValue(nodeSizingValues)
+  $: unknownNodeSizeCount = Object.values(nodeSizingById).filter(sizing => sizing?.isUnknown).length
+  $: showNodeSizeWarnings = Boolean(
+    nodeDescriptorValue?.value &&
+    hasNodeSizeSignal &&
+    unknownNodeSizeCount > 0 &&
+    unknownNodeSizeCount <= maxVisibleNodeSizeWarnings
+  )
   $: if (tooltip) {
     let point = clampTooltipCoordinates(tooltip.x, tooltip.y, tooltipBounds())
 
@@ -759,7 +982,11 @@
 </script>
 
 <svelte:window on:pointermove={drag} on:pointerup={endDrag} />
-<main class="flex h-full w-full flex-col items-center justify-center" bind:clientWidth={pageWidth}>
+<main
+  class="relative flex h-full w-full flex-col items-center justify-center"
+  bind:clientWidth={pageWidth}
+  data-svelte-lib-tooltip-root
+>
   <div class="px-8 py-12 text-center text-lg min-[1300px]:hidden">
     This visualization is best viewed on a larger screen. So, grab a computer and come back soon!
   </div>
@@ -767,17 +994,43 @@
     <div class="mx-auto flex w-full flex-col gap-4 py-5">
       <section class="grid gap-3 border border-[#d8d3c4] bg-white p-4">
         <div>
-          <div class="mb-1 text-sm font-extrabold text-[#596b64]">War Types</div>
+          <div class="mb-2 text-sm font-extrabold text-[#596b64]">War Types</div>
+          <div class="flex flex-wrap gap-x-5 gap-y-2 text-sm">
+            {#each warTypeItems as warTypeItem (warTypeItem.value)}
+              <CheckboxFilter
+                labelClasses="mb-0 font-medium"
+                label={warTypeItem.label}
+                value={warTypeItem.value}
+                selection={selectedWarTypes}
+                deselection={deselectedWarTypes}
+                on:update={({ detail }) => {
+                  selectedWarTypes = detail.selection
+                  deselectedWarTypes = detail.deselection
+                }}
+              />
+            {/each}
+          </div>
+        </div>
+        <div>
+          <div class="mb-1 flex items-center gap-2 text-sm font-extrabold text-[#596b64]">
+            Country
+            <InfoIcon title={controlTooltips.country} tooltipClasses="max-w-80" />
+          </div>
           <Select
-            items={warTypeItems}
-            bind:value={selectedWarTypes}
-            multiple={true}
-            placeholder="Filter war types"
-            on:valueChange={({ detail }) => (selectedWarTypes = detail.d || [])}
+            items={countryCodeItems}
+            bind:value={selectedCountryCodeItem}
+            labelConstruction={true}
+            secondaryLabelIdentifier="secondaryLabel"
+            placeholder="Filter by country"
+            noItemsMessage="No countries available."
+            on:valueChange={({ detail }) => (selectedCountryCodeItem = detail.d)}
           />
         </div>
         <div>
-          <div class="mb-1 text-sm font-extrabold text-[#596b64]">War</div>
+          <div class="mb-1 flex items-center gap-2 text-sm font-extrabold text-[#596b64]">
+            War
+            <InfoIcon title={controlTooltips.war} tooltipClasses="max-w-80" />
+          </div>
           <Select
             items={warItems}
             bind:value={selectedWarItem}
@@ -822,7 +1075,10 @@
             {#if nodes.length}
               <div class="grid gap-3 md:grid-cols-3">
                 <div>
-                  <div class="mb-1 text-sm font-extrabold text-[#596b64]">Timeframe</div>
+                  <div class="mb-1 flex items-center gap-2 text-sm font-extrabold text-[#596b64]">
+                    Timeframe
+                    <InfoIcon title={controlTooltips.timeframe} tooltipClasses="max-w-80" />
+                  </div>
                   <Select
                     items={availableTimeframeItems}
                     bind:value={timeframeValue}
@@ -833,7 +1089,10 @@
                   />
                 </div>
                 <div>
-                  <div class="mb-1 text-sm font-extrabold text-[#596b64]">Node Size</div>
+                  <div class="mb-1 flex items-center gap-2 text-sm font-extrabold text-[#596b64]">
+                    Node Size
+                    <InfoIcon title={nodeDescriptorTooltip} tooltipClasses="max-w-96" />
+                  </div>
                   <Select
                     items={nodeDescriptorItems}
                     bind:value={nodeDescriptorValue}
@@ -844,7 +1103,10 @@
                   />
                 </div>
                 <div>
-                  <div class="mb-1 text-sm font-extrabold text-[#596b64]">Link Dash</div>
+                  <div class="mb-1 flex items-center gap-2 text-sm font-extrabold text-[#596b64]">
+                    Link Dash
+                    <InfoIcon title={linkDescriptorTooltip} tooltipClasses="max-w-96" />
+                  </div>
                   <Select
                     items={linkDescriptorItems}
                     bind:value={linkDescriptorValue}
@@ -934,11 +1196,12 @@
                           style="transform: translate({warningPosition.x}px, {warningPosition.y}px); transition: transform 2000ms ease 1500ms;"
                         >
                           <text
-                            class="text-[12px] font-bold"
+                            class="text-[10px] font-extrabold"
                             text-anchor="middle"
+                            dominant-baseline="central"
                             fill="#111827"
                             stroke="white"
-                            stroke-width={3}
+                            stroke-width={2.5}
                             paint-order="stroke"
                           >
                             ?
@@ -950,19 +1213,43 @@
                 </g>
               </svg>
               {#if tooltip}
+                {@const metricRows = nodeMetricRows(tooltip.node)}
                 <div
-                  class="pointer-events-none absolute z-20 max-w-xs border border-[#c4cec8] bg-white px-3 py-2 text-sm shadow-sm"
+                  class="pointer-events-none absolute z-20 max-w-sm border border-[#c4cec8] bg-white px-3 py-2 text-xs shadow-sm"
                   style="left: {tooltip.x}px; top: {tooltip.y}px;"
                   bind:clientWidth={tooltipWidth}
                   bind:clientHeight={tooltipHeight}
                 >
-                  <div class="font-extrabold">{tooltip.node.participant}</div>
-                  <div class="text-[#50615b]">
-                    Battle Deaths: {displayNumber(tooltip.node.battle_deaths)}
+                  <div class="text-sm font-extrabold">{tooltip.node.participant}</div>
+                  <div class="mt-1 space-y-0.5 text-[#50615b]">
+                    <div>
+                      <span class="font-bold text-[#33413c]">Start Date:</span>
+                      {displayDate(tooltip.node.start_date, tooltip.node.start_date_estimated)}
+                    </div>
+                    <div>
+                      <span class="font-bold text-[#33413c]">End Date:</span>
+                      {Number(tooltip.node.ongoing_war) == 1
+                        ? "Ongoing"
+                        : displayDate(tooltip.node.end_date, tooltip.node.end_date_estimated)}
+                    </div>
+                    <div class="mb-2">
+                      <span class="font-bold text-[#33413c]">Days At War:</span>
+                      {displayMetricNumber(tooltip.node.metrics?.all_years?.days_at_war, "days_at_war")}
+                    </div>
                   </div>
-                  {#if nodeDescriptorValue?.value && nodeDescriptorValue.value != "battle_deaths"}
-                    <div class="text-[#50615b]">
-                      {nodeDescriptorValue.label}: {nodeDescriptorDisplayValue(tooltip.node)}
+                  {#if metricRows.length}
+                    <div class="mt-2 border-t border-[#dfe5e1] pt-1.5">
+                      <div class="mb-1 font-extrabold text-[#33413c]">
+                        Timeframe: {timeframeValue?.label || "All Years"}
+                      </div>
+                      <div class="space-y-0.5 text-[#50615b]">
+                        {#each metricRows as row (row.field)}
+                          <div>
+                            <span class="font-semibold text-[#33413c]">{row.label}:</span>
+                            {row.value}
+                          </div>
+                        {/each}
+                      </div>
                     </div>
                   {/if}
                 </div>

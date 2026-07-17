@@ -10,7 +10,9 @@ select
     year,
     1 territory_exchange
 from source_territorial_changes
-where gainer > 0 and loser > 0
+where
+    gainer > 0
+    and loser > 0
 group by 1, 2, 3, 4),
 
 colonial_contiguity_years as (
@@ -21,7 +23,9 @@ select
     year,
     1 colonial_contiguity
 from source_colonial_dependency_contiguity
-where c_code_a > 0 and c_code_b > 0
+where
+    c_code_a > 0
+    and c_code_b > 0
 group by 1, 2, 3, 4),
 
 contiguity_years as (
@@ -32,7 +36,9 @@ select
     year,
     1 contiguity
 from source_direct_contiguity
-where c_code_a > 0 and c_code_b > 0
+where
+    c_code_a > 0
+    and c_code_b > 0
 group by 1, 2, 3, 4),
 
 alliance_years as (
@@ -57,7 +63,9 @@ select
     year,
     1 defense_cooperation_agreements
 from source_defense_cooperation_agreements
-where c_code_a > 0 and c_code_b > 0
+where
+    c_code_a > 0
+    and c_code_b > 0
 group by 1, 2, 3, 4),
 
 intergovernmental_organization_years as (
@@ -82,7 +90,9 @@ select
     year,
     1 diplomatic_exchange
 from source_diplomatic_exchange
-where c_code_a > 0 and c_code_b > 0
+where
+    c_code_a > 0
+    and c_code_b > 0
 group by 1, 2, 3, 4),
 
 trade_relation_years as (
@@ -195,7 +205,10 @@ join dd_country_years a on c.c_code_a = a.c_code
                         and c.year = a.year
 join dd_country_years b on c.c_code_b = b.c_code
                         and c.year = b.year
-where c.c_code_a > 0 and c.c_code_b > 0 and a.c_code != b.c_code
+where
+    c.c_code_a > 0
+    and c.c_code_b > 0
+    and a.c_code != b.c_code
 group by all),
 
 atop_years as (
@@ -206,7 +219,9 @@ select
     year,
     1 atop
 from source_atop_dyadic_years
-where c_code_a > 0 and c_code_b > 0
+where
+    c_code_a > 0
+    and c_code_b > 0
 group by 1, 2, 3, 4),
 
 mtops_years as (
@@ -221,6 +236,25 @@ where
     c_code_a > 0
     and c_code_b > 0
     and coalesce(pacific_settlement_general, 0) + coalesce(pacific_settlement_regional, 0) + coalesce(pacific_settlement, 0) + coalesce(territorial_general, 0) + coalesce(territorial_violence, 0) + coalesce(territorial_total, 0) > 0
+group by 1, 2, 3, 4),
+
+shared_arms_technology_years as (
+
+select
+    least(a.c_code, b.c_code) c_code_low,
+    greatest(a.c_code, b.c_code) c_code_high,
+    a.year,
+    1 shared_arms_technology
+from source_arms_technology a
+join source_arms_technology b on a.technology_name = b.technology_name
+                              and a.year = b.year
+                              and a.c_code != b.c_code
+where
+    a.c_code > 0
+    and b.c_code > 0
+    and a.technology_name != 'Adopted technologies'
+    and a.used in (1, 9)
+    and b.used in (1, 9)
 group by 1, 2, 3, 4)
 
 select
@@ -274,7 +308,8 @@ select
     coalesce(k.transition_to_democracy, 0) transition_to_democracy,
     coalesce(k.transition_to_dictatorship, 0) transition_to_dictatorship,
     coalesce(l.atop, 0) atop,
-    coalesce(m.mtops, 0) mtops
+    coalesce(m.mtops, 0) mtops,
+    coalesce(n.shared_arms_technology, 0) shared_arms_technology
 from dyad_years a
 join wars b on a.war_id = b.war_id
 left join territory_exchange_years c on least(a.c_code_a, a.c_code_b) = c.c_code_low
@@ -312,4 +347,7 @@ left join atop_years l on least(a.c_code_a, a.c_code_b) = l.c_code_low
                        and a.year = l.year
 left join mtops_years m on least(a.c_code_a, a.c_code_b) = m.c_code_low
                         and greatest(a.c_code_a, a.c_code_b) = m.c_code_high
-                        and a.year = m.year;
+                        and a.year = m.year
+left join shared_arms_technology_years n on least(a.c_code_a, a.c_code_b) = n.c_code_low
+                                         and greatest(a.c_code_a, a.c_code_b) = n.c_code_high
+                                         and a.year = n.year;

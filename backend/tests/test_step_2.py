@@ -21,6 +21,7 @@ from pipeline import (
     STEP_2_SQL,
     Pipeline,
     sql_identifier,
+    sql_literal,
 )
 
 STEP_2_SOURCE_TABLES = [
@@ -71,6 +72,7 @@ PARTICIPANT_DESCRIPTOR_COLUMNS = [
     "urban_population",
     "urban_population_growth_rate",
     "cinc_score",
+    "arms_technologies_used",
     "co2_emissions_per_capita",
     "land_mass_exchange_gain",
     "population_exchange_gain",
@@ -121,6 +123,7 @@ DYADIC_DESCRIPTOR_COLUMNS = [
     "transition_to_dictatorship",
     "atop",
     "mtops",
+    "shared_arms_technology",
 ]
 
 SIGNED_EXCHANGE_COLUMNS = {
@@ -170,7 +173,6 @@ def table_columns(conn, table_name: str) -> list[str]:
         and table_name = ?
     order by ordinal_position
     """
-
     return [column_name for (column_name,) in conn.execute(query, [table_name]).fetchall()]
 
 
@@ -219,27 +221,27 @@ def test_global_terrorism_database_source_rows_do_not_overlap_on_event_id(conn):
 
 
 def test_step_2_manifest_runs_source_ingestion(conn):
-    actual_tables_query = """
+    actual_tables_sql = """
     select table_name
     from information_schema.tables
     where
         table_schema = current_schema()
         and table_name like 'source_%'
     """
-    terrorism_source_files_query = """
+    terrorism_source_files_sql = """
     select source_file
     from source_global_terrorism_database
     group by source_file
     order by source_file
     """
-    actual_tables = {table_name for (table_name,) in conn.execute(actual_tables_query).fetchall()}
+    actual_tables = {table_name for (table_name,) in conn.execute(actual_tables_sql).fetchall()}
     row_counts = {}
 
     for table_name in STEP_2_SOURCE_TABLES:
-        row_count_query = f"select count(*) from {sql_identifier(table_name)}"
-        row_counts[table_name] = conn.execute(row_count_query).fetchone()[0]
+        row_count_sql = f"select count(*) from {sql_identifier(table_name)}"
+        row_counts[table_name] = conn.execute(row_count_sql).fetchone()[0]
 
-    terrorism_source_files = conn.execute(terrorism_source_files_query).fetchall()
+    terrorism_source_files = conn.execute(terrorism_source_files_sql).fetchall()
     igo_columns = table_columns(conn, "source_intergovernmental_organizations_dyadic")
     dd_revisited_columns = table_columns(conn, "source_dd_revisited")
 
@@ -265,17 +267,17 @@ def test_step_2_manifest_runs_source_ingestion(conn):
 
 
 def test_step_2_manifest_runs_descriptive_transformations(conn):
-    actual_tables_query = """
+    actual_tables_sql = """
     select table_name
     from information_schema.tables
     where table_schema = current_schema()
     """
-    actual_tables = {table_name for (table_name,) in conn.execute(actual_tables_query).fetchall()}
+    actual_tables = {table_name for (table_name,) in conn.execute(actual_tables_sql).fetchall()}
     row_counts = {}
 
     for table_name in STEP_2_TRANSFORMED_TABLES:
-        row_count_query = f"select count(*) from {sql_identifier(table_name)}"
-        row_counts[table_name] = conn.execute(row_count_query).fetchone()[0]
+        row_count_sql = f"select count(*) from {sql_identifier(table_name)}"
+        row_counts[table_name] = conn.execute(row_count_sql).fetchone()[0]
 
     participant_columns = table_columns(conn, "participant_descriptives")
     dyad_columns = table_columns(conn, "dyadic_descriptives")
@@ -303,7 +305,7 @@ def test_step_2_preserves_unknown_descriptive_values(conn):
         b.internally_displaced_persons
     from source_forcibly_displaced_populations a
     join country_year_descriptives b on a.c_code = b.c_code
-                                    and a.year = b.year
+                                     and a.year = b.year
     where
         a.source is null
         and a.hosted_refugees is null
@@ -317,41 +319,6 @@ def test_step_2_preserves_unknown_descriptive_values(conn):
     displaced_population_unknown_rows = conn.execute(displaced_population_unknown_sql).fetchall()
 
     assert displaced_population_unknown_rows == []
-
-
-def test_step_2_transformed_cow_codes_resolve_country_codes(conn):
-    checks = [
-        ("country_year_descriptives", "c_code"),
-        ("participant_year_descriptives", "c_code"),
-        ("participant_descriptives", "c_code"),
-        ("dyad_year_descriptives", "c_code_a"),
-        ("dyad_year_descriptives", "c_code_b"),
-        ("dyadic_descriptives", "c_code_a"),
-        ("dyadic_descriptives", "c_code_b"),
-    ]
-
-    for table_name, column_name in checks:
-        query = f"""
-        select
-            {table_name!r} table_name,
-            {column_name!r} column_name,
-            a.{column_name} c_code,
-            count(*) row_count
-        from {sql_identifier(table_name)} a
-        left join country_codes b on a.{column_name} = b.c_code
-        where
-            a.{column_name} > 0
-            and b.c_code is null
-        group by 1, 2, 3
-        order by 1, 2, 3
-        """
-        fail_if_detected_rows(
-            conn,
-            query,
-            "Step 2 transformed COW codes should resolve through country_codes.",
-            f"unresolved {table_name}.{column_name}",
-            {"c_code"},
-        )
 
 
 def test_step_2_descriptor_tables_keep_expected_grain(conn):
@@ -368,7 +335,7 @@ def test_step_2_descriptor_tables_keep_expected_grain(conn):
 
     for table_name, key_columns in checks:
         key_csv = ", ".join(key_columns)
-        query = f"""
+        duplicate_rows_sql = f"""
         select
             {key_csv},
             count(*) row_count
@@ -380,7 +347,7 @@ def test_step_2_descriptor_tables_keep_expected_grain(conn):
         """
         fail_if_detected_rows(
             conn,
-            query,
+            duplicate_rows_sql,
             "Step 2 descriptor tables should keep one row per expected key.",
             f"duplicate {table_name} grain rows",
             set(key_columns),
@@ -399,8 +366,8 @@ def test_step_2_participant_year_descriptives_cover_full_participant_year_spans(
         count(b.year) actual_years
     from participants a
     left join participant_year_descriptives b on a.war_id = b.war_id
-                                             and a.c_code = b.c_code
-                                             and a.participant = b.participant
+                                              and a.c_code = b.c_code
+                                              and a.participant = b.participant
     where a.c_code > 0
     group by 1, 2, 3, 4, 5
     having count(b.year) != extract(year from a.end_date)::integer - extract(year from a.start_date)::integer + 1
@@ -421,7 +388,7 @@ def test_step_2_co2_emissions_join_into_country_year_descriptives(conn):
     select count(*)
     from source_co_emissions_per_capita a
     join country_year_descriptives b on b.c_code = 2
-                                    and a.year = b.year
+                                     and a.year = b.year
     where
         a.country_name = 'United States'
         and a.co2_emissions_per_capita is not null
@@ -430,19 +397,6 @@ def test_step_2_co2_emissions_join_into_country_year_descriptives(conn):
     assert scalar(conn, known_match_sql) > 0
 
     missing_co2_sql = """
-    with
-
-    co2_country_name_replacements(source_name, state_name) as (
-
-    values
-            ('Cote d''Ivoire', 'Ivory Coast'),
-            ('Czechia', 'Czech Republic'),
-            ('Democratic Republic of Congo', 'Democratic Republic of the Congo'),
-            ('Eswatini', 'Swaziland'),
-            ('Micronesia (country)', 'Federated States of Micronesia'),
-            ('North Macedonia', 'Macedonia'),
-            ('United States', 'United States of America'))
-
     select
         a.country_name,
         a.year,
@@ -450,10 +404,10 @@ def test_step_2_co2_emissions_join_into_country_year_descriptives(conn):
         c.c_code,
         c.state_name
     from source_co_emissions_per_capita a
-    left join co2_country_name_replacements b on a.country_name = b.source_name
-    join country_codes c on coalesce(b.state_name, a.country_name) = c.state_name
+    left join participant_name_replacements b on a.country_name = b.source
+    join country_codes c on coalesce(b.replacement, a.country_name) = c.state_name
     left join country_year_descriptives d on c.c_code = d.c_code
-                                         and a.year = d.year
+                                          and a.year = d.year
     where
         a.co2_emissions_per_capita is not null
         and d.co2_emissions_per_capita is null
@@ -469,7 +423,87 @@ def test_step_2_co2_emissions_join_into_country_year_descriptives(conn):
     )
 
 
-def test_step_2_descriptor_values_do_not_leak_source_sentinels(conn):
+def test_step_2_cinc_score_matches_source_cinc_with_tolerance(conn):
+    source_path = Pipeline().paths_for("national_material_capabilities")[0]
+    compared_rows_sql = f"""
+    select count(*)
+    from country_year_descriptives a
+    join read_csv_auto({sql_literal(str(source_path))}, normalize_names = false, all_varchar = true) b on a.c_code = clean_int(b.ccode)
+                                                                                                       and a.year = clean_int(b.year)
+    where
+        a.cinc_score is not null
+        and clean_number(b.cinc) is not null
+    """
+    assert scalar(conn, compared_rows_sql) > 0
+
+    mismatch_sql = f"""
+    select
+        a.c_code,
+        a.year,
+        a.cinc_score,
+        clean_number(b.cinc) source_cinc_score,
+        abs(a.cinc_score - clean_number(b.cinc)) abs_diff
+    from country_year_descriptives a
+    join read_csv_auto({sql_literal(str(source_path))}, normalize_names = false, all_varchar = true) b on a.c_code = clean_int(b.ccode)
+                                                                                                       and a.year = clean_int(b.year)
+    where
+        a.cinc_score is not null
+        and clean_number(b.cinc) is not null
+        and abs(a.cinc_score - clean_number(b.cinc)) > 0.0000001
+    order by abs_diff desc
+    limit 50
+    """
+    fail_if_detected_rows(
+        conn,
+        mismatch_sql,
+        "Derived CINC scores should match the source CINC values within a small floating-point tolerance.",
+        "CINC score mismatches",
+        {"abs_diff"},
+    )
+
+
+def test_step_2_arms_technologies_used_matches_source_total_use_with_tolerance(conn):
+    source_path = Pipeline().paths_for("arms_technology")[0]
+    compared_rows_sql = f"""
+    select count(*)
+    from country_year_descriptives a
+    join read_csv_auto({sql_literal(str(source_path))}, normalize_names = false, all_varchar = true) b on a.c_code = clean_int(b.ccode)
+                                                                                                       and a.year = clean_int(b.year)
+    where
+        b.techname = 'Adopted technologies'
+        and a.arms_technologies_used is not null
+        and clean_number(b.total_use) is not null
+    """
+    assert scalar(conn, compared_rows_sql) > 0
+
+    mismatch_sql = f"""
+    select
+        a.c_code,
+        a.year,
+        a.arms_technologies_used,
+        clean_number(b.total_use) source_total_use,
+        abs(a.arms_technologies_used - clean_number(b.total_use)) abs_diff
+    from country_year_descriptives a
+    join read_csv_auto({sql_literal(str(source_path))}, normalize_names = false, all_varchar = true) b on a.c_code = clean_int(b.ccode)
+                                                                                                       and a.year = clean_int(b.year)
+    where
+        b.techname = 'Adopted technologies'
+        and a.arms_technologies_used is not null
+        and clean_number(b.total_use) is not null
+        and abs(a.arms_technologies_used - clean_number(b.total_use)) > 0.0000001
+    order by abs_diff desc
+    limit 50
+    """
+    fail_if_detected_rows(
+        conn,
+        mismatch_sql,
+        "Derived arms technology counts should match the source total_use values within a small tolerance.",
+        "arms technology total_use mismatches",
+        {"abs_diff"},
+    )
+
+
+def test_step_2_descriptor_values_do_not_leak_source_special_codes(conn):
     checks = [
         (
             "country_year_descriptives",
@@ -490,7 +524,7 @@ def test_step_2_descriptor_values_do_not_leak_source_sentinels(conn):
 
     for table_name, columns in checks:
         for column_name in columns:
-            query = f"""
+            special_codes_sql = f"""
             select
                 {table_name!r} table_name,
                 {column_name!r} column_name,
@@ -502,9 +536,9 @@ def test_step_2_descriptor_values_do_not_leak_source_sentinels(conn):
             """
             fail_if_detected_rows(
                 conn,
-                query,
-                "Step 2 descriptor values should not leak source sentinel values.",
-                f"sentinel values in {table_name}.{column_name}",
+                special_codes_sql,
+                "Step 2 descriptor values should not leak source special-code values.",
+                f"special-code values in {table_name}.{column_name}",
                 {"descriptor_value"},
             )
 
@@ -512,19 +546,21 @@ def test_step_2_descriptor_values_do_not_leak_source_sentinels(conn):
 def test_step_2_dyadic_descriptor_flags_are_binary(conn):
     for table_name in ["dyad_year_descriptives", "dyadic_descriptives"]:
         for column_name in DYADIC_DESCRIPTOR_COLUMNS:
-            query = f"""
+            invalid_flags_sql = f"""
             select
                 {table_name!r} table_name,
                 {column_name!r} column_name,
                 {column_name} descriptor_value
             from {table_name}
-            where {column_name} is not null and {column_name} not in (0, 1)
+            where
+                {column_name} is not null
+                and {column_name} not in (0, 1)
             order by descriptor_value
             limit 50
             """
             fail_if_detected_rows(
                 conn,
-                query,
+                invalid_flags_sql,
                 "Dyadic descriptor flags should be binary.",
                 f"non-binary {table_name}.{column_name}",
                 {"descriptor_value"},

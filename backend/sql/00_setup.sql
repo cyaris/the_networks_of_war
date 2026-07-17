@@ -50,8 +50,8 @@ create or replace macro cow_date(year_value, month_value, day_value, default_mon
     )
 );
 
-create or replace macro cow_end_date(year_value, month_value, day_value) as (
-    if(clean_int(year_value) = -7, make_date(extract(year from current_date)::integer, 12, 31), cow_date(year_value, month_value, day_value, 12, 31))
+create or replace macro cow_end_date(year_value, month_value, day_value, source_release_date) as (
+    if(clean_int(year_value) = -7, source_release_date::date, cow_date(year_value, month_value, day_value, 12, 31))
 );
 
 create or replace macro date_estimated(year_value, month_value, day_value) as (

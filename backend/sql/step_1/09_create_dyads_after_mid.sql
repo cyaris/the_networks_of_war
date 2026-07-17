@@ -42,13 +42,14 @@ select
     a.c_code_a,
     a.c_code_b,
     cow_date(a.start_year_1, a.start_month_1, a.start_day_1, 1, 1) start_date,
-    cow_end_date(a.end_year_1, a.end_month_1, a.end_day_1) end_date,
+    cow_end_date(a.end_year_1, a.end_month_1, a.end_day_1, c.source_release_date) end_date,
     date_estimated(a.start_year_1, a.start_month_1, a.start_day_1) start_date_estimated,
     date_estimated(a.end_year_1, a.end_month_1, a.end_day_1) end_date_estimated,
     a.battle_deaths_estimated_a,
     a.battle_deaths_estimated_b
 from source_interstate_mid_dyads a
 left join mid_war_ids b on a.disno = b.disno
+join source_file_versions c on c.source_key = 'interstate_mid_dyads'
 where a.war = 1),
 
 mid_wars_directed as (

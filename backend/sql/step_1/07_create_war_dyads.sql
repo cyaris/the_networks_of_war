@@ -34,7 +34,7 @@ select
     f.side side_a,
     g.side side_b,
     cow_date(a.start_year_1, a.start_month_1, a.start_day_1, 1, 1) start_date,
-    cow_end_date(a.end_year_1, a.end_month_1, a.end_day_1) end_date,
+    cow_end_date(a.end_year_1, a.end_month_1, a.end_day_1, h.source_release_date) end_date,
     date_estimated(a.start_year_1, a.start_month_1, a.start_day_1) start_date_estimated,
     date_estimated(a.end_year_1, a.end_month_1, a.end_day_1) end_date_estimated,
     a.battle_deaths_a,
@@ -48,6 +48,7 @@ left join interstate_participant_sides f on a.war_id = f.war_id
                                          and a.c_code_a = f.c_code
 left join interstate_participant_sides g on a.war_id = g.war_id
                                          and a.c_code_b = g.c_code
+join source_file_versions h on h.source_key = 'interstate_war_dyads'
 union all
 select
     a.war_id,
@@ -62,7 +63,7 @@ select
     1 side_a,
     2 side_b,
     least(cow_date(a.start_year_1, a.start_month_1, a.start_day_1, 1, 1), cow_date(a.start_year_2, a.start_month_2, a.start_day_2, 1, 1)) start_date,
-    greatest(cow_end_date(a.end_year_1, a.end_month_1, a.end_day_1), cow_end_date(a.end_year_2, a.end_month_2, a.end_day_2)) end_date,
+    greatest(cow_end_date(a.end_year_1, a.end_month_1, a.end_day_1, f.source_release_date), cow_end_date(a.end_year_2, a.end_month_2, a.end_day_2, f.source_release_date)) end_date,
     greatest(date_estimated(a.start_year_1, a.start_month_1, a.start_day_1), date_estimated(a.start_year_2, a.start_month_2, a.start_day_2)) start_date_estimated,
     greatest(date_estimated(a.end_year_1, a.end_month_1, a.end_day_1), date_estimated(a.end_year_2, a.end_month_2, a.end_day_2)) end_date_estimated,
     a.battle_deaths_a,
@@ -71,6 +72,7 @@ from source_extrastate_wars a
 left join war_types c on a.war_type_id = c.war_type_id
 left join country_codes d on a.c_code_a = d.c_code
 left join country_codes e on a.c_code_b = e.c_code
+join source_file_versions f on f.source_key = 'extrastate_wars'
 union all
 select
     a.war_id,
@@ -85,7 +87,7 @@ select
     1 side_a,
     2 side_b,
     least(cow_date(a.start_year_1, a.start_month_1, a.start_day_1, 1, 1), cow_date(a.start_year_2, a.start_month_2, a.start_day_2, 1, 1), cow_date(a.start_year_3, a.start_month_3, a.start_day_3, 1, 1), cow_date(a.start_year_4, a.start_month_4, a.start_day_4, 1, 1)) start_date,
-    greatest(cow_end_date(a.end_year_1, a.end_month_1, a.end_day_1), cow_end_date(a.end_year_2, a.end_month_2, a.end_day_2), cow_end_date(a.end_year_3, a.end_month_3, a.end_day_3), cow_end_date(a.end_year_4, a.end_month_4, a.end_day_4)) end_date,
+    greatest(cow_end_date(a.end_year_1, a.end_month_1, a.end_day_1, f.source_release_date), cow_end_date(a.end_year_2, a.end_month_2, a.end_day_2, f.source_release_date), cow_end_date(a.end_year_3, a.end_month_3, a.end_day_3, f.source_release_date), cow_end_date(a.end_year_4, a.end_month_4, a.end_day_4, f.source_release_date)) end_date,
     greatest(date_estimated(a.start_year_1, a.start_month_1, a.start_day_1), date_estimated(a.start_year_2, a.start_month_2, a.start_day_2), date_estimated(a.start_year_3, a.start_month_3, a.start_day_3), date_estimated(a.start_year_4, a.start_month_4, a.start_day_4)) start_date_estimated,
     greatest(date_estimated(a.end_year_1, a.end_month_1, a.end_day_1), date_estimated(a.end_year_2, a.end_month_2, a.end_day_2), date_estimated(a.end_year_3, a.end_month_3, a.end_day_3), date_estimated(a.end_year_4, a.end_month_4, a.end_day_4)) end_date_estimated,
     a.battle_deaths_a,
@@ -93,7 +95,8 @@ select
 from source_intrastate_wars a
 left join war_types c on a.war_type_id = c.war_type_id
 left join country_codes d on a.c_code_a = d.c_code
-left join country_codes e on a.c_code_b = e.c_code;
+left join country_codes e on a.c_code_b = e.c_code
+join source_file_versions f on f.source_key = 'intrastate_wars';
 
 create or replace table dyads_after_sources as
 

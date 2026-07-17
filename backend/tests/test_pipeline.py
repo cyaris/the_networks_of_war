@@ -113,6 +113,7 @@ def test_convert_excel_to_csv_uses_xlrd_for_xls(tmp_path: Path, monkeypatch: pyt
         captured["source"] = source
         captured["sheet_name"] = sheet_name
         captured["engine"] = engine
+
         return pd.DataFrame([{"ccode": 2, "year": 2008}])
 
     monkeypatch.setattr(pd, "read_excel", read_excel)
