@@ -2,7 +2,7 @@
   import { forceCenter, forceCollide, forceLink, forceManyBody, forceSimulation, forceX, forceY } from "d3-force"
   import { scaleLinear } from "d3-scale"
   import { onDestroy } from "svelte"
-  import { Select } from "svelte-lib/components"
+  import { CheckboxFilter, Select } from "svelte-lib/components"
 
   import graphData from "../static/graphData.json"
 
@@ -45,6 +45,29 @@
     return items.find(item => item.linkDashFieldCount > 0) || items[0]
   }
 
+  function countryNameForCode(names) {
+    return Array.from(names).sort((a, b) => a.localeCompare(b))[0]
+  }
+
+  let countryFiltersByCCode = {}
+
+  Object.values(graphsByWarId).forEach(graph => {
+    let graphNodes = graph.nodes || []
+
+    graphNodes.forEach(node => {
+      if (Number(node.c_code) <= 0) return
+
+      let cCode = String(node.c_code)
+
+      if (!countryFiltersByCCode[cCode]) {
+        countryFiltersByCCode[cCode] = { c_code: node.c_code, names: new Set(), warIds: new Set() }
+      }
+
+      countryFiltersByCCode[cCode].names.add(node.participant)
+      countryFiltersByCCode[cCode].warIds.add(String(node.war_id))
+    })
+  })
+
   let linkDashFieldCountsByWarId = Object.fromEntries(wars.map(war => [String(war.war_id), linkDashFieldCount(war)]))
   let warTypeItems = Array.from(new Set(wars.map(war => war.war_type)))
     .sort()
@@ -52,7 +75,23 @@
       value: warType,
       label: warType,
     }))
-  let selectedWarTypes = [...warTypeItems]
+  let countryCodeItems = Object.values(countryFiltersByCCode)
+    .map(country => {
+      let label = countryNameForCode(country.names)
+
+      return {
+        value: String(country.c_code),
+        label,
+        selectedLabel: label,
+        secondaryLabel: plural(country.warIds.size, "war"),
+        c_code: country.c_code,
+        warIds: country.warIds,
+      }
+    })
+    .sort((a, b) => a.label.localeCompare(b.label))
+  let selectedWarTypes = warTypeItems.map(item => item.value)
+  let deselectedWarTypes = []
+  let selectedCountryCodeItem = null
   let selectedWarItem = null
   let graph = { nodes: [], links: [] }
   let selectedWar = null
@@ -112,10 +151,13 @@
   const sideColors = { 1: "#2f7f66", 2: "#b54f72", 3: "#5f70b8", null: "#71717a", undefined: "#71717a" }
 
   $: graphCenterX = width * 0.5
-  $: selectedWarTypeValues = selectedWarTypes?.length ? selectedWarTypes.map(d => d.value) : []
-  $: filteredWars = selectedWarTypeValues.length
-    ? wars.filter(war => selectedWarTypeValues.includes(war.war_type))
-    : wars
+  $: selectedWarTypeValues = selectedWarTypes?.length ? selectedWarTypes : []
+  $: selectedCountryWarIds = selectedCountryCodeItem?.warIds
+  $: filteredWars = wars.filter(
+    war =>
+      selectedWarTypeValues.includes(war.war_type) &&
+      (!selectedCountryWarIds || selectedCountryWarIds.has(String(war.war_id)))
+  )
   $: warItems = filteredWars.map(war => ({
     value: String(war.war_id),
     label: war.war_name,
@@ -125,7 +167,9 @@
     linkDashFieldCount: linkDashFieldCountsByWarId[String(war.war_id)] || 0,
     war,
   }))
-  $: if (warItems.length && !warItems.some(item => item.value == selectedWarItem?.value)) {
+  $: if (!warItems.length && selectedWarItem) {
+    selectedWarItem = null
+  } else if (warItems.length && !warItems.some(item => item.value == selectedWarItem?.value)) {
     selectedWarItem = preferredWarItem(warItems)
   }
   $: selectedWar = selectedWarItem?.war
@@ -826,13 +870,33 @@
     <div class="mx-auto flex w-full flex-col gap-4 py-5">
       <section class="grid gap-3 border border-[#d8d3c4] bg-white p-4">
         <div>
-          <div class="mb-1 text-sm font-extrabold text-[#596b64]">War Types</div>
+          <div class="mb-2 text-sm font-extrabold text-[#596b64]">War Types</div>
+          <div class="flex flex-wrap gap-x-5 gap-y-2 text-sm">
+            {#each warTypeItems as warTypeItem (warTypeItem.value)}
+              <CheckboxFilter
+                labelClasses="mb-0 font-medium"
+                label={warTypeItem.label}
+                value={warTypeItem.value}
+                selection={selectedWarTypes}
+                deselection={deselectedWarTypes}
+                on:update={({ detail }) => {
+                  selectedWarTypes = detail.selection
+                  deselectedWarTypes = detail.deselection
+                }}
+              />
+            {/each}
+          </div>
+        </div>
+        <div>
+          <div class="mb-1 text-sm font-extrabold text-[#596b64]">Country</div>
           <Select
-            items={warTypeItems}
-            bind:value={selectedWarTypes}
-            multiple={true}
-            placeholder="Filter war types"
-            on:valueChange={({ detail }) => (selectedWarTypes = detail.d || [])}
+            items={countryCodeItems}
+            bind:value={selectedCountryCodeItem}
+            labelConstruction={true}
+            secondaryLabelIdentifier="secondaryLabel"
+            placeholder="Filter by country"
+            noItemsMessage="No countries available."
+            on:valueChange={({ detail }) => (selectedCountryCodeItem = detail.d)}
           />
         </div>
         <div>
