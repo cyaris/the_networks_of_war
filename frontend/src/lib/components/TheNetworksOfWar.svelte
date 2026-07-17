@@ -145,6 +145,7 @@
   const height = 700
   const minRadiusSize = 1
   const maxRadiusSize = 125
+  const dyadMinLinkDistance = 380
   const linkNodeSize = 2.5
   const nodeStrokeWidth = 1
   const nodeSizeWarningOffset = 10
@@ -692,6 +693,15 @@
     nodeMargins = getNodeMargins()
   }
 
+  function forceLinkDistance(link) {
+    let baseDistance =
+      (nodeMargins.radius_size[link.source.id] ?? linkNodeSize) +
+      (nodeMargins.radius_size[link.target.id] ?? linkNodeSize) +
+      Math.max(maxRadiusSize, addedMarginSize, 15)
+
+    return nodes.length == 2 ? Math.max(baseDistance, dyadMinLinkDistance) : baseDistance
+  }
+
   function createLegacySimulation() {
     stopSimulation()
 
@@ -737,12 +747,7 @@
         "link",
         forceLink(links)
           .id(d => Number.parseInt(d.id))
-          .distance(
-            d =>
-              (nodeMargins.radius_size[d.source.id] ?? linkNodeSize) +
-              (nodeMargins.radius_size[d.target.id] ?? linkNodeSize) +
-              Math.max(maxRadiusSize, addedMarginSize, 15)
-          )
+          .distance(forceLinkDistance)
           .strength(0.75)
       )
       .on("tick", () => {

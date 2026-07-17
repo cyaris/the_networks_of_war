@@ -34,7 +34,7 @@ select
     round(avg(refugees_originated), 2) refugees_originated,
     round(avg(refugees_hosted), 2) refugees_hosted,
     round(avg(internally_displaced_persons), 2) internally_displaced_persons,
-    round(avg(concurrent_wars), 2) concurrent_wars
+    max(concurrent_wars) concurrent_wars
 from participant_year_descriptives a
 join wars b on a.war_id = b.war_id
 where
@@ -76,7 +76,7 @@ select
     round(avg(refugees_originated), 2) refugees_originated,
     round(avg(refugees_hosted), 2) refugees_hosted,
     round(avg(internally_displaced_persons), 2) internally_displaced_persons,
-    round(avg(concurrent_wars), 2) concurrent_wars
+    max(concurrent_wars) concurrent_wars
 from participant_year_descriptives a
 join wars b on a.war_id = b.war_id
 where
@@ -118,6 +118,6 @@ select
     round(avg(refugees_originated), 2) refugees_originated,
     round(avg(refugees_hosted), 2) refugees_hosted,
     round(avg(internally_displaced_persons), 2) internally_displaced_persons,
-    round(avg(concurrent_wars), 2) concurrent_wars
+    max(concurrent_wars) concurrent_wars
 from participant_year_descriptives
 group by 1, 2, 3, 4, 5;

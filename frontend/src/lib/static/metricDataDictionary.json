@@ -241,7 +241,7 @@
       "unit": "wars",
       "valueSuffix": "wars",
       "source": "Calculated from this project's war-participant data",
-      "calculation": "Counts how many other wars involved the same country in the same year, then averages those yearly counts across the selected timeframe."
+      "calculation": "Counts how many other wars involved the same country in the same year, then uses the highest yearly count in the selected timeframe."
     },
     "days_at_war": {
       "label": "Days At War",

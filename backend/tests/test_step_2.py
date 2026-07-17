@@ -567,6 +567,31 @@ def test_step_2_dyadic_descriptor_flags_are_binary(conn):
             )
 
 
+def test_step_2_concurrent_wars_remains_a_whole_war_count(conn):
+    fractional_rows_sql = """
+    select
+        war_id,
+        war_name,
+        c_code,
+        participant,
+        timeframe,
+        concurrent_wars
+    from participant_descriptives
+    where
+        concurrent_wars is not null
+        and concurrent_wars != floor(concurrent_wars)
+    order by concurrent_wars desc
+    limit 50
+    """
+    fail_if_detected_rows(
+        conn,
+        fractional_rows_sql,
+        "Concurrent wars should summarize whole overlapping war counts, not averaged fractional exposure.",
+        "fractional concurrent war rows",
+        {"concurrent_wars"},
+    )
+
+
 def test_step_2_source_metadata_files_match_known_downloads():
     metadata_by_key = {metadata["key"]: metadata for metadata in SOURCE_METADATA}
 
