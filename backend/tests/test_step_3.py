@@ -109,7 +109,6 @@ def table_columns(conn, table_name: str) -> list[str]:
         and table_name = ?
     order by ordinal_position
     """
-
     return [column_name for (column_name,) in conn.execute(query, [table_name]).fetchall()]
 
 
@@ -175,8 +174,6 @@ def test_step_3_frontend_graph_data_prunes_unavailable_descriptor_fields(step_3_
         node_fields = sorted({(timeframe, field) for node in nodes for timeframe, field in descriptor_fields(node)})
         link_fields = sorted({(timeframe, field) for link in links for timeframe, field in descriptor_fields(link)})
 
-        assert all(not is_legacy_timeframe_field(field) for node in nodes for field in node)
-        assert all(not is_legacy_timeframe_field(field) for link in links for field in link)
         assert all(
             number_or_none(node.get(timeframe, {}).get(field)) not in (-9, -8)
             for node in nodes
@@ -217,12 +214,10 @@ def test_step_3_frontend_graph_data_keeps_all_non_null_node_metrics_for_tooltips
             assert "metrics" in node
             assert descriptor_pairs <= metric_pairs
             assert all(
-                number_or_none(node["metrics"][timeframe][field]) is not None
-                for timeframe, field in metric_pairs
+                number_or_none(node["metrics"][timeframe][field]) is not None for timeframe, field in metric_pairs
             )
             assert all(
-                number_or_none(node["metrics"][timeframe][field]) not in (-9, -8)
-                for timeframe, field in metric_pairs
+                number_or_none(node["metrics"][timeframe][field]) not in (-9, -8) for timeframe, field in metric_pairs
             )
 
             if metric_pairs - descriptor_pairs:
@@ -255,8 +250,8 @@ def test_step_3_applies_participant_null_and_conversion_rules(conn):
     select count(*)
     from participant_descriptives a
     join final_participants b on a.war_id = b.war_id
-                             and a.c_code = b.c_code
-                             and a.participant = b.participant
+                              and a.c_code = b.c_code
+                              and a.participant = b.participant
     where
         a.timeframe = 'First Year'
         and a.c_code > 0
@@ -269,8 +264,8 @@ def test_step_3_applies_participant_null_and_conversion_rules(conn):
     select count(*)
     from participant_descriptives a
     join final_participants b on a.war_id = b.war_id
-                             and a.c_code = b.c_code
-                             and a.participant = b.participant
+                              and a.c_code = b.c_code
+                              and a.participant = b.participant
     where
         a.timeframe = 'First Year'
         and a.c_code > 0
@@ -284,8 +279,8 @@ def test_step_3_applies_participant_null_and_conversion_rules(conn):
     select count(*)
     from participant_descriptives a
     join final_participants b on a.war_id = b.war_id
-                             and a.c_code = b.c_code
-                             and a.participant = b.participant
+                              and a.c_code = b.c_code
+                              and a.participant = b.participant
     where
         a.timeframe = 'All Years'
         and a.money_flow_in is not null
@@ -297,8 +292,8 @@ def test_step_3_applies_participant_null_and_conversion_rules(conn):
     select count(*)
     from participant_descriptives a
     join final_participants b on a.war_id = b.war_id
-                             and a.c_code = b.c_code
-                             and a.participant = b.participant
+                              and a.c_code = b.c_code
+                              and a.participant = b.participant
     where
         a.timeframe = 'All Years'
         and a.imports is not null
@@ -310,8 +305,8 @@ def test_step_3_applies_participant_null_and_conversion_rules(conn):
     select count(*)
     from participant_descriptives a
     join final_participants b on a.war_id = b.war_id
-                             and a.c_code = b.c_code
-                             and a.participant = b.participant
+                              and a.c_code = b.c_code
+                              and a.participant = b.participant
     where
         a.timeframe = 'All Years'
         and a.military_personnel is not null
@@ -323,8 +318,8 @@ def test_step_3_applies_participant_null_and_conversion_rules(conn):
     select count(*)
     from participant_descriptives a
     join final_participants b on a.war_id = b.war_id
-                             and a.c_code = b.c_code
-                             and a.participant = b.participant
+                              and a.c_code = b.c_code
+                              and a.participant = b.participant
     where
         a.timeframe = 'All Years'
         and a.iron_steel_production is not null
@@ -336,8 +331,8 @@ def test_step_3_applies_participant_null_and_conversion_rules(conn):
     select count(*)
     from participant_descriptives a
     join final_participants b on a.war_id = b.war_id
-                             and a.c_code = b.c_code
-                             and a.participant = b.participant
+                              and a.c_code = b.c_code
+                              and a.participant = b.participant
     where
         a.timeframe = 'All Years'
         and a.energy_consumption is not null
@@ -349,8 +344,8 @@ def test_step_3_applies_participant_null_and_conversion_rules(conn):
     select count(*)
     from participant_descriptives a
     join final_participants b on a.war_id = b.war_id
-                             and a.c_code = b.c_code
-                             and a.participant = b.participant
+                              and a.c_code = b.c_code
+                              and a.participant = b.participant
     where
         a.timeframe = 'All Years'
         and a.co2_emissions_per_capita is not null
@@ -378,9 +373,9 @@ def test_step_3_final_dyad_links_resolve_all_final_participants(conn):
         c.id target_id
     from final_dyads a
     left join final_participants b on a.war_id = b.war_id
-                                  and a.source = b.id
+                                   and a.source = b.id
     left join final_participants c on a.war_id = c.war_id
-                                  and a.target = c.id
+                                   and a.target = c.id
     where
         a.source is null
         or a.target is null
@@ -413,10 +408,10 @@ def test_step_3_final_dyads_preserve_unknown_non_state_descriptors(conn):
     from dyadic_descriptives
     unpivot include nulls (source_value for field in ({descriptor_columns})) b
     join final_dyads a on a.war_id = b.war_id
-                      and a.c_code_a = b.c_code_a
-                      and a.c_code_b = b.c_code_b
-                      and a.participant_a = b.participant_a
-                      and a.participant_b = b.participant_b
+                       and a.c_code_a = b.c_code_a
+                       and a.c_code_b = b.c_code_b
+                       and a.participant_a = b.participant_a
+                       and a.participant_b = b.participant_b
     where
         (a.c_code_a <= 0 or a.c_code_b <= 0)
         and b.source_value is null
@@ -444,7 +439,7 @@ def test_step_3_final_participant_nodes_all_have_links(conn):
         a.side
     from final_participants a
     left join final_dyads b on a.war_id = b.war_id
-                           and a.id in (b.source, b.target)
+                            and a.id in (b.source, b.target)
     where b.war_id is null
     order by a.war_id, a.id
     """
@@ -485,24 +480,19 @@ def js_war_id_key(value: float) -> str:
     return str(int(value)) if value == int(value) else str(value)
 
 
-def is_legacy_timeframe_field(field: str) -> bool:
-    return field.endswith(("_x", "_y", "_z"))
-
-
 def descriptor_fields(row: dict):
     return [(timeframe, field) for timeframe in DESCRIPTOR_TIMEFRAMES for field in row.get(timeframe, {})]
 
 
 def metric_fields(row: dict):
     return [
-        (timeframe, field)
-        for timeframe in DESCRIPTOR_TIMEFRAMES
-        for field in row.get("metrics", {}).get(timeframe, {})
+        (timeframe, field) for timeframe in DESCRIPTOR_TIMEFRAMES for field in row.get("metrics", {}).get(timeframe, {})
     ]
 
 
 def number_or_none(value):
     if isinstance(value, bool):
         return int(value)
+
     if isinstance(value, (int, float)):
         return value

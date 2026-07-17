@@ -119,6 +119,7 @@ class SourceDataPreparationMixin:
                         shutil.rmtree(target)
                     else:
                         target.unlink()
+
                 shutil.move(str(path), target)
 
     def extracted_file_path(self, source_dir: Path, filename: str) -> Path:

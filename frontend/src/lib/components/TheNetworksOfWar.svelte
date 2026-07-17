@@ -51,8 +51,19 @@
     return items.find(item => item.linkDashFieldCount > 0) || items[0]
   }
 
-  function countryNameForCode(names) {
-    return Array.from(names).sort((a, b) => a.localeCompare(b))[0]
+  function emptyNodeMargins() {
+    return {
+      name: {},
+      radius_size: {},
+      vertical_name_shift: {},
+      name_fits_in_node: {},
+      horizontal_name_shift: {},
+      name_lengths: {},
+      added_top_margin: {},
+      added_bottom_margin: {},
+      added_left_margin: {},
+      added_right_margin: {}
+    }
   }
 
   let countryFiltersByCCode = {}
@@ -83,7 +94,7 @@
     }))
   let countryCodeItems = Object.values(countryFiltersByCCode)
     .map(country => {
-      let label = countryNameForCode(country.names)
+      let label = Array.from(country.names).sort((a, b) => a.localeCompare(b))[0]
 
       return {
         value: String(country.c_code),
@@ -207,21 +218,6 @@
   $: selectedWar = selectedWarItem?.war
   $: graph = selectedWar ? graphForWar(selectedWar) : { nodes: [], links: [] }
 
-  function emptyNodeMargins() {
-    return {
-      name: {},
-      radius_size: {},
-      vertical_name_shift: {},
-      name_fits_in_node: {},
-      horizontal_name_shift: {},
-      name_lengths: {},
-      added_top_margin: {},
-      added_bottom_margin: {},
-      added_left_margin: {},
-      added_right_margin: {}
-    }
-  }
-
   function numberValue(value) {
     if (value == null || value === "") return null
 
@@ -280,10 +276,6 @@
     return `${formatted}${Number(estimated) == 1 ? " (estimated)" : ""}`
   }
 
-  function displayDaysAtWar(node) {
-    return displayMetricNumber(node.metrics?.all_years?.days_at_war, "days_at_war")
-  }
-
   function finiteValues(values) {
     return values.filter(Number.isFinite)
   }
@@ -296,10 +288,6 @@
     let uniqueValues = Array.from(new Set(finiteValues(values)))
 
     return uniqueValues.length > 1 || (nullRadiusNodes > 0 && hasPositiveFiniteValue(uniqueValues))
-  }
-
-  function maxValue(values) {
-    return Math.max(...finiteValues(values), 0)
   }
 
   function averageValue(values) {
@@ -342,6 +330,14 @@
 
   function descriptorValue(row, field, timeframe = timeframeValue?.value || "all_years") {
     return row?.[timeframe]?.[field]
+  }
+
+  function dateDays(startDate, endDate) {
+    let start = new Date(`${startDate}T00:00:00`)
+    let end = endDate ? new Date(`${endDate}T00:00:00`) : new Date()
+    let days = Math.round((end - start) / 86400000) + 1
+
+    return Number.isFinite(days) ? Math.max(1, days) : null
   }
 
   function nodeDescriptorNumericValue(node, field) {
@@ -449,16 +445,8 @@
 
   function linkFieldItems(rows, timeframe) {
     return descriptorItems(
-      descriptorFields(rows, timeframe).filter(field => maxValue(getLinkDescriptiveValues(field)) == 1)
+      descriptorFields(rows, timeframe).filter(field => hasPositiveFiniteValue(getLinkDescriptiveValues(field)))
     )
-  }
-
-  function dateDays(startDate, endDate) {
-    let start = new Date(`${startDate}T00:00:00`)
-    let end = endDate ? new Date(`${endDate}T00:00:00`) : new Date()
-    let days = Math.round((end - start) / 86400000) + 1
-
-    return Number.isFinite(days) ? Math.max(1, days) : null
   }
 
   function enrichedNodes(rawNodes) {
@@ -649,16 +637,12 @@
     }
   }
 
-  function nodeHasUnknownSelectedDescriptor(node) {
-    if (!nodeDescriptorValue?.value || !hasNodeSizeSignal) return false
+  function showNodeSizeWarning(node) {
+    if (!showNodeSizeWarnings || !nodeDescriptorValue?.value || !hasNodeSizeSignal) return false
 
     let nodeSizing = nodeSizingById[node.id]
 
     return !nodeSizing || nodeSizing.isUnknown == true
-  }
-
-  function showNodeSizeWarning(node) {
-    return showNodeSizeWarnings && nodeHasUnknownSelectedDescriptor(node)
   }
 
   function nodeMetricRows(node) {
@@ -686,6 +670,17 @@
 
   function linkHasDescriptor(link) {
     return linkDescriptorValue?.value && (numberValue(descriptorValue(link, linkDescriptorValue.value)) ?? 0) > 0
+  }
+
+  function refreshGraph() {
+    nodes = nodes
+    links = links
+  }
+
+  function stopSimulation() {
+    if (simulation) {
+      simulation.stop()
+    }
   }
 
   function applyLegacySizing() {
@@ -818,11 +813,6 @@
     }
   }
 
-  function refreshGraph() {
-    nodes = nodes
-    links = links
-  }
-
   function startDrag(node, event) {
     event.preventDefault()
     event.stopPropagation()
@@ -897,12 +887,6 @@
     linkDescriptorValue = event.detail.d
     triggerLinkDashPulse()
     refreshGraph()
-  }
-
-  function stopSimulation() {
-    if (simulation) {
-      simulation.stop()
-    }
   }
 
   function hasTimeframeDescriptor(row, timeframe) {
@@ -1239,7 +1223,7 @@
                     </div>
                     <div class="mb-2">
                       <span class="font-bold text-[#33413c]">Days At War:</span>
-                      {displayDaysAtWar(tooltip.node)}
+                      {displayMetricNumber(tooltip.node.metrics?.all_years?.days_at_war, "days_at_war")}
                     </div>
                   </div>
                   {#if metricRows.length}

@@ -173,7 +173,6 @@ def table_columns(conn, table_name: str) -> list[str]:
         and table_name = ?
     order by ordinal_position
     """
-
     return [column_name for (column_name,) in conn.execute(query, [table_name]).fetchall()]
 
 
