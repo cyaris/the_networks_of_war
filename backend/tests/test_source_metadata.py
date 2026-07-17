@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from datetime import date
+
 from shared import duplicate_values, participant_name_replacements
 
-from pipeline import SOURCE_METADATA
+from pipeline import SOURCE_METADATA, STEP_1_SOURCE_KEYS
 
 
 def test_source_tables_have_download_urls():
@@ -35,4 +37,21 @@ def test_source_encoding_overrides_are_defined_in_metadata():
         "extrastate_wars": "cp1252",
         "national_material_capabilities": "latin-1",
         "territorial_changes": "latin-1",
+    }
+
+
+def test_step_1_source_release_dates_are_defined_in_metadata():
+    release_dates = {
+        metadata["key"]: date.fromisoformat(metadata["release_date"])
+        for metadata in SOURCE_METADATA
+        if metadata["key"] in STEP_1_SOURCE_KEYS
+    }
+
+    assert release_dates == {
+        "country_codes": date(2022, 9, 7),
+        "extrastate_wars": date(2011, 12, 8),
+        "interstate_mid_dyads": date(2025, 4, 6),
+        "interstate_war_dyads": date(2022, 7, 12),
+        "interstate_wars": date(2011, 3, 1),
+        "intrastate_wars": date(2020, 4, 6),
     }

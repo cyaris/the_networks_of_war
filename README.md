@@ -49,6 +49,10 @@ pip install -e ".[dev]"
 python src/pipeline.py
 ```
 
+The backend `dev` extra includes `pdftotext`. The pipeline does not import it at runtime; it is installed so coding
+agents and maintainers can extract and search PDF source documentation under `backend/data/` when validating source
+assumptions.
+
 Then install and run the frontend. From `the_networks_of_war/frontend`:
 
 ```bash
@@ -95,9 +99,10 @@ keep the exact number in parentheses, so `1,400,000` displays as `1.4 million` a
 Source data is downloaded into `backend/data/`, which is ignored by git. Each external source table gets its own
 subdirectory named after the source key without the `source_` table prefix, such as
 `backend/data/interstate_mid_dyads/` for `source_interstate_mid_dyads`. The corresponding raw source data and source
-documentation live in that folder. Source download metadata lives in `backend/manual/source_metadata.json`. Source CSVs
-that need explicit encoding handling use `latin-1` by default; prepared copies are written to UTF-8 under ignored
-`backend/.work/` before DuckDB reads them. The generated DuckDB database is ignored:
+documentation live in that folder. Source download metadata, including Step 1 source release dates used for ongoing-war
+date caps, lives in `backend/manual/source_metadata.json`. Source CSVs that need explicit encoding handling use
+`latin-1` by default; prepared copies are written to UTF-8 under ignored `backend/.work/` before DuckDB reads them. The
+generated DuckDB database is ignored:
 
 Prepared source subdirectories keep only durable source CSVs and PDF or JSON source documentation. Archive files,
 original Excel/Stata workbooks, text exports, and temporary download caches are discarded after extraction or conversion;
@@ -250,14 +255,19 @@ supporting files from each source bundle when available.
 
 ### Step 1 Source Tables
 
-| Table | Organization | Source CSV | Version | Download source |
-| --- | --- | --- | --- | --- |
-| `source_country_codes` | Correlates of War Project (COW) | `COW-country-codes.csv` | unversioned | [Data](https://correlatesofwar.org/wp-content/uploads/COW-country-codes.csv) |
-| `source_extrastate_wars` | Correlates of War Project (COW) | `Extra-StateWarData_v4.0.csv` | 4.0 | [Data](https://correlatesofwar.org/wp-content/uploads/Extra-StateWarData_v4.0.csv)<br>[Doc](https://correlatesofwar.org/wp-content/uploads/Extra-StateWars_Codebook.pdf) |
-| `source_interstate_mid_dyads` | Correlates of War Project (COW) | `dyadic_mid_4.03.csv` | 4.03 | [Release](https://correlatesofwar.org/wp-content/uploads/dyadic_mid_4.03_update.zip) |
-| `source_interstate_war_dyads` | Correlates of War Project (COW) | `directed_dyadic_war.csv` | unversioned | [Release](https://correlatesofwar.org/wp-content/uploads/Dyadic-Interstate-War-Dataset.zip) |
-| `source_interstate_wars` | Correlates of War Project (COW) | `Inter-StateWarData_v4.0.csv` | 4.0 | [Data](https://correlatesofwar.org/wp-content/uploads/Inter-StateWarData_v4.0.csv)<br>[Doc 1](https://correlatesofwar.org/wp-content/uploads/Inter-StateWars_Codebook.pdf)<br>[Doc 2](https://correlatesofwar.org/wp-content/uploads/Inter-StateWarsList.pdf) |
-| `source_intrastate_wars` | Correlates of War Project (COW) | `INTRA-STATE_State_participants v5.1 CSV.csv` | 5.1 | [Release](https://correlatesofwar.org/wp-content/uploads/Intra-State-Wars-v5.1.zip) |
+| Table | Organization | Source CSV | Version | Release date | Download source |
+| --- | --- | --- | --- | --- | --- |
+| `source_country_codes` | Correlates of War Project (COW) | `COW-country-codes.csv` | unversioned | 2022-09-07 upload | [Data](https://correlatesofwar.org/wp-content/uploads/COW-country-codes.csv) |
+| `source_extrastate_wars` | Correlates of War Project (COW) | `Extra-StateWarData_v4.0.csv` | 4.0 | 2011-12-08 release | [Data](https://correlatesofwar.org/wp-content/uploads/Extra-StateWarData_v4.0.csv)<br>[Doc](https://correlatesofwar.org/wp-content/uploads/Extra-StateWars_Codebook.pdf) |
+| `source_interstate_mid_dyads` | Correlates of War Project (COW) | `dyadic_mid_4.03.csv` | 4.03 | 2025-04-06 upload | [Release](https://correlatesofwar.org/wp-content/uploads/dyadic_mid_4.03_update.zip) |
+| `source_interstate_war_dyads` | Correlates of War Project (COW) | `directed_dyadic_war.csv` | unversioned | 2022-07-12 upload | [Release](https://correlatesofwar.org/wp-content/uploads/Dyadic-Interstate-War-Dataset.zip) |
+| `source_interstate_wars` | Correlates of War Project (COW) | `Inter-StateWarData_v4.0.csv` | 4.0 | 2011-03-01 release | [Data](https://correlatesofwar.org/wp-content/uploads/Inter-StateWarData_v4.0.csv)<br>[Doc 1](https://correlatesofwar.org/wp-content/uploads/Inter-StateWars_Codebook.pdf)<br>[Doc 2](https://correlatesofwar.org/wp-content/uploads/Inter-StateWarsList.pdf) |
+| `source_intrastate_wars` | Correlates of War Project (COW) | `INTRA-STATE_State_participants v5.1 CSV.csv` | 5.1 | 2020-04-06 release | [Release](https://correlatesofwar.org/wp-content/uploads/Intra-State-Wars-v5.1.zip) |
+
+Release dates above use the COW war-data page when that page states the day a source became available. For Step 1 files
+without a dated release note on the source page, the date is the COW WordPress media attachment date for the exact file
+URL the pipeline downloads. Local PDF text and metadata were checked but are treated as documentation/build metadata
+unless they explicitly identify the current source file's release date.
 
 ### Step 2 Source Tables
 
@@ -357,10 +367,12 @@ Step 3 completes. Node and link descriptor values are stored in `descriptor_time
   fabricating placeholder `null` source columns.
 - Version-scoped source adjustments live in `backend/sql/step_1/03_create_source_adjustment_tables.sql` and
   `backend/sql/step_1/04_insert_source_adjustments.sql`. The first file creates `source_file_versions` and adjustment
-  tables; the second inserts adjustment rows for source facts that are not present in the source CSVs. Downstream
-  transformations join adjustment tables to `source_file_versions` when an assignment is version-scoped. Adjustment
-  rows should stay lean: store only values used for joins, source corrections, or downstream transformations. Data-entry
-  fixes applied while reading source CSVs are documented below.
+  tables; the second inserts release metadata and adjustment rows for source facts that are not present in the source
+  CSVs. Downstream transformations join adjustment tables to `source_file_versions` when an assignment is
+  version-scoped. Step 1 date-span transformations also use `source_file_versions.source_release_date` to cap ongoing
+  source rows at the date the current source file was released or, when no explicit release note is published, uploaded.
+  Adjustment rows should stay lean: store only values used for joins, source corrections, or downstream transformations.
+  Data-entry fixes applied while reading source CSVs are documented below.
 - Reference data that is not tied to an external source file, currently `war_types`, is created and inserted in
   `backend/sql/step_1/05_create_reference_tables.sql` and
   `backend/sql/step_1/06_insert_reference_tables.sql`.
@@ -388,7 +400,9 @@ Step 3 completes. Node and link descriptor values are stored in `descriptor_time
   the last day of the resolved month.
 - Day values are capped to the last valid day of the resolved month, so an end date with year `2012`, month `10`, and
   missing day resolves to `2012-10-31`.
-- End year `-7` is treated as ongoing and resolved to December 31 of the current year at pipeline runtime.
+- End year `-7` is treated as ongoing and resolved to the source file's release date from
+  `source_file_versions.source_release_date`. This keeps ongoing rows reproducible and prevents Step 2 `Last Year` and
+  `All Years` descriptors from expanding beyond the years covered by the released source data.
 - A date is flagged as estimated when the year is an ongoing marker or when a positive year has a missing or invalid
   month or day.
 - Raw source date components are expected to be in basic valid domains before cleaning: months `1-12`, days `1-31`,

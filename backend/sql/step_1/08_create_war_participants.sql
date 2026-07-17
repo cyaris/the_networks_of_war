@@ -14,7 +14,7 @@ select
     coalesce(d.state_name, clean_participant(a.participant, e.replacement)) participant,
     a.side,
     least(cow_date(a.start_year_1, a.start_month_1, a.start_day_1, 1, 1), cow_date(a.start_year_2, a.start_month_2, a.start_day_2, 1, 1)) start_date,
-    greatest(cow_end_date(a.end_year_1, a.end_month_1, a.end_day_1), cow_end_date(a.end_year_2, a.end_month_2, a.end_day_2)) end_date,
+    greatest(cow_end_date(a.end_year_1, a.end_month_1, a.end_day_1, f.source_release_date), cow_end_date(a.end_year_2, a.end_month_2, a.end_day_2, f.source_release_date)) end_date,
     greatest(date_estimated(a.start_year_1, a.start_month_1, a.start_day_1), date_estimated(a.start_year_2, a.start_month_2, a.start_day_2)) start_date_estimated,
     greatest(date_estimated(a.end_year_1, a.end_month_1, a.end_day_1), date_estimated(a.end_year_2, a.end_month_2, a.end_day_2)) end_date_estimated,
     a.battle_deaths,
@@ -24,6 +24,7 @@ left join war_types c on a.war_type_id = c.war_type_id
 left join country_codes d on a.c_code = d.c_code
 left join participant_name_replacements e on d.c_code is null
                                           and clean_text(a.participant) = e.source
+join source_file_versions f on f.source_key = 'interstate_wars'
 union all
 select
     a.war_id,

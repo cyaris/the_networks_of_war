@@ -1,12 +1,12 @@
 insert into source_file_versions
 
 values
-    ('country_codes', {country_codes_source_file}, {country_codes_source_version}),
-    ('extrastate_wars', {extrastate_wars_source_file}, {extrastate_wars_source_version}),
-    ('interstate_mid_dyads', {interstate_mid_dyads_source_file}, {interstate_mid_dyads_source_version}),
-    ('interstate_war_dyads', {interstate_war_dyads_source_file}, {interstate_war_dyads_source_version}),
-    ('interstate_wars', {interstate_wars_source_file}, {interstate_wars_source_version}),
-    ('intrastate_wars', {intrastate_wars_source_file}, {intrastate_wars_source_version});
+    ('country_codes', {country_codes_source_file}, {country_codes_source_version}, {country_codes_source_release_date}),
+    ('extrastate_wars', {extrastate_wars_source_file}, {extrastate_wars_source_version}, {extrastate_wars_source_release_date}),
+    ('interstate_mid_dyads', {interstate_mid_dyads_source_file}, {interstate_mid_dyads_source_version}, {interstate_mid_dyads_source_release_date}),
+    ('interstate_war_dyads', {interstate_war_dyads_source_file}, {interstate_war_dyads_source_version}, {interstate_war_dyads_source_release_date}),
+    ('interstate_wars', {interstate_wars_source_file}, {interstate_wars_source_version}, {interstate_wars_source_release_date}),
+    ('intrastate_wars', {intrastate_wars_source_file}, {intrastate_wars_source_version}, {intrastate_wars_source_release_date});
 
 insert into source_interstate_mid_war_id_adjustments
 

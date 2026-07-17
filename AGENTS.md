@@ -8,6 +8,9 @@
 - In Markdown files, always format the literal as `null`.
 - For data-related questions, consult the relevant source documentation in `backend/data/` before concluding whether a
   source value, adjustment, or transformation is correct.
+- Use the backend dev dependency `pdftotext` to extract and search PDF documentation in `backend/data/` when source
+  documentation is relevant. Treat PDF metadata dates as document/build metadata unless the PDF text explicitly states a
+  source release date.
 - Preserve the semantic difference between `null` and zero in data transformations and frontend displays. Coalesce
   missing values to `0` only when the source coverage or derivation makes the overall value known to be zero; keep
   unknown values as `null` so the frontend can show them as unknown instead of silently displaying zero.

@@ -62,6 +62,14 @@ SOURCE_DATE_PAIR_TABLES = [
     ("source_intrastate_wars", 4),
 ]
 
+SOURCE_TABLE_KEYS = {
+    "source_interstate_wars": "interstate_wars",
+    "source_interstate_war_dyads": "interstate_war_dyads",
+    "source_interstate_mid_dyads": "interstate_mid_dyads",
+    "source_extrastate_wars": "extrastate_wars",
+    "source_intrastate_wars": "intrastate_wars",
+}
+
 RAW_SOURCE_DATE_COMPONENTS = [
     (
         "interstate_war_dyads",
@@ -158,6 +166,7 @@ def test_negative_date_special_codes_are_cleaned_except_ongoing_end_year(conn):
         ("clean_date_year(-7)", None),
         ("clean_end_year(-7)", -7),
         ("clean_end_year(-8)", None),
+        ("cow_end_date(-7, null, null, '2020-04-06'::date)", "2020-04-06"),
         ("ongoing_war(-7)", 1),
         ("ongoing_war(null)", 0),
         ("date_estimated(2012, null, 1)", 1),
@@ -439,10 +448,19 @@ def test_source_resolved_date_pairs_do_not_start_after_they_end(conn):
         output_columns = ", ".join(
             sql_identifier(column_name) for column_name in output_column_allowlist if column_name in existing_columns
         )
+        source_key = SOURCE_TABLE_KEYS[table_name]
+        source_release_date = scalar(
+            conn,
+            f"""
+            select source_release_date
+            from source_file_versions
+            where source_key = '{source_key}'
+            """,
+        )
         date_pair_values_sql = ",\n            ".join([f"""(
                 {date_pair},
                 cow_date(start_year_{date_pair}, start_month_{date_pair}, start_day_{date_pair}, 1, 1),
-                cow_end_date(end_year_{date_pair}, end_month_{date_pair}, end_day_{date_pair})
+                cow_end_date(end_year_{date_pair}, end_month_{date_pair}, end_day_{date_pair}, '{source_release_date}'::date)
             )""" for date_pair in range(1, date_pair_count + 1)])
         flagged_rows_sql = f"""
         select
@@ -745,13 +763,14 @@ def test_source_adjusted_mid_war_id_relationships_are_applied(conn):
     source_file_version_sql = """
     select
         source_file,
-        source_version
+        source_version,
+        source_release_date
     from source_file_versions
     where source_key = 'interstate_mid_dyads'
     """
     actual_source_file_version = conn.execute(source_file_version_sql).fetchone()
 
-    assert actual_source_file_version == ("dyadic_mid_4.03.csv", "4.03")
+    assert actual_source_file_version == ("dyadic_mid_4.03.csv", "4.03", date(2025, 4, 6))
 
     assignments_sql = """
     select

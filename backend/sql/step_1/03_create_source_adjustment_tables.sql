@@ -1,7 +1,8 @@
 create or replace table source_file_versions (
     source_key varchar,
     source_file varchar,
-    source_version varchar
+    source_version varchar,
+    source_release_date date
 );
 
 create or replace table source_interstate_mid_war_id_adjustments (
