@@ -77,7 +77,8 @@
   let currentLinkDescriptorSignature = null
   let linkDashPulseTimer = null
   let linkDashStrokeWidth = 3
-  let nodeDescriptiveValues = []
+  let nodeSizingValues = []
+  let nodeSizingById = {}
   let maxDomain = 2
   let stdNullRadiusSize = 1
   let nodeMargins = emptyNodeMargins()
@@ -91,6 +92,8 @@
   const linkNodeSize = 2.5
   const nodeStrokeWidth = 1
   const nodeSizeWarningOffset = 10
+  const nodeSizeWarningLabelGap = 14
+  const maxVisibleNodeSizeWarnings = 6
   const graphCenterY = height * 0.5
   const addedMarginSize = Math.max(linkNodeSize, 10)
   const tooltipOffset = 16
@@ -177,35 +180,43 @@
     return row?.[timeframe]?.[field]
   }
 
+  function nodeDescriptorNumericValue(node, field) {
+    if (field == "days_at_war") {
+      let totalDays = dateDays(node.start_date, Number(node.ongoing_war) == 1 ? null : node.end_date)
+
+      return totalDays == null ? null : totalDays - (numberValue(descriptorValue(node, "days_not_at_war")) ?? 0)
+    }
+
+    if (field == "battle_deaths") return numberValue(node.battle_deaths)
+
+    if (field == "battle_deaths_per_day") {
+      let totalDays = dateDays(node.start_date, Number(node.ongoing_war) == 1 ? null : node.end_date)
+      let daysAtWar = totalDays == null ? null : totalDays - (numberValue(descriptorValue(node, "days_not_at_war")) ?? 0)
+      let battleDeaths = numberValue(descriptorValue(node, "battle_deaths")) ?? numberValue(node.battle_deaths)
+
+      return Number.isFinite(daysAtWar) && battleDeaths != null ? Math.round((battleDeaths / daysAtWar) * 100) / 100 : null
+    }
+
+    return numberValue(descriptorValue(node, field))
+  }
+
   function getNodeDescriptiveValues(sizeField) {
     let values = []
+    let byId = {}
     let descriptorMaxDomain = 0
     let descriptorNullRadiusNodes = 0
 
     descriptorNodes.forEach(node => {
-      let sizeValue
+      let sizeValue = nodeDescriptorNumericValue(node, sizeField)
 
-      if (sizeField == "days_at_war") {
-        let totalDays = dateDays(node.start_date, Number(node.ongoing_war) == 1 ? null : node.end_date)
-        sizeValue = totalDays == null ? NaN : totalDays - (numberValue(descriptorValue(node, "days_not_at_war")) ?? 0)
-      } else if (sizeField == "battle_deaths") {
-        sizeValue = numberValue(node.battle_deaths) ?? NaN
-      } else if (sizeField == "battle_deaths_per_day") {
-        let totalDays = dateDays(node.start_date, Number(node.ongoing_war) == 1 ? null : node.end_date)
-        let daysAtWar =
-          totalDays == null ? null : totalDays - (numberValue(descriptorValue(node, "days_not_at_war")) ?? 0)
-        let battleDeaths = numberValue(descriptorValue(node, "battle_deaths")) ?? numberValue(node.battle_deaths)
-        sizeValue =
-          Number.isFinite(daysAtWar) && battleDeaths != null ? Math.round((battleDeaths / daysAtWar) * 100) / 100 : NaN
-      } else {
-        sizeValue = Number.parseFloat(descriptorValue(node, sizeField))
-      }
-
-      if (Number.isNaN(sizeValue)) {
+      if (sizeValue == null) {
         descriptorNullRadiusNodes += 1
+        byId[node.id] = { value: null, isUnknown: true }
         values.push(NaN)
       } else {
         let value = Math.max(0, sizeValue)
+
+        byId[node.id] = { value, isUnknown: false }
         descriptorMaxDomain += value
         values.push(value)
       }
@@ -227,6 +238,7 @@
 
     return {
       values,
+      byId,
       maxDomain: descriptorMaxDomain,
       stdNullRadiusSize: descriptorStdNullRadiusSize,
       nullRadiusNodes: descriptorNullRadiusNodes,
@@ -316,13 +328,14 @@
     radiusScale = scaleLinear([0, maxDomain], [minRadiusSize, maxRadiusSize])
 
     nodes.forEach(node => {
-      let nodeValue = nodeDescriptiveValues[node.id]
+      let nodeSizing = nodeSizingById[node.id]
+      let nodeIsUnknown = !nodeSizing || nodeSizing.isUnknown
       let nodeHasSelectedDescriptor = Boolean(nodeDescriptorValue?.value)
-      let currentRadiusSize = Number.isNaN(Number.parseFloat(nodeValue))
+      let currentRadiusSize = nodeIsUnknown
         ? nodeHasSelectedDescriptor
           ? minRadiusSize
           : radiusScale(stdNullRadiusSize)
-        : radiusScale(nodeValue)
+        : radiusScale(nodeSizing?.value ?? stdNullRadiusSize)
       let nameFits = nameFitsInNode(currentRadiusSize, node.participant)
       let currentNameLength = textWidth(node.participant)
       let currentNameLengthHalf = currentNameLength / 2
@@ -445,28 +458,38 @@
   }
 
   function nodeSizeWarningPosition(node, label = labelPosition(node)) {
-    let offset = Math.max(nodeMargins.horizontal_name_shift[node.id] ?? 0, nodeRadius(node) + nodeSizeWarningOffset)
-    let outsideXOperator = label.x < 0 ? 1 : -1
-    let outsideYOperator = label.y < 0 ? 1 : -1
+    if (label.inside) {
+      let offset = (nodeRadius(node) + nodeSizeWarningOffset) / Math.SQRT2
 
-    return nodeMargins.name_fits_in_node[node.id]
-      ? { x: offset, y: offset }
-      : { x: offset * outsideXOperator, y: offset * outsideYOperator }
+      return { x: offset, y: -offset }
+    }
+
+    let labelDirection = label.x < 0 ? -1 : 1
+    let labelWidth = nodeMargins.name_lengths[node.id] ?? textWidth(node.participant)
+
+    return {
+      x: label.x + labelDirection * (labelWidth / 2 + nodeSizeWarningLabelGap),
+      y: label.y,
+    }
+  }
+
+  function nodeHasUnknownSelectedDescriptor(node) {
+    if (!nodeDescriptorValue?.value || !hasNodeSizeSignal) return false
+
+    let nodeSizing = nodeSizingById[node.id]
+
+    return !nodeSizing || nodeSizing.isUnknown == true
   }
 
   function showNodeSizeWarning(node) {
-    if (!nodeDescriptorValue?.value || !hasNodeSizeSignal) return false
-
-    return !Number.isFinite(nodeDescriptiveValues[node.id])
+    return showNodeSizeWarnings && nodeHasUnknownSelectedDescriptor(node)
   }
 
   function nodeDescriptorDisplayValue(node) {
     if (!nodeDescriptorValue?.value) return null
 
-    let value =
-      nodeDescriptorValue.value == "battle_deaths"
-        ? numberValue(node.battle_deaths)
-        : numberValue(descriptorValue(node, nodeDescriptorValue.value))
+    let nodeSizing = nodeSizingById[node.id]
+    let value = nodeSizing ? nodeSizing.value : nodeDescriptorNumericValue(node, nodeDescriptorValue.value)
 
     return value == null ? "Unknown" : value.toLocaleString()
   }
@@ -483,7 +506,8 @@
 
   function applyLegacySizing() {
     let sizing = getNodeDescriptiveValues(nodeDescriptorValue?.value || null)
-    nodeDescriptiveValues = sizing.values
+    nodeSizingValues = sizing.values
+    nodeSizingById = sizing.byId
     maxDomain = sizing.maxDomain
     stdNullRadiusSize = sizing.stdNullRadiusSize
     nodeMargins = getNodeMargins()
@@ -743,7 +767,14 @@
     currentLinkDescriptorSignature = linkDescriptorSignature
     triggerLinkDashPulse()
   }
-  $: hasNodeSizeSignal = maxValue(coalescedUniqueValues(nodeDescriptiveValues)) != 0
+  $: hasNodeSizeSignal = maxValue(coalescedUniqueValues(nodeSizingValues)) != 0
+  $: unknownNodeSizeCount = Object.values(nodeSizingById).filter(sizing => sizing?.isUnknown).length
+  $: showNodeSizeWarnings = Boolean(
+    nodeDescriptorValue?.value &&
+      hasNodeSizeSignal &&
+      unknownNodeSizeCount > 0 &&
+      unknownNodeSizeCount <= maxVisibleNodeSizeWarnings
+  )
   $: if (tooltip) {
     let point = clampTooltipCoordinates(tooltip.x, tooltip.y, tooltipBounds())
 
@@ -934,11 +965,12 @@
                           style="transform: translate({warningPosition.x}px, {warningPosition.y}px); transition: transform 2000ms ease 1500ms;"
                         >
                           <text
-                            class="text-[12px] font-bold"
+                            class="text-[10px] font-extrabold"
                             text-anchor="middle"
+                            dominant-baseline="central"
                             fill="#111827"
                             stroke="white"
-                            stroke-width={3}
+                            stroke-width={2.5}
                             paint-order="stroke"
                           >
                             ?

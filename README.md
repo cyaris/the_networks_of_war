@@ -79,10 +79,11 @@ The frontend consumes ignored generated data at `frontend/src/lib/static/graphDa
 Generated graph rows include only descriptor fields that pass per-war availability checks, so the frontend does not
 receive fields that cannot be selected.
 
-When a node-size descriptor is selected, known zero values render at the minimum node radius and unknown or `null` values also
-shrink to the minimum radius with a `?` marker. The frontend should not impute unknown selected descriptor values to an
-average node size, because that can make missing data look like a real mid-sized value. The no-descriptor default still
-uses equal fallback sizing so the graph remains readable before a size field is selected.
+When a node-size descriptor is selected, known zero values render at the minimum node radius and unknown or `null`
+values also shrink to the minimum radius. A small `?` marker is shown beside node labels only when there are a few
+unknown selected descriptor values; if many nodes are unknown, per-node markers are suppressed and the tooltip still
+displays the selected descriptor as `Unknown`. The no-descriptor default still uses equal fallback sizing so the graph
+remains readable before a size field is selected.
 
 ## Data Layout
 
