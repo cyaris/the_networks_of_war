@@ -349,5 +349,5 @@ left join mtops_years m on least(a.c_code_a, a.c_code_b) = m.c_code_low
                         and greatest(a.c_code_a, a.c_code_b) = m.c_code_high
                         and a.year = m.year
 left join shared_arms_technology_years n on least(a.c_code_a, a.c_code_b) = n.c_code_low
-                                        and greatest(a.c_code_a, a.c_code_b) = n.c_code_high
-                                        and a.year = n.year;
+                                         and greatest(a.c_code_a, a.c_code_b) = n.c_code_high
+                                         and a.year = n.year;
