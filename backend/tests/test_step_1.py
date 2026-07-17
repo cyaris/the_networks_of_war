@@ -79,6 +79,8 @@ SOURCE_COW_CODE_COLUMNS = [
     ("source_intrastate_wars", ["c_code_a", "c_code_b"]),
 ]
 
+SQL_ROOT = Path(__file__).resolve().parents[1] / "sql"
+
 RAW_SOURCE_DATE_COMPONENTS = [
     (
         "interstate_war_dyads",
@@ -118,6 +120,30 @@ RAW_SOURCE_DATE_COMPONENTS = [
         },
     ),
 ]
+
+
+def test_war_transition_columns_stay_adjacent_in_sql():
+    violations = []
+
+    for sql_path in sorted(SQL_ROOT.rglob("*.sql")):
+        lines = sql_path.read_text().splitlines()
+
+        for index, line in enumerate(lines):
+            if "lagging_war" in line:
+                next_line = lines[index + 1] if index + 1 < len(lines) else ""
+                if "leading_war" not in next_line:
+                    violations.append(
+                        f"{sql_path.relative_to(SQL_ROOT)}:{index + 1} lagging_war not followed by leading_war"
+                    )
+
+            if "leading_war" in line:
+                previous_line = lines[index - 1] if index > 0 else ""
+                if "lagging_war" not in previous_line:
+                    violations.append(
+                        f"{sql_path.relative_to(SQL_ROOT)}:{index + 1} leading_war not preceded by lagging_war"
+                    )
+
+    assert violations == []
 
 
 def test_negative_date_special_codes_are_cleaned_except_ongoing_end_year(conn):
