@@ -101,7 +101,7 @@ def conn(step_3_db_path: Path):
 
 
 def table_columns(conn, table_name: str) -> list[str]:
-    query = """
+    column_names_sql = """
     select column_name
     from information_schema.columns
     where
@@ -110,7 +110,7 @@ def table_columns(conn, table_name: str) -> list[str]:
     order by ordinal_position
     """
 
-    return [column_name for (column_name,) in conn.execute(query, [table_name]).fetchall()]
+    return [column_name for (column_name,) in conn.execute(column_names_sql, [table_name]).fetchall()]
 
 
 def scalar(conn, sql: str):
@@ -118,17 +118,17 @@ def scalar(conn, sql: str):
 
 
 def test_step_3_manifest_runs_final_export_transformations(conn):
-    actual_tables_query = """
+    actual_tables_sql = """
     select table_name
     from information_schema.tables
     where table_schema = current_schema()
     """
-    actual_tables = {table_name for (table_name,) in conn.execute(actual_tables_query).fetchall()}
+    actual_tables = {table_name for (table_name,) in conn.execute(actual_tables_sql).fetchall()}
     row_counts = {}
 
     for table_name in STEP_3_TRANSFORMED_TABLES:
-        row_count_query = f"select count(*) from {sql_identifier(table_name)}"
-        row_counts[table_name] = conn.execute(row_count_query).fetchone()[0]
+        row_count_sql = f"select count(*) from {sql_identifier(table_name)}"
+        row_counts[table_name] = conn.execute(row_count_sql).fetchone()[0]
 
     assert STEP_3_SQL == [
         "00_setup.sql",
@@ -329,7 +329,7 @@ def test_step_3_final_dyad_links_resolve_all_final_participants(conn):
 
 def test_step_3_final_dyads_preserve_unknown_non_state_descriptors(conn):
     descriptor_columns = ", ".join(DYADIC_DESCRIPTOR_COLUMNS)
-    query = f"""
+    unexpected_zero_fill_sql = f"""
     select
         a.war_id,
         a.c_code_a,
@@ -356,7 +356,7 @@ def test_step_3_final_dyads_preserve_unknown_non_state_descriptors(conn):
     """
     fail_if_detected_rows(
         conn,
-        query,
+        unexpected_zero_fill_sql,
         "Final non-state dyad descriptors should preserve unknown values instead of filling zero.",
         "non-state dyad descriptor nulls exported as zero",
         {"source_value", "exported_value"},
@@ -388,7 +388,7 @@ def test_step_3_final_participant_nodes_all_have_links(conn):
 
 
 def test_step_3_materializes_valid_per_war_graph_json(conn):
-    query = """
+    graph_json_sql = """
     select
         war_id,
         total_participants,
@@ -397,7 +397,7 @@ def test_step_3_materializes_valid_per_war_graph_json(conn):
     from final_wars
     order by war_id
     """
-    rows = conn.execute(query).fetchall()
+    rows = conn.execute(graph_json_sql).fetchall()
 
     assert len(rows) > 0
 

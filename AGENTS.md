@@ -11,6 +11,10 @@
 - Preserve the semantic difference between `null` and zero in data transformations and frontend displays. Coalesce
   missing values to `0` only when the source coverage or derivation makes the overall value known to be zero; keep
   unknown values as `null` so the frontend can show them as unknown instead of silently displaying zero.
+- Put SQL select-list columns on separate lines when a `select` returns more than one column. One-line `select count(*)`
+  and other single-expression selects are fine.
+- In SQL `where` and `having` clauses, put multiple `and`-joined predicates on separate lines. A single `or` inside one
+  predicate may stay on one line when it remains readable.
 - Treat `backend/data/<source_key>/` folder names as matching source-data table keys without the `source_` prefix; the
   corresponding raw source data and PDF or JSON source documentation live inside each folder.
 - Keep source adjustments minimal and only add values that downstream joins, corrections, or transformations actually

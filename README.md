@@ -310,8 +310,9 @@ Step 2 also materializes descriptive output tables:
 
 Descriptor dictionary additions:
 
-- `arms_technologies_used`: node-size descriptor counting COW arms technologies marked as used by a participant's
-  country in the descriptor year.
+- `arms_technologies_used`: node-size descriptor derived from the COW arms technology source's calculated `total_use`
+  column. Step 2 recalculates it from individual technology rows in the descriptor year by counting rows with `use`
+  codes `1` or `9` and excluding the aggregate `Adopted technologies` row.
 - `shared_arms_technology`: link-dash descriptor equal to `1` when both countries in a dyad used at least one of the
   same COW arms technologies in the descriptor year.
 - `cinc_score`: node-size descriptor derived in Step 2 from the six NMC component shares rather than ingested from the
@@ -365,7 +366,8 @@ Step 3 completes. Node and link descriptor values are stored in `descriptor_time
   `INTRA-STATE_State_participants v5.1 CSV.csv`; `total_use` from `cow_arms_tech_long.csv`; and `cinc` from
   `NMC-70-wsupplementary.csv`. Duration and day-count fields are calculated from the pipeline's resolved start and end
   dates, after applying the date assumptions below, such as using the last day of the year when only the end year is
-  known. `cinc_score` is derived in Step 2 by averaging each state's yearly shares of the six NMC components.
+  known. `arms_technologies_used` is derived in Step 2 by recounting individual technology rows, and `cinc_score` is
+  derived in Step 2 by averaging each state's yearly shares of the six NMC components.
 
 ### Date Values
 
@@ -558,6 +560,7 @@ Those anchors are then linked to every overlapping participant on the opposite s
 
 ## Maintainer Notes
 
-- Participant names for rows with COW codes come from `country_codes.state_name`. `participant_name_replacements.json`
-  is reserved for formatting cleanup and uncoded participant consolidation, and replacement targets should use names
-  outside `country_codes.state_name` values.
+- Participant names for rows with COW codes come from `country_codes.state_name`. Use
+  `participant_name_replacements.json` only when the source name cannot resolve through a COW code, such as non-state
+  participants, uncoded manual rows, and source tables that do not carry `c_code` values. Replacement targets may match
+  `country_codes.state_name` only for no-code source inputs such as CO2 country names.

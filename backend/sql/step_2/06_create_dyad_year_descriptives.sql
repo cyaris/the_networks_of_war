@@ -10,7 +10,9 @@ select
     year,
     1 territory_exchange
 from source_territorial_changes
-where gainer > 0 and loser > 0
+where
+    gainer > 0
+    and loser > 0
 group by 1, 2, 3, 4),
 
 colonial_contiguity_years as (
@@ -21,7 +23,9 @@ select
     year,
     1 colonial_contiguity
 from source_colonial_dependency_contiguity
-where c_code_a > 0 and c_code_b > 0
+where
+    c_code_a > 0
+    and c_code_b > 0
 group by 1, 2, 3, 4),
 
 contiguity_years as (
@@ -32,7 +36,9 @@ select
     year,
     1 contiguity
 from source_direct_contiguity
-where c_code_a > 0 and c_code_b > 0
+where
+    c_code_a > 0
+    and c_code_b > 0
 group by 1, 2, 3, 4),
 
 alliance_years as (
@@ -57,7 +63,9 @@ select
     year,
     1 defense_cooperation_agreements
 from source_defense_cooperation_agreements
-where c_code_a > 0 and c_code_b > 0
+where
+    c_code_a > 0
+    and c_code_b > 0
 group by 1, 2, 3, 4),
 
 intergovernmental_organization_years as (
@@ -82,7 +90,9 @@ select
     year,
     1 diplomatic_exchange
 from source_diplomatic_exchange
-where c_code_a > 0 and c_code_b > 0
+where
+    c_code_a > 0
+    and c_code_b > 0
 group by 1, 2, 3, 4),
 
 trade_relation_years as (
@@ -195,7 +205,10 @@ join dd_country_years a on c.c_code_a = a.c_code
                         and c.year = a.year
 join dd_country_years b on c.c_code_b = b.c_code
                         and c.year = b.year
-where c.c_code_a > 0 and c.c_code_b > 0 and a.c_code != b.c_code
+where
+    c.c_code_a > 0
+    and c.c_code_b > 0
+    and a.c_code != b.c_code
 group by all),
 
 atop_years as (
@@ -206,7 +219,9 @@ select
     year,
     1 atop
 from source_atop_dyadic_years
-where c_code_a > 0 and c_code_b > 0
+where
+    c_code_a > 0
+    and c_code_b > 0
 group by 1, 2, 3, 4),
 
 mtops_years as (
@@ -237,8 +252,9 @@ join source_arms_technology b on a.technology_name = b.technology_name
 where
     a.c_code > 0
     and b.c_code > 0
-    and a.used = 1
-    and b.used = 1
+    and a.technology_name != 'Adopted technologies'
+    and a.used in (1, 9)
+    and b.used in (1, 9)
 group by 1, 2, 3, 4)
 
 select

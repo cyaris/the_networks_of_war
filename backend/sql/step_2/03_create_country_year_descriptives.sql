@@ -134,21 +134,12 @@ arms_technology_country_years as (
 select
     year,
     c_code,
-    count(*) filter (where used = 1) arms_technologies_used
+    count(*) filter (where used in (1, 9)) arms_technologies_used
 from source_arms_technology
-where c_code > 0
+where
+    c_code > 0
+    and technology_name != 'Adopted technologies'
 group by 1, 2),
-
-co2_country_name_replacements(source_name, state_name) as (
-
-values
-        ('Cote d''Ivoire', 'Ivory Coast'),
-        ('Czechia', 'Czech Republic'),
-        ('Democratic Republic of Congo', 'Democratic Republic of the Congo'),
-        ('Eswatini', 'Swaziland'),
-        ('Micronesia (country)', 'Federated States of Micronesia'),
-        ('North Macedonia', 'Macedonia'),
-        ('United States', 'United States of America')),
 
 co2_country_years as (
 
@@ -157,8 +148,8 @@ select
     a.year,
     avg(a.co2_emissions_per_capita) co2_emissions_per_capita
 from source_co_emissions_per_capita a
-left join co2_country_name_replacements b on a.country_name = b.source_name
-join country_codes c on coalesce(b.state_name, a.country_name) = c.state_name
+left join participant_name_replacements b on a.country_name = b.source
+join country_codes c on coalesce(b.replacement, a.country_name) = c.state_name
 where a.co2_emissions_per_capita is not null
 group by 1, 2),
 
@@ -209,25 +200,55 @@ group by 1, 2),
 
 country_year_keys as (
 
-select c_code, year from terrorism_country_years
+select
+    c_code,
+    year
+from terrorism_country_years
 union
-select c_code, year from mid_country_years
+select
+    c_code,
+    year
+from mid_country_years
 union
-select c_code, year from alliance_country_years
+select
+    c_code,
+    year
+from alliance_country_years
 union
-select c_code, year from dyadic_trade_country_years
+select
+    c_code,
+    year
+from dyadic_trade_country_years
 union
-select c_code, year from national_trade_country_years
+select
+    c_code,
+    year
+from national_trade_country_years
 union
-select c_code, year from national_capability_country_year_rows
+select
+    c_code,
+    year
+from national_capability_country_year_rows
 union
-select c_code, year from arms_technology_country_years
+select
+    c_code,
+    year
+from arms_technology_country_years
 union
-select c_code, year from co2_country_years
+select
+    c_code,
+    year
+from co2_country_years
 union
-select c_code, year from territorial_change_country_years
+select
+    c_code,
+    year
+from territorial_change_country_years
 union
-select c_code, year from displaced_population_country_years)
+select
+    c_code,
+    year
+from displaced_population_country_years)
 
 select
     a.c_code,
