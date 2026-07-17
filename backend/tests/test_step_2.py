@@ -165,7 +165,7 @@ def conn(step_2_db_path: Path):
 
 
 def table_columns(conn, table_name: str) -> list[str]:
-    column_names_sql = """
+    query = """
     select column_name
     from information_schema.columns
     where
@@ -174,7 +174,7 @@ def table_columns(conn, table_name: str) -> list[str]:
     order by ordinal_position
     """
 
-    return [column_name for (column_name,) in conn.execute(column_names_sql, [table_name]).fetchall()]
+    return [column_name for (column_name,) in conn.execute(query, [table_name]).fetchall()]
 
 
 def scalar(conn, sql: str):
@@ -207,7 +207,7 @@ def test_global_terrorism_database_source_metadata_converts_workbooks():
 
 
 def test_global_terrorism_database_source_rows_do_not_overlap_on_event_id(conn):
-    overlap_count_sql = """
+    query = """
     select count(*)
     from source_global_terrorism_database a
     inner join source_global_terrorism_database b using (event_id)
@@ -216,7 +216,7 @@ def test_global_terrorism_database_source_rows_do_not_overlap_on_event_id(conn):
         and b.source_file = 'globalterrorismdb_2021Jan-June_1222dist.csv'
         and a.event_id is not null
     """
-    overlap_count = conn.execute(overlap_count_sql).fetchone()[0]
+    overlap_count = conn.execute(query).fetchone()[0]
 
     assert overlap_count == 0
 
@@ -395,7 +395,7 @@ def test_step_2_descriptor_tables_keep_expected_grain(conn):
 
 
 def test_step_2_participant_year_descriptives_cover_full_participant_year_spans(conn):
-    coverage_gaps_sql = """
+    query = """
     select
         a.war_id,
         a.c_code,
@@ -416,7 +416,7 @@ def test_step_2_participant_year_descriptives_cover_full_participant_year_spans(
     """
     fail_if_detected_rows(
         conn,
-        coverage_gaps_sql,
+        query,
         "Participant-year descriptors should cover every coded participant year.",
         "participant-year coverage gaps",
         {"expected_years", "actual_years"},
