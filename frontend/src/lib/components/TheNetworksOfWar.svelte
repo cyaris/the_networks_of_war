@@ -14,7 +14,7 @@
   const timeframeItems = [
     { value: "first_year", label: "First Year" },
     { value: "last_year", label: "Last Year" },
-    { value: "all_years", label: "All Years" },
+    { value: "all_years", label: "All Years" }
   ]
   const noTimeframeItemsMessage = "No timeframe data available."
   const noNodeSizeItemsMessage = "No node size data available."
@@ -79,7 +79,7 @@
     .sort()
     .map(warType => ({
       value: warType,
-      label: warType,
+      label: warType
     }))
   let countryCodeItems = Object.values(countryFiltersByCCode)
     .map(country => {
@@ -91,7 +91,7 @@
         selectedLabel: label,
         secondaryLabel: plural(country.warIds.size, "war"),
         c_code: country.c_code,
-        warIds: country.warIds,
+        warIds: country.warIds
       }
     })
     .sort((a, b) => a.label.localeCompare(b.label))
@@ -146,7 +146,7 @@
   const compactNumberUnits = [
     { value: 1_000_000_000_000, label: "trillion" },
     { value: 1_000_000_000, label: "billion" },
-    { value: 1_000_000, label: "million" },
+    { value: 1_000_000, label: "million" }
   ]
   const compactNumberMinimum = 1_000_000
   const tooltipFractionDigits = 2
@@ -162,7 +162,7 @@
     "mid_dyads_joined",
     "mid_dyads_targeted",
     "terrorism_deaths",
-    "trade_countries",
+    "trade_countries"
   ])
   const pluralizedMetricSuffixes = new Set([
     "coal-ton equivalents",
@@ -173,7 +173,7 @@
     "people",
     "technologies",
     "tons",
-    "wars",
+    "wars"
   ])
 
   let timeframeValue = timeframeItems[2]
@@ -197,7 +197,7 @@
     secondaryLabel: warSecondaryLabel(war),
     war_type: war.war_type,
     linkDashFieldCount: linkDashFieldCountsByWarId[String(war.war_id)] || 0,
-    war,
+    war
   }))
   $: if (!warItems.length && selectedWarItem) {
     selectedWarItem = null
@@ -218,7 +218,7 @@
       added_top_margin: {},
       added_bottom_margin: {},
       added_left_margin: {},
-      added_right_margin: {},
+      added_right_margin: {}
     }
   }
 
@@ -246,7 +246,7 @@
     let roundedScaledValue =
       Math.round((value / unit.value) * 10 ** tooltipFractionDigits) / 10 ** tooltipFractionDigits
     let compactValue = roundedScaledValue.toLocaleString("en-US", {
-      maximumFractionDigits: tooltipFractionDigits,
+      maximumFractionDigits: tooltipFractionDigits
     })
 
     return `${compactValue} ${unit.label}`
@@ -284,18 +284,28 @@
     return displayMetricNumber(node.metrics?.all_years?.days_at_war, "days_at_war")
   }
 
-  function coalescedUniqueValues(values) {
-    return Array.from(new Set(values.map(value => (Number.isFinite(value) ? value : 0))))
+  function finiteValues(values) {
+    return values.filter(Number.isFinite)
+  }
+
+  function hasPositiveFiniteValue(values) {
+    return values.some(value => Number.isFinite(value) && value > 0)
+  }
+
+  function hasSizingVariation({ values, nullRadiusNodes }) {
+    let uniqueValues = Array.from(new Set(finiteValues(values)))
+
+    return uniqueValues.length > 1 || (nullRadiusNodes > 0 && hasPositiveFiniteValue(uniqueValues))
   }
 
   function maxValue(values) {
-    return Math.max(...values.map(value => (Number.isFinite(value) ? value : 0)), 0)
+    return Math.max(...finiteValues(values), 0)
   }
 
   function averageValue(values) {
-    let finiteValues = values.filter(Number.isFinite)
+    let knownValues = finiteValues(values)
 
-    return finiteValues.length ? finiteValues.reduce((total, value) => total + value, 0) / finiteValues.length : 0
+    return knownValues.length ? knownValues.reduce((total, value) => total + value, 0) / knownValues.length : 0
   }
 
   function fieldLabel(field) {
@@ -310,7 +320,7 @@
     return [
       `${metric.label}${metric.unit ? ` (${metric.unit})` : ""}`,
       metric.source ? `Source: ${metric.source}` : "",
-      metric.calculation ? `Calculation: ${metric.calculation}` : "",
+      metric.calculation ? `Calculation: ${metric.calculation}` : ""
     ]
       .filter(Boolean)
       .join("\n\n")
@@ -326,7 +336,7 @@
       .map(field => ({
         value: field,
         label: fieldLabel(field),
-        secondaryLabel: metricDictionary[field]?.unit || field,
+        secondaryLabel: metricDictionary[field]?.unit || field
       }))
   }
 
@@ -398,7 +408,7 @@
       byId,
       maxDomain: descriptorMaxDomain,
       stdNullRadiusSize: descriptorStdNullRadiusSize,
-      nullRadiusNodes: descriptorNullRadiusNodes,
+      nullRadiusNodes: descriptorNullRadiusNodes
     }
   }
 
@@ -417,20 +427,20 @@
       fields = Array.from(new Set([...fields, "days_at_war", "battle_deaths", "battle_deaths_per_day"]))
     }
 
-    let daysAtWarUniqueValues = coalescedUniqueValues(getNodeDescriptiveValues("days_at_war").values)
-    let daysNotAtWarUniqueValues = coalescedUniqueValues(getNodeDescriptiveValues("days_not_at_war").values)
+    let daysAtWarSizing = getNodeDescriptiveValues("days_at_war")
+    let daysNotAtWarSizing = getNodeDescriptiveValues("days_not_at_war")
 
     return descriptorItems(
       fields.filter(field => {
-        let { values, nullRadiusNodes } = getNodeDescriptiveValues(field)
-        let uniqueValues = coalescedUniqueValues(values)
+        let sizing = getNodeDescriptiveValues(field)
+        let { values, nullRadiusNodes } = sizing
 
-        if (maxValue(uniqueValues) == 0) return false
-        if (uniqueValues.length == 1) return false
+        if (!hasPositiveFiniteValue(values)) return false
+        if (!hasSizingVariation(sizing)) return false
         if (nullRadiusNodes / values.length >= 0.5) return false
-        if (field == "days_at_war" && daysAtWarUniqueValues.length == 1) return false
-        if (field == "days_not_at_war" && daysNotAtWarUniqueValues.length == 1) return false
-        if (field == "battle_deaths_per_day" && daysAtWarUniqueValues.length == 1) return false
+        if (field == "days_at_war" && !hasSizingVariation(daysAtWarSizing)) return false
+        if (field == "days_not_at_war" && !hasSizingVariation(daysNotAtWarSizing)) return false
+        if (field == "battle_deaths_per_day" && !hasSizingVariation(daysAtWarSizing)) return false
 
         return true
       })
@@ -461,21 +471,21 @@
         ...(node.metrics?.all_years || {}),
         battle_deaths: battleDeaths,
         days_at_war: daysAtWar,
-        battle_deaths_per_day: battleDeathsPerDay,
+        battle_deaths_per_day: battleDeathsPerDay
       }
 
       return {
         ...node,
         metrics: {
           ...(node.metrics || {}),
-          all_years: allYearMetrics,
+          all_years: allYearMetrics
         },
         all_years: {
           ...(node.all_years || {}),
           battle_deaths: battleDeaths,
           days_at_war: daysAtWar,
-          battle_deaths_per_day: battleDeathsPerDay,
-        },
+          battle_deaths_per_day: battleDeathsPerDay
+        }
       }
     })
   }
@@ -611,7 +621,7 @@
         x: nodeMargins.horizontal_name_shift[id] ?? 0,
         y: nodeMargins.vertical_name_shift[id] ?? 5,
         anchor: "middle",
-        inside: true,
+        inside: true
       }
     }
 
@@ -619,7 +629,7 @@
       x: (nodeMargins.horizontal_name_shift[id] ?? 30) * xOperator,
       y: (nodeMargins.vertical_name_shift[id] ?? nodeRadius(node) + 22.5) * yOperator + yAdjustment,
       anchor: "middle",
-      inside: false,
+      inside: false
     }
   }
 
@@ -635,7 +645,7 @@
 
     return {
       x: label.x + labelDirection * (labelWidth / 2 + nodeSizeWarningLabelGap),
-      y: label.y,
+      y: label.y
     }
   }
 
@@ -670,7 +680,7 @@
         value:
           field == "battle_deaths" && Number(node.battle_deaths_estimated) == 1
             ? `${displayMetricNumber(metrics[field], field)} (estimated)`
-            : displayMetricNumber(metrics[field], field),
+            : displayMetricNumber(metrics[field], field)
       }))
   }
 
@@ -699,7 +709,7 @@
     linkNodes = links
       .map(link => ({
         source: nodeById.get(linkEndpointId(link, "source")),
-        target: nodeById.get(linkEndpointId(link, "target")),
+        target: nodeById.get(linkEndpointId(link, "target"))
       }))
       .filter(linkNode => linkNode.source && linkNode.target)
 
@@ -760,7 +770,7 @@
 
     return {
       x: ((event.clientX - rect.left) / rect.width) * width,
-      y: ((event.clientY - rect.top) / rect.height) * height,
+      y: ((event.clientY - rect.top) / rect.height) * height
     }
   }
 
@@ -769,14 +779,14 @@
 
     return {
       width: rect.width || width,
-      height: rect.height || height,
+      height: rect.height || height
     }
   }
 
   function clampTooltipCoordinates(x, y, bounds) {
     return {
       x: Math.max(tooltipPadding, Math.min(bounds.width - tooltipWidth - tooltipPadding, x)),
-      y: Math.max(tooltipPadding, Math.min(bounds.height - tooltipHeight - tooltipPadding, y)),
+      y: Math.max(tooltipPadding, Math.min(bounds.height - tooltipHeight - tooltipPadding, y))
     }
   }
 
@@ -954,7 +964,7 @@
     currentLinkDescriptorSignature = linkDescriptorSignature
     triggerLinkDashPulse()
   }
-  $: hasNodeSizeSignal = maxValue(coalescedUniqueValues(nodeSizingValues)) != 0
+  $: hasNodeSizeSignal = hasPositiveFiniteValue(nodeSizingValues)
   $: unknownNodeSizeCount = Object.values(nodeSizingById).filter(sizing => sizing?.isUnknown).length
   $: showNodeSizeWarnings = Boolean(
     nodeDescriptorValue?.value &&

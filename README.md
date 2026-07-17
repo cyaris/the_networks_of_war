@@ -540,11 +540,12 @@ Those anchors are then linked to every overlapping participant on the opposite s
 - Step 3 participant outputs convert notebook-era unit-scaled fields before graph export: COW trade currency values from
   millions to dollars; NMC military expenditure, military personnel, population, iron/steel, and energy values from
   thousands to base units; and displacement counts from thousands to people.
-- Step 3 keeps graph-control descriptors and tooltip metrics separate. Top-level node descriptor fields are kept only
-  when they have a positive maximum value, fewer than half `null` values, and more than one coalesced value after
-  treating `null` values as zero. Link descriptor fields are kept only when at least one dyad has a positive value. Node
-  tooltip metrics are stored under each node's `metrics` object and include all non-null participant metrics for the
-  timeframe, even when those metrics were too sparse or too uniform to be useful as node-size dropdown options.
+- Step 3 keeps graph-control descriptors and tooltip metrics separate. Node tooltip metrics are stored under each node's
+  `metrics` object and include all non-null participant metrics for the timeframe. The tooltip displays non-zero metrics,
+  plus selected zero-value metrics and zero values for metrics that are always useful to show. Top-level node descriptor
+  fields are kept for node-size dropdown options only when they have at least one positive known value, fewer than half
+  `null` values, and either more than one known value or a useful known/unknown distinction. Link descriptor fields are
+  kept only when at least one dyad has a positive value.
 - Step 3 stores the per-war graph payload directly in `final_wars.graph_json`, and `pipeline.py` writes the single
   frontend payload from
   `backend/sql/step_3/04_export_frontend_graph_data.sql`.
