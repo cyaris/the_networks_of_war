@@ -143,6 +143,7 @@
     { value: 1_000_000, label: "million" },
   ]
   const compactNumberMinimum = 1_000_000
+  const tooltipFractionDigits = 2
 
   let timeframeValue = timeframeItems[2]
   let nodeDescriptorValue = null
@@ -199,7 +200,7 @@
   }
 
   function displayExactNumber(value) {
-    return value.toLocaleString("en-US", { maximumFractionDigits: 20 })
+    return value.toLocaleString("en-US", { maximumFractionDigits: tooltipFractionDigits })
   }
 
   function displayCompactNumber(value) {
@@ -211,13 +212,13 @@
 
     if (!unit) return displayExactNumber(value)
 
-    let roundedScaledValue = Math.round((value / unit.value) * 10) / 10
-    let compactValue = roundedScaledValue.toLocaleString("en-US", { maximumFractionDigits: 1 })
-    let roundedOriginalValue = roundedScaledValue * unit.value
-    let isExactCompactValue = Math.abs(value - roundedOriginalValue) <= Math.max(1, absoluteValue) * 1e-12
-    let compactLabel = `${compactValue} ${unit.label}`
+    let roundedScaledValue = Math.round((value / unit.value) * 10 ** tooltipFractionDigits) / 10 ** tooltipFractionDigits
+    let compactValue = roundedScaledValue.toLocaleString("en-US", {
+      minimumFractionDigits: tooltipFractionDigits,
+      maximumFractionDigits: tooltipFractionDigits,
+    })
 
-    return isExactCompactValue ? compactLabel : `${compactLabel} (${displayExactNumber(value)})`
+    return `${compactValue} ${unit.label}`
   }
 
   function coalescedUniqueValues(values) {
