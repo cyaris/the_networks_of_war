@@ -126,5 +126,5 @@ left join node_descriptor_json b on a.war_id = b.war_id
                                  and a.c_code = b.c_code
                                  and a.participant = b.participant
 left join node_metric_json c on a.war_id = c.war_id
-                            and a.c_code = c.c_code
-                            and a.participant = c.participant;
+                             and a.c_code = c.c_code
+                             and a.participant = c.participant;
