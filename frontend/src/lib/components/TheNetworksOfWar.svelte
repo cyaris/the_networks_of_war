@@ -646,6 +646,15 @@
     return !nodeSizing || nodeSizing.isUnknown == true
   }
 
+  function nodeMetricValue(node, metrics, field) {
+    let value = displayMetricNumber(metrics[field], field)
+
+    if (field == "battle_deaths" && Number(node.battle_deaths_estimated) == 1) return `${value} (estimated)`
+    if (field == "concurrent_wars") return `${value} (avg)`
+
+    return value
+  }
+
   function nodeMetricRows(node) {
     let metrics = node.metrics?.[timeframeValue?.value || "all_years"] || {}
 
@@ -662,10 +671,7 @@
       .map(field => ({
         field,
         label: fieldLabel(field),
-        value:
-          field == "battle_deaths" && Number(node.battle_deaths_estimated) == 1
-            ? `${displayMetricNumber(metrics[field], field)} (estimated)`
-            : displayMetricNumber(metrics[field], field)
+        value: nodeMetricValue(node, metrics, field)
       }))
   }
 

@@ -236,7 +236,7 @@
       "calculation": "Uses the number of internally displaced people in the participant country, then averages yearly values across the selected timeframe. The source reports thousands of people; the graph displays people."
     },
     "concurrent_wars": {
-      "label": "Average Concurrent Wars",
+      "label": "Concurrent Wars",
       "kind": "node",
       "unit": "average wars per year",
       "valueSuffix": "wars",
