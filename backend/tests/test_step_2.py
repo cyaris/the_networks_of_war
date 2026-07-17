@@ -305,7 +305,7 @@ def test_step_2_preserves_unknown_descriptive_values(conn):
         b.internally_displaced_persons
     from source_forcibly_displaced_populations a
     join country_year_descriptives b on a.c_code = b.c_code
-                                    and a.year = b.year
+                                     and a.year = b.year
     where
         a.source is null
         and a.hosted_refugees is null
@@ -366,8 +366,8 @@ def test_step_2_participant_year_descriptives_cover_full_participant_year_spans(
         count(b.year) actual_years
     from participants a
     left join participant_year_descriptives b on a.war_id = b.war_id
-                                             and a.c_code = b.c_code
-                                             and a.participant = b.participant
+                                              and a.c_code = b.c_code
+                                              and a.participant = b.participant
     where a.c_code > 0
     group by 1, 2, 3, 4, 5
     having count(b.year) != extract(year from a.end_date)::integer - extract(year from a.start_date)::integer + 1
@@ -388,7 +388,7 @@ def test_step_2_co2_emissions_join_into_country_year_descriptives(conn):
     select count(*)
     from source_co_emissions_per_capita a
     join country_year_descriptives b on b.c_code = 2
-                                    and a.year = b.year
+                                     and a.year = b.year
     where
         a.country_name = 'United States'
         and a.co2_emissions_per_capita is not null
@@ -407,7 +407,7 @@ def test_step_2_co2_emissions_join_into_country_year_descriptives(conn):
     left join participant_name_replacements b on a.country_name = b.source
     join country_codes c on coalesce(b.replacement, a.country_name) = c.state_name
     left join country_year_descriptives d on c.c_code = d.c_code
-                                         and a.year = d.year
+                                          and a.year = d.year
     where
         a.co2_emissions_per_capita is not null
         and d.co2_emissions_per_capita is null
