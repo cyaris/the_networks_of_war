@@ -308,13 +308,16 @@ Step 2 also materializes descriptive output tables:
 - `dyad_year_descriptives`
 - `dyadic_descriptives`
 
-Descriptor dictionary additions:
+Descriptor dictionary additions, new metrics:
+
+- `shared_arms_technology`: link-dash descriptor equal to `1` when both countries in a dyad used at least one of the
+  same COW arms technologies in the descriptor year.
+
+Descriptor dictionary additions, recalculated source metrics:
 
 - `arms_technologies_used`: node-size descriptor derived from the COW arms technology source's calculated `total_use`
   column. Step 2 recalculates it from individual technology rows in the descriptor year by counting rows with `use`
   codes `1` or `9` and excluding the aggregate `Adopted technologies` row.
-- `shared_arms_technology`: link-dash descriptor equal to `1` when both countries in a dyad used at least one of the
-  same COW arms technologies in the descriptor year.
 - `cinc_score`: node-size descriptor derived in Step 2 from the six NMC component shares rather than ingested from the
   source CSV's calculated `cinc` column. For each year, Step 2 divides each state's military expenditure, military
   personnel, iron and steel production, primary energy consumption, total population, and urban population values by
