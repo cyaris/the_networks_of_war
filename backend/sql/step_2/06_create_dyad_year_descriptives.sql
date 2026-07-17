@@ -221,6 +221,24 @@ where
     c_code_a > 0
     and c_code_b > 0
     and coalesce(pacific_settlement_general, 0) + coalesce(pacific_settlement_regional, 0) + coalesce(pacific_settlement, 0) + coalesce(territorial_general, 0) + coalesce(territorial_violence, 0) + coalesce(territorial_total, 0) > 0
+group by 1, 2, 3, 4),
+
+shared_arms_technology_years as (
+
+select
+    least(a.c_code, b.c_code) c_code_low,
+    greatest(a.c_code, b.c_code) c_code_high,
+    a.year,
+    1 shared_arms_technology
+from source_arms_technology a
+join source_arms_technology b on a.technology_name = b.technology_name
+                              and a.year = b.year
+                              and a.c_code != b.c_code
+where
+    a.c_code > 0
+    and b.c_code > 0
+    and a.used = 1
+    and b.used = 1
 group by 1, 2, 3, 4)
 
 select
@@ -274,7 +292,8 @@ select
     coalesce(k.transition_to_democracy, 0) transition_to_democracy,
     coalesce(k.transition_to_dictatorship, 0) transition_to_dictatorship,
     coalesce(l.atop, 0) atop,
-    coalesce(m.mtops, 0) mtops
+    coalesce(m.mtops, 0) mtops,
+    coalesce(n.shared_arms_technology, 0) shared_arms_technology
 from dyad_years a
 join wars b on a.war_id = b.war_id
 left join territory_exchange_years c on least(a.c_code_a, a.c_code_b) = c.c_code_low
@@ -312,4 +331,7 @@ left join atop_years l on least(a.c_code_a, a.c_code_b) = l.c_code_low
                        and a.year = l.year
 left join mtops_years m on least(a.c_code_a, a.c_code_b) = m.c_code_low
                         and greatest(a.c_code_a, a.c_code_b) = m.c_code_high
-                        and a.year = m.year;
+                        and a.year = m.year
+left join shared_arms_technology_years n on least(a.c_code_a, a.c_code_b) = n.c_code_low
+                                        and greatest(a.c_code_a, a.c_code_b) = n.c_code_high
+                                        and a.year = n.year;

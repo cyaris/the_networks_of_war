@@ -103,7 +103,7 @@ RAW_SOURCE_DATE_COMPONENTS = [
 ]
 
 
-def test_negative_date_sentinels_are_cleaned_except_ongoing_end_year(conn):
+def test_negative_date_special_codes_are_cleaned_except_ongoing_end_year(conn):
     query = """
     select
         table_name,
@@ -144,7 +144,7 @@ def test_negative_date_sentinels_are_cleaned_except_ongoing_end_year(conn):
         )
 
     if failures:
-        fail_sql_check("Negative date sentinels should be cleaned except ongoing end years:", failures=failures)
+        fail_sql_check("Negative date special codes should be cleaned except ongoing end years:", failures=failures)
 
 
 @pytest.mark.parametrize(

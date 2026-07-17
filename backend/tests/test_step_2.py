@@ -21,6 +21,7 @@ from pipeline import (
     STEP_2_SQL,
     Pipeline,
     sql_identifier,
+    sql_literal,
 )
 
 STEP_2_SOURCE_TABLES = [
@@ -71,6 +72,7 @@ PARTICIPANT_DESCRIPTOR_COLUMNS = [
     "urban_population",
     "urban_population_growth_rate",
     "cinc_score",
+    "arms_technologies_used",
     "co2_emissions_per_capita",
     "land_mass_exchange_gain",
     "population_exchange_gain",
@@ -121,6 +123,7 @@ DYADIC_DESCRIPTOR_COLUMNS = [
     "transition_to_dictatorship",
     "atop",
     "mtops",
+    "shared_arms_technology",
 ]
 
 SIGNED_EXCHANGE_COLUMNS = {
@@ -469,7 +472,44 @@ def test_step_2_co2_emissions_join_into_country_year_descriptives(conn):
     )
 
 
-def test_step_2_descriptor_values_do_not_leak_source_sentinels(conn):
+def test_step_2_cinc_score_matches_source_cinc_with_tolerance(conn):
+    source_path = Pipeline().paths_for("national_material_capabilities")[0]
+    compared_rows_query = f"""
+    select count(*)
+    from country_year_descriptives a
+    join read_csv_auto({sql_literal(str(source_path))}, normalize_names = false, all_varchar = true) b on a.c_code = clean_int(b.ccode)
+                                                                                                       and a.year = clean_int(b.year)
+    where a.cinc_score is not null and clean_number(b.cinc) is not null
+    """
+    assert scalar(conn, compared_rows_query) > 0
+
+    mismatch_query = f"""
+    select
+        a.c_code,
+        a.year,
+        a.cinc_score,
+        clean_number(b.cinc) source_cinc_score,
+        abs(a.cinc_score - clean_number(b.cinc)) abs_diff
+    from country_year_descriptives a
+    join read_csv_auto({sql_literal(str(source_path))}, normalize_names = false, all_varchar = true) b on a.c_code = clean_int(b.ccode)
+                                                                                                       and a.year = clean_int(b.year)
+    where
+        a.cinc_score is not null
+        and clean_number(b.cinc) is not null
+        and abs(a.cinc_score - clean_number(b.cinc)) > 0.0000001
+    order by abs_diff desc
+    limit 50
+    """
+    fail_if_detected_rows(
+        conn,
+        mismatch_query,
+        "Derived CINC scores should match the source CINC values within a small floating-point tolerance.",
+        "CINC score mismatches",
+        {"abs_diff"},
+    )
+
+
+def test_step_2_descriptor_values_do_not_leak_source_special_codes(conn):
     checks = [
         (
             "country_year_descriptives",
@@ -503,8 +543,8 @@ def test_step_2_descriptor_values_do_not_leak_source_sentinels(conn):
             fail_if_detected_rows(
                 conn,
                 query,
-                "Step 2 descriptor values should not leak source sentinel values.",
-                f"sentinel values in {table_name}.{column_name}",
+                "Step 2 descriptor values should not leak source special-code values.",
+                f"special-code values in {table_name}.{column_name}",
                 {"descriptor_value"},
             )
 

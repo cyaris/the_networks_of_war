@@ -159,7 +159,6 @@ create or replace table source_arms_technology (
     technology_type varchar,
     year integer,
     used integer,
-    total_use integer,
     source_version double
 );
 
@@ -277,6 +276,5 @@ create or replace table source_national_material_capabilities (
     urban_population_anomaly_code integer,
     urban_population_growth double,
     urban_population_growth_source varchar,
-    composite_index_of_national_capability double,
     source_version double
 );

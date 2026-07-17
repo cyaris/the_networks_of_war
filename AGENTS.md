@@ -15,6 +15,8 @@
   corresponding raw source data and PDF or JSON source documentation live inside each folder.
 - Keep source adjustments minimal and only add values that downstream joins, corrections, or transformations actually
   need.
+- Do not include source columns documented as calculated in `source_` tables; derive those values in downstream
+  transformation SQL when the project still needs them.
 - Do not preserve backward compatibility for removed or renamed project interfaces unless the user explicitly asks for a
   migration bridge. Prefer deleting stale parameters, aliases, scripts, and docs so old callers fail clearly.
 

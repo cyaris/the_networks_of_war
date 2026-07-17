@@ -1,6 +1,7 @@
 # The Networks of War
 
-A study of networks by war using data from the Correlates of War (COW) project.
+A DuckDB and Svelte project for building and browsing war-participant networks from COW and other conflict, military,
+economic, demographic, and displacement sources.
 
 ## Table Of Contents
 
@@ -76,8 +77,8 @@ In Vite development, the menu is available at `/` and `/the_networks_of_war`. Th
 
 The frontend consumes ignored generated data at `frontend/src/lib/static/graphData.json`. Do not commit this file. Step
 3 writes it from `backend/sql/step_3/04_export_frontend_graph_data.sql` after the final Step 3 tables are built.
-Generated graph rows include only descriptor fields that pass per-war availability checks, so the frontend does not
-receive fields that cannot be selected.
+Generated graph rows include only descriptor fields that pass per-war availability checks, so the frontend receives
+only selectable fields.
 
 When a node-size descriptor is selected, known zero values render at the minimum node radius and unknown or `null`
 values also shrink to the minimum radius. A small `?` marker is shown beside node labels only when there are a few
@@ -96,7 +97,7 @@ that need explicit encoding handling use `latin-1` by default; prepared copies a
 
 Prepared source subdirectories keep only durable source CSVs and PDF or JSON source documentation. Archive files,
 original Excel/Stata workbooks, text exports, and temporary download caches are discarded after extraction or conversion;
-`_downloads/` is not part of the expected `backend/data/` layout.
+the expected `backend/data/` layout excludes `_downloads/`.
 
 - `the_networks_of_war/backend/data/`
 - `the_networks_of_war/backend/.work/`
@@ -204,7 +205,7 @@ pytest tests/test_step_3.py
 Run a single test or matching group of tests:
 
 ```bash
-pytest tests/test_step_1.py -k "negative_date_sentinels"
+pytest tests/test_step_1.py -k "negative_date_special_codes"
 pytest tests/test_step_1.py -k "date_macros or dyads"
 ```
 
@@ -214,8 +215,8 @@ Show verbose test names and failures:
 pytest tests/test_step_1.py -vv
 ```
 
-The Step 1 expectation tests rebuild Step 1 into a temporary DuckDB database. They skip automatically if the ignored
-source files in `backend/data/` are not available locally.
+The Step 1 expectation tests rebuild Step 1 into a temporary DuckDB database. They run when the ignored source files in
+`backend/data/` are available locally and skip automatically otherwise.
 
 ### Frontend Commands
 
@@ -307,6 +308,17 @@ Step 2 also materializes descriptive output tables:
 - `dyad_year_descriptives`
 - `dyadic_descriptives`
 
+Descriptor dictionary additions:
+
+- `arms_technologies_used`: node-size descriptor counting COW arms technologies marked as used by a participant's
+  country in the descriptor year.
+- `shared_arms_technology`: link-dash descriptor equal to `1` when both countries in a dyad used at least one of the
+  same COW arms technologies in the descriptor year.
+- `cinc_score`: node-size descriptor derived in Step 2 from the six NMC component shares rather than ingested from the
+  source CSV's calculated `cinc` column. For each year, Step 2 divides each state's military expenditure, military
+  personnel, iron and steel production, primary energy consumption, total population, and urban population values by
+  that year's system total for the same component, then averages the six shares.
+
 ## Final Outputs
 
 Step 3 materializes final merge and graph-export tables:
@@ -328,12 +340,13 @@ Step 3 completes. Node and link descriptor values are stored in `descriptor_time
   renaming, encoding normalization, and the data-entry fixes documented below applied during load.
 - Source CSV headers are aliased to canonical pipeline names as early as possible. COW `WarNum`/`war_num` fields are
   loaded as `war_id`, numeric war-type fields are loaded as `war_type_id`, and the human-readable label comes from
-  `war_types.war_type`. Ongoing-war markers and derived flags use `ongoing_war`; `ongoing_conflict` is not used as a
-  table or frontend payload field.
-- `source_global_terrorism_database` stacks two prepared GTD CSVs with `union all` after confirming the two files do
-  not overlap on `eventid`.
-- `dyadic_mid_4.03.csv` has no new columns relative to `dyadic_mid_4.02.csv` and no longer includes the 4.02 columns
-  `dyad`, `abbreva`, `abbrevb`, `lastobs`, and `newar`.
+  `war_types.war_type`. Ongoing-war markers and derived flags are exposed as `ongoing_war` table and frontend payload
+  fields.
+- `source_global_terrorism_database` stacks two prepared GTD CSVs with `union all` after confirming distinct `eventid`
+  coverage across the files.
+- Source CSV schemas are compared when source versions change. Ingestion keeps relevant columns that remain available,
+  adds newly useful fields when downstream transformations need them, and removes truly absent fields instead of
+  fabricating placeholder `null` source columns.
 - Version-scoped source adjustments live in `backend/sql/step_1/03_create_source_adjustment_tables.sql` and
   `backend/sql/step_1/04_insert_source_adjustments.sql`. The first file creates `source_file_versions` and adjustment
   tables; the second inserts adjustment rows for source facts that are not present in the source CSVs. Downstream
@@ -346,12 +359,13 @@ Step 3 completes. Node and link descriptor values are stored in `descriptor_time
 
 ### Excluded Calculated Columns
 
-- Source columns that are documented as simple calculations from other source columns are not ingested. Currently
-  excluded calculated fields are `batdths` and `durindx` from unversioned `directed_dyadic_war.csv`; `durindx`, `duration`, and
-  `cumdurat` from `dyadic_mid_4.03.csv`; and `WDuratDays`, `WDuratMo`, and `TotalBDeaths` from
-  `INTRA-STATE_State_participants v5.1 CSV.csv`. Duration and day-count fields are excluded because they should be
-  calculated from the pipeline's resolved start and end dates, after applying the date assumptions below, such as using
-  the last day of the year when only the end year is known.
+- The pipeline ingests raw source fields and recalculates simple derived columns from canonical inputs. Currently
+  excluded calculated fields are `batdths` and `durindx` from unversioned `directed_dyadic_war.csv`; `durindx`,
+  `duration`, and `cumdurat` from `dyadic_mid_4.03.csv`; and `WDuratDays`, `WDuratMo`, and `TotalBDeaths` from
+  `INTRA-STATE_State_participants v5.1 CSV.csv`; `total_use` from `cow_arms_tech_long.csv`; and `cinc` from
+  `NMC-70-wsupplementary.csv`. Duration and day-count fields are calculated from the pipeline's resolved start and end
+  dates, after applying the date assumptions below, such as using the last day of the year when only the end year is
+  known. `cinc_score` is derived in Step 2 by averaging each state's yearly shares of the six NMC components.
 
 ### Date Values
 
@@ -369,7 +383,7 @@ Step 3 completes. Node and link descriptor values are stored in `descriptor_time
 - A date is flagged as estimated when the year is an ongoing marker or when a positive year has a missing or invalid
   month or day.
 - Raw source date components are expected to be in basic valid domains before cleaning: months `1-12`, days `1-31`,
-  and years `1500-2100`, while COW sentinels `-7`, `-8`, and `-9` are allowed. Values outside these domains are treated
+  and years `1500-2100`, while COW special codes `-7`, `-8`, and `-9` are allowed. Values outside these domains are treated
   as data-entry issues and documented below when accepted by the pipeline.
 
 ### Encoding And Deduplication
@@ -393,9 +407,9 @@ Step 3 completes. Node and link descriptor values are stored in `descriptor_time
 
 - Directed dyadic interstate war records get war name and war type metadata from `source_interstate_wars` by `war_id`;
   synthetic MID-only wars get metadata from source adjustment tables.
-- Transformed tables do not carry source-only identifiers and outcome fields (`disno`, `dyindex`, `outcome_a`,
-  `outcome_b`, and `outcome`) after they are no longer needed as table outputs. MID matching still uses `disno`
-  internally where needed.
+- Transformed tables carry pipeline-facing fields after source-only identifiers and outcome fields (`disno`, `dyindex`,
+  `outcome_a`, `outcome_b`, and `outcome`) have served their matching and transformation roles. MID matching still uses
+  `disno` internally where needed.
 - After source date components are resolved, transformed tables carry `start_date`, `end_date`, and date-estimation
   flags instead of the original day/month/year component columns.
 - Step 2 final descriptive tables use a `timeframe` column to distinguish the span summarized for each war participant
@@ -406,9 +420,8 @@ Step 3 completes. Node and link descriptor values are stored in `descriptor_time
 - Extra-state and intra-state war dyads are treated as side A versus side B rows, with side A assigned side `1` and
   side B assigned side `2`.
 - Extra-state and intra-state participant rows are derived from both sides of the corresponding dyad rows.
-- Directed dyadic interstate source rows do not materialize `side_a` or `side_b`; row position is already represented
-  by `c_code_a` and `c_code_b`. The original directed dyadic role fields are retained as `role_a`, `role_b`,
-  `dyad_role_a`, and `dyad_role_b`.
+- Directed dyadic interstate source rows represent row position with `c_code_a` and `c_code_b`. The original directed
+  dyadic role fields are retained as `role_a`, `role_b`, `dyad_role_a`, and `dyad_role_b`.
 - In the transformed `war_dyads` view, interstate `side_a` and `side_b` are resolved back to substantive participant
   sides from `source_interstate_wars`; extra-state and intra-state dyads keep their source side A versus side B
   convention.
@@ -428,7 +441,7 @@ Step 3 completes. Node and link descriptor values are stored in `descriptor_time
 - `dyads_after_sources` makes source war dyads directed by adding a reversed copy of each dyad.
 - `dyads_after_mid` adds dyadic MID records to source war dyads.
 - Only dyadic MID records with `war = 1` are incorporated.
-- MID dyads are not incorporated when the same directed dyad in the same war overlaps an existing source war-dyad row.
+- MID dyads are incorporated only when the same directed dyad in the same war has no overlapping source war-dyad row.
 - Existing battle-death values take precedence over MID fatality estimates for remaining merged rows. MID estimates are
   used when summed source battle deaths are `null` or zero and summed estimates are positive.
 - MID dyads are assigned to known wars by `disno` from `source_interstate_war_dyads` and version-scoped rows in
@@ -449,8 +462,7 @@ Step 3 completes. Node and link descriptor values are stored in `descriptor_time
   dyadic side A records.
 - Missing participant sides are inferred from the opposite participant in dyadic data when that inference is unambiguous.
 - Remaining version-specific participant side assignments are stored in `source_participant_side_adjustments` and joined
-  during participant creation. These adjustments are for source facts that cannot be calculated from participant or
-  dyadic rows.
+  during participant creation. These adjustments store source facts needed beyond participant and dyadic rows.
 - Interstate war participant sides are taken from `source_interstate_wars`, either directly in `war_participants` or
   through semantic side values on `war_dyads`, because the directed dyadic source can include reciprocal rows where the
   same state appears as both `c_code_a` and `c_code_b` for the same war or dispute.
@@ -473,21 +485,10 @@ one state participant, Eritrea (`c_code = 531`), so both become anchors.
 
 Those anchors are then linked to every overlapping participant on the opposite side:
 
-```mermaid
-flowchart LR
-    burundi["Burundi"] --- icu["ICU"]
-    burundi --- eritrea["Eritrea"]
-    ethiopia["Ethiopia"] --- icu
-    ethiopia --- eritrea
-    kenya["Kenya"] --- icu
-    kenya --- eritrea
-    somalia["Somalia"] --- icu
-    somalia --- eritrea
-    uganda["Uganda"] --- icu
-    uganda --- eritrea
-    usa["United States of America"] --- icu
-    usa --- eritrea
-```
+| Anchor | Linked opposite-side participants |
+| --- | --- |
+| ICU | Burundi, Ethiopia, Kenya, Somalia, Uganda, United States of America |
+| Eritrea | Burundi, Ethiopia, Kenya, Somalia, Uganda, United States of America |
 
 ### Dyads
 
@@ -500,7 +501,7 @@ flowchart LR
 - `dyad_years` expands `dyads` into one row per year for years in the range `1500` through `2099`.
 - Step 2 and Step 3 preserve the semantic difference between unknown values and known zeros. Missing descriptor values
   stay `null` unless the source coverage or project derivation makes the value known to be zero, such as
-  `concurrent_wars` when no overlapping participant war exists. Source unknown/not-applicable sentinels such as `-9`
+  `concurrent_wars` when no overlapping participant war exists. Source unknown/not-applicable codes such as `-9`
   and `-8` become `null`, and the frontend displays `null` descriptor values as unknown rather than zero.
 - Step 3 participant outputs convert notebook-era unit-scaled fields while building `descriptor_timeframes`: trade money
   flows to dollars, NMC military/population and displacement counts to people, and iron/steel and energy figures to
@@ -509,8 +510,8 @@ flowchart LR
   descriptor fields are kept only when they have a positive maximum value, fewer than half `null` values, and more than
   one coalesced value after treating `null` values as zero. Link descriptor fields are kept only when at least one dyad has a
   positive value.
-- Step 3 does not write separate JSON files. `final_wars.graph_json` provides the per-war graph payload directly from
-  DuckDB, and `pipeline.py` writes the single frontend payload from
+- Step 3 stores the per-war graph payload directly in `final_wars.graph_json`, and `pipeline.py` writes the single
+  frontend payload from
   `backend/sql/step_3/04_export_frontend_graph_data.sql`.
 
 ## Data-Entry Fixes And Assignment Rules
@@ -528,8 +529,7 @@ flowchart LR
     deaths corrected from original blank `batdtha` to `5,569`. The Thailand death count comes from Wikipedia's summary
     of [Thailand in World War II](https://en.wikipedia.org/wiki/Thailand_in_World_War_II).
 - `dyadic_mid_4.03.csv`
-  - The source does not include COW war numbers, so rows are assigned to known wars by matching `disno` to
-    `directed_dyadic_war.csv` where possible.
+  - Rows are assigned to known COW wars by matching `disno` to `directed_dyadic_war.csv` where possible.
   - Unmatched MID disputes `3582`, `3583`, and `3585` are assigned from original missing `war_id` to World War II
     (`war_id = 139`) after manual review.
   - Unmatched MID dispute `4339` is assigned from original missing `war_id` to Africa's World War (`war_id = 905`)
@@ -538,7 +538,7 @@ flowchart LR
     named `Israeli–Hezbollah Conflict (South Lebanon)`. This fake war id uses the MID `disno` because the conflict
     appears in the dyadic MID records with `war = 1`, but no corresponding `war_id` exists for it in the interstate
     war data. Lebanon is assigned participant side `1`, and Israel is assigned participant side `2`.
-  - These assignments are implemented as version-scoped source adjustments, not as transformation-time fallback logic.
+  - These assignments are implemented as version-scoped source adjustments that transformations join explicitly.
 - `INTRA-STATE_State_participants v5.1 CSV.csv`
   - War number `977` is corrected to `979`. The intra-state war-level CSV and codebook identify the Syrian Arab
     Spring War as war `979`, and no war `977` exists there; the state-participant file has one `977` row for Iran with
@@ -559,5 +559,5 @@ flowchart LR
 ## Maintainer Notes
 
 - Participant names for rows with COW codes come from `country_codes.state_name`. `participant_name_replacements.json`
-  is reserved for formatting cleanup and uncoded participant consolidation, and replacement targets should not duplicate
-  `country_codes.state_name` values.
+  is reserved for formatting cleanup and uncoded participant consolidation, and replacement targets should use names
+  outside `country_codes.state_name` values.

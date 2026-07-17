@@ -44,7 +44,7 @@ select
     b.c_code,
     b.participant,
     c.timeframe,
-    if(columns('^(terrorism_deaths|mid_dyads|mid_dyads_initiated|mid_dyads_targeted|mid_dyads_joined|allied_countries|trade_countries|imports|exports|urban_population_growth_rate|cinc_score|co2_emissions_per_capita|land_mass_exchange_gain|population_exchange_gain|land_mass_exchange_loss|population_exchange_loss|concurrent_wars)$') in (-9, -8), null, columns('^(terrorism_deaths|mid_dyads|mid_dyads_initiated|mid_dyads_targeted|mid_dyads_joined|allied_countries|trade_countries|imports|exports|urban_population_growth_rate|cinc_score|co2_emissions_per_capita|land_mass_exchange_gain|population_exchange_gain|land_mass_exchange_loss|population_exchange_loss|concurrent_wars)$')),
+    if(columns('^(terrorism_deaths|mid_dyads|mid_dyads_initiated|mid_dyads_targeted|mid_dyads_joined|allied_countries|trade_countries|imports|exports|urban_population_growth_rate|cinc_score|arms_technologies_used|co2_emissions_per_capita|land_mass_exchange_gain|population_exchange_gain|land_mass_exchange_loss|population_exchange_loss|concurrent_wars)$') in (-9, -8), null, columns('^(terrorism_deaths|mid_dyads|mid_dyads_initiated|mid_dyads_targeted|mid_dyads_joined|allied_countries|trade_countries|imports|exports|urban_population_growth_rate|cinc_score|arms_technologies_used|co2_emissions_per_capita|land_mass_exchange_gain|population_exchange_gain|land_mass_exchange_loss|population_exchange_loss|concurrent_wars)$')),
     if(columns('^(money_flow_in|money_flow_out)$') in (-9, -8), null, columns('^(money_flow_in|money_flow_out)$') * 1000000),
     if(columns('^(military_expenditure|military_personnel|population|urban_population|refugees_originated|refugees_hosted|internally_displaced_persons)$') in (-9, -8), null, columns('^(military_expenditure|military_personnel|population|urban_population|refugees_originated|refugees_hosted|internally_displaced_persons)$') * 1000),
     if(columns('^(iron_steel_production|energy_consumption)$') in (-9, -8), null, columns('^(iron_steel_production|energy_consumption)$') * 2000000)
@@ -62,7 +62,7 @@ select
     timeframe,
     field
 from participant_descriptor_values
-unpivot include nulls (value for field in (columns('^(terrorism_deaths|mid_dyads|mid_dyads_initiated|mid_dyads_targeted|mid_dyads_joined|allied_countries|trade_countries|money_flow_in|money_flow_out|imports|exports|military_expenditure|military_personnel|iron_steel_production|energy_consumption|population|urban_population|urban_population_growth_rate|cinc_score|co2_emissions_per_capita|land_mass_exchange_gain|population_exchange_gain|land_mass_exchange_loss|population_exchange_loss|refugees_originated|refugees_hosted|internally_displaced_persons|concurrent_wars)$')))
+unpivot include nulls (value for field in (columns('^(terrorism_deaths|mid_dyads|mid_dyads_initiated|mid_dyads_targeted|mid_dyads_joined|allied_countries|trade_countries|money_flow_in|money_flow_out|imports|exports|military_expenditure|military_personnel|iron_steel_production|energy_consumption|population|urban_population|urban_population_growth_rate|cinc_score|arms_technologies_used|co2_emissions_per_capita|land_mass_exchange_gain|population_exchange_gain|land_mass_exchange_loss|population_exchange_loss|refugees_originated|refugees_hosted|internally_displaced_persons|concurrent_wars)$')))
 group by 1, 2, 3
 having
     max(greatest(coalesce(value, 0), 0)) > 0
@@ -78,7 +78,7 @@ select
     a.timeframe,
     to_json(map(list(a.field order by a.field), list(a.value order by a.field))) payload
 from participant_descriptor_values
-unpivot include nulls (value for field in (columns('^(terrorism_deaths|mid_dyads|mid_dyads_initiated|mid_dyads_targeted|mid_dyads_joined|allied_countries|trade_countries|money_flow_in|money_flow_out|imports|exports|military_expenditure|military_personnel|iron_steel_production|energy_consumption|population|urban_population|urban_population_growth_rate|cinc_score|co2_emissions_per_capita|land_mass_exchange_gain|population_exchange_gain|land_mass_exchange_loss|population_exchange_loss|refugees_originated|refugees_hosted|internally_displaced_persons|concurrent_wars)$'))) a
+unpivot include nulls (value for field in (columns('^(terrorism_deaths|mid_dyads|mid_dyads_initiated|mid_dyads_targeted|mid_dyads_joined|allied_countries|trade_countries|money_flow_in|money_flow_out|imports|exports|military_expenditure|military_personnel|iron_steel_production|energy_consumption|population|urban_population|urban_population_growth_rate|cinc_score|arms_technologies_used|co2_emissions_per_capita|land_mass_exchange_gain|population_exchange_gain|land_mass_exchange_loss|population_exchange_loss|refugees_originated|refugees_hosted|internally_displaced_persons|concurrent_wars)$'))) a
 join available_node_fields b on a.war_id = b.war_id
                              and a.timeframe = b.timeframe
                              and a.field = b.field

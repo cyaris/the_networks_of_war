@@ -56,6 +56,7 @@ DYADIC_DESCRIPTOR_COLUMNS = [
     "transition_to_dictatorship",
     "atop",
     "mtops",
+    "shared_arms_technology",
 ]
 
 
