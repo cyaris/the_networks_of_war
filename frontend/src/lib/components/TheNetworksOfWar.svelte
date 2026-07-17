@@ -98,6 +98,12 @@
   const addedMarginSize = Math.max(linkNodeSize, 10)
   const tooltipOffset = 16
   const tooltipPadding = 8
+  const compactNumberUnits = [
+    { value: 1_000_000_000_000, label: "trillion" },
+    { value: 1_000_000_000, label: "billion" },
+    { value: 1_000_000, label: "million" },
+  ]
+  const compactNumberMinimum = 1_000_000
 
   let timeframeValue = timeframeItems[2]
   let nodeDescriptorValue = null
@@ -146,6 +152,28 @@
     let parsed = Number(value)
 
     return Number.isFinite(parsed) ? parsed : null
+  }
+
+  function displayExactNumber(value) {
+    return value.toLocaleString("en-US", { maximumFractionDigits: 20 })
+  }
+
+  function displayCompactNumber(value) {
+    let absoluteValue = Math.abs(value)
+
+    if (absoluteValue < compactNumberMinimum) return displayExactNumber(value)
+
+    let unit = compactNumberUnits.find(({ value: unitValue }) => absoluteValue >= unitValue)
+
+    if (!unit) return displayExactNumber(value)
+
+    let roundedScaledValue = Math.round((value / unit.value) * 10) / 10
+    let compactValue = roundedScaledValue.toLocaleString("en-US", { maximumFractionDigits: 1 })
+    let roundedOriginalValue = roundedScaledValue * unit.value
+    let isExactCompactValue = Math.abs(value - roundedOriginalValue) <= Math.max(1, absoluteValue) * 1e-12
+    let compactLabel = `${compactValue} ${unit.label}`
+
+    return isExactCompactValue ? compactLabel : `${compactLabel} (${displayExactNumber(value)})`
   }
 
   function coalescedUniqueValues(values) {
@@ -491,13 +519,13 @@
     let nodeSizing = nodeSizingById[node.id]
     let value = nodeSizing ? nodeSizing.value : nodeDescriptorNumericValue(node, nodeDescriptorValue.value)
 
-    return value == null ? "Unknown" : value.toLocaleString()
+    return value == null ? "Unknown" : displayCompactNumber(value)
   }
 
   function displayNumber(value) {
     let parsed = numberValue(value)
 
-    return parsed == null ? "Unknown" : parsed.toLocaleString()
+    return parsed == null ? "Unknown" : displayCompactNumber(parsed)
   }
 
   function linkHasDescriptor(link) {

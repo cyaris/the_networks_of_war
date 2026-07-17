@@ -86,6 +86,10 @@ unknown selected descriptor values; if many nodes are unknown, per-node markers 
 displays the selected descriptor as `Unknown`. The no-descriptor default still uses equal fallback sizing so the graph
 remains readable before a size field is selected.
 
+Tooltip numbers of at least one million are shortened to readable million, billion, or trillion labels. Rounded values
+keep the exact number in parentheses, so `1,400,000` displays as `1.4 million` and `1,400,010` displays as
+`1.4 million (1,400,010)`. Smaller values continue to display in full comma-separated form.
+
 ## Data Layout
 
 Source data is downloaded into `backend/data/`, which is ignored by git. Each external source table gets its own
