@@ -69,6 +69,29 @@ having
     and count(*) filter (where value is null)::double / count(*) < 0.5
     and count(distinct greatest(coalesce(value, 0), 0)) > 1),
 
+node_metric_field_json as (
+
+select
+    war_id,
+    c_code,
+    participant,
+    timeframe,
+    to_json(map(list(field order by field), list(value order by field))) payload
+from participant_descriptor_values
+unpivot include nulls (value for field in (columns('^(terrorism_deaths|mid_dyads|mid_dyads_initiated|mid_dyads_targeted|mid_dyads_joined|allied_countries|trade_countries|money_flow_in|money_flow_out|imports|exports|military_expenditure|military_personnel|iron_steel_production|energy_consumption|population|urban_population|urban_population_growth_rate|cinc_score|arms_technologies_used|co2_emissions_per_capita|land_mass_exchange_gain|population_exchange_gain|land_mass_exchange_loss|population_exchange_loss|refugees_originated|refugees_hosted|internally_displaced_persons|concurrent_wars)$')))
+where value is not null
+group by 1, 2, 3, 4),
+
+node_metric_json as (
+
+select
+    war_id,
+    c_code,
+    participant,
+    json_group_object(lower(replace(timeframe, ' ', '_')), json(payload)) payload
+from node_metric_field_json
+group by 1, 2, 3),
+
 node_field_json as (
 
 select
@@ -96,8 +119,12 @@ group by 1, 2, 3)
 
 select
     a.*,
-    b.payload descriptor_timeframes
+    b.payload descriptor_timeframes,
+    c.payload metric_timeframes
 from participant_rows a
 left join node_descriptor_json b on a.war_id = b.war_id
                                  and a.c_code = b.c_code
-                                 and a.participant = b.participant;
+                                 and a.participant = b.participant
+left join node_metric_json c on a.war_id = c.war_id
+                            and a.c_code = c.c_code
+                            and a.participant = c.participant;

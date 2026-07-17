@@ -1,6 +1,7 @@
 <script>
   import { forceCenter, forceCollide, forceLink, forceManyBody, forceSimulation, forceX, forceY } from "d3-force"
   import { scaleLinear } from "d3-scale"
+  import pluralize from "pluralize"
   import { onDestroy } from "svelte"
   import { CheckboxFilter, InfoIcon, Select } from "svelte-lib/components"
 
@@ -22,7 +23,9 @@
   const controlTooltips = dataDictionary.controls || {}
 
   function plural(value, noun) {
-    return `${Number(value || 0).toLocaleString()} ${noun}${Number(value || 0) == 1 ? "" : "s"}`
+    let parsed = Number(value || 0)
+
+    return `${parsed.toLocaleString()} ${pluralize(noun, parsed)}`
   }
 
   function warSecondaryLabel(war) {
@@ -147,6 +150,31 @@
   ]
   const compactNumberMinimum = 1_000_000
   const tooltipFractionDigits = 2
+  const alwaysShowZeroMetricFields = new Set(["battle_deaths", "battle_deaths_per_day"])
+  const metricSuffixOmittedByField = new Set([
+    "allied_countries",
+    "arms_technologies_used",
+    "battle_deaths",
+    "concurrent_wars",
+    "days_at_war",
+    "mid_dyads",
+    "mid_dyads_initiated",
+    "mid_dyads_joined",
+    "mid_dyads_targeted",
+    "terrorism_deaths",
+    "trade_countries",
+  ])
+  const pluralizedMetricSuffixes = new Set([
+    "coal-ton equivalents",
+    "countries",
+    "days",
+    "deaths",
+    "dyads",
+    "people",
+    "technologies",
+    "tons",
+    "wars",
+  ])
 
   let timeframeValue = timeframeItems[2]
   let nodeDescriptorValue = null
@@ -224,6 +252,13 @@
     return `${compactValue} ${unit.label}`
   }
 
+  function displayMetricSuffix(value, field, suffix) {
+    if (!suffix || metricSuffixOmittedByField.has(field)) return ""
+    if (!pluralizedMetricSuffixes.has(suffix)) return suffix
+
+    return pluralize(suffix, value)
+  }
+
   function displayMetricNumber(value, field) {
     let parsed = numberValue(value)
 
@@ -231,10 +266,22 @@
 
     let metric = metricDictionary[field] || {}
     let prefix = metric.valuePrefix || ""
-    let suffix = metric.valueSuffix || ""
+    let suffix = displayMetricSuffix(parsed, field, metric.valueSuffix || "")
     let suffixSeparator = suffix && !suffix.startsWith("%") ? " " : ""
 
     return `${prefix}${displayCompactNumber(parsed)}${suffix ? `${suffixSeparator}${suffix}` : ""}`
+  }
+
+  function displayDate(value, estimated = false) {
+    if (!value) return "Unknown"
+
+    let formatted = String(value)
+
+    return `${formatted}${Number(estimated) == 1 ? " (estimated)" : ""}`
+  }
+
+  function displayDaysAtWar(node) {
+    return displayMetricNumber(node.metrics?.all_years?.days_at_war, "days_at_war")
   }
 
   function coalescedUniqueValues(values) {
@@ -408,17 +455,26 @@
     return rawNodes.map(node => {
       let daysAtWar = dateDays(node.start_date, node.ongoing_war ? null : node.end_date)
       let battleDeaths = numberValue(node.battle_deaths)
+      let battleDeathsPerDay =
+        Number.isFinite(daysAtWar) && battleDeaths != null ? Math.round((battleDeaths / daysAtWar) * 100) / 100 : null
+      let allYearMetrics = {
+        ...(node.metrics?.all_years || {}),
+        battle_deaths: battleDeaths,
+        days_at_war: daysAtWar,
+        battle_deaths_per_day: battleDeathsPerDay,
+      }
 
       return {
         ...node,
+        metrics: {
+          ...(node.metrics || {}),
+          all_years: allYearMetrics,
+        },
         all_years: {
           ...(node.all_years || {}),
           battle_deaths: battleDeaths,
           days_at_war: daysAtWar,
-          battle_deaths_per_day:
-            Number.isFinite(daysAtWar) && battleDeaths != null
-              ? Math.round((battleDeaths / daysAtWar) * 100) / 100
-              : null,
+          battle_deaths_per_day: battleDeathsPerDay,
         },
       }
     })
@@ -595,17 +651,27 @@
     return showNodeSizeWarnings && nodeHasUnknownSelectedDescriptor(node)
   }
 
-  function nodeDescriptorDisplayValue(node) {
-    if (!nodeDescriptorValue?.value) return null
+  function nodeMetricRows(node) {
+    let metrics = node.metrics?.[timeframeValue?.value || "all_years"] || {}
 
-    let nodeSizing = nodeSizingById[node.id]
-    let value = nodeSizing ? nodeSizing.value : nodeDescriptorNumericValue(node, nodeDescriptorValue.value)
+    return Object.keys(metrics)
+      .filter(field => {
+        let value = numberValue(metrics[field])
 
-    return displayMetricNumber(value, nodeDescriptorValue.value)
-  }
+        if (field == "days_at_war" || value == null) return false
+        if (value != 0 || alwaysShowZeroMetricFields.has(field)) return true
 
-  function displayNumber(value, field = null) {
-    return field ? displayMetricNumber(value, field) : displayMetricNumber(value, null)
+        return field == nodeDescriptorValue?.value
+      })
+      .sort((a, b) => fieldLabel(a).localeCompare(fieldLabel(b)))
+      .map(field => ({
+        field,
+        label: fieldLabel(field),
+        value:
+          field == "battle_deaths" && Number(node.battle_deaths_estimated) == 1
+            ? `${displayMetricNumber(metrics[field], field)} (estimated)`
+            : displayMetricNumber(metrics[field], field),
+      }))
   }
 
   function linkHasDescriptor(link) {
@@ -833,6 +899,13 @@
     return Object.values(row[timeframe] || {}).some(value => numberValue(value) != null)
   }
 
+  function hasNodeTimeframeData(node, timeframe) {
+    return (
+      hasTimeframeDescriptor(node, timeframe) ||
+      Object.values(node.metrics?.[timeframe] || {}).some(value => numberValue(value) != null)
+    )
+  }
+
   $: if (graph !== currentGraph || width !== currentWidth) {
     currentGraph = graph
     currentWidth = width
@@ -841,7 +914,7 @@
 
   $: availableTimeframeItems = timeframeItems.filter(
     item =>
-      descriptorNodes.some(node => hasTimeframeDescriptor(node, item.value)) ||
+      descriptorNodes.some(node => hasNodeTimeframeData(node, item.value)) ||
       descriptorLinks.some(link => hasTimeframeDescriptor(link, item.value))
   )
   $: if (!availableTimeframeItems.length) {
@@ -1135,19 +1208,43 @@
                 </g>
               </svg>
               {#if tooltip}
+                {@const metricRows = nodeMetricRows(tooltip.node)}
                 <div
-                  class="pointer-events-none absolute z-20 max-w-xs border border-[#c4cec8] bg-white px-3 py-2 text-sm shadow-sm"
+                  class="pointer-events-none absolute z-20 max-w-sm border border-[#c4cec8] bg-white px-3 py-2 text-xs shadow-sm"
                   style="left: {tooltip.x}px; top: {tooltip.y}px;"
                   bind:clientWidth={tooltipWidth}
                   bind:clientHeight={tooltipHeight}
                 >
-                  <div class="font-extrabold">{tooltip.node.participant}</div>
-                  <div class="text-[#50615b]">
-                    Battle Deaths: {displayNumber(tooltip.node.battle_deaths, "battle_deaths")}
+                  <div class="text-sm font-extrabold">{tooltip.node.participant}</div>
+                  <div class="mt-1 space-y-0.5 text-[#50615b]">
+                    <div>
+                      <span class="font-bold text-[#33413c]">Start Date:</span>
+                      {displayDate(tooltip.node.start_date, tooltip.node.start_date_estimated)}
+                    </div>
+                    <div>
+                      <span class="font-bold text-[#33413c]">End Date:</span>
+                      {Number(tooltip.node.ongoing_war) == 1
+                        ? "Ongoing"
+                        : displayDate(tooltip.node.end_date, tooltip.node.end_date_estimated)}
+                    </div>
+                    <div class="mb-2">
+                      <span class="font-bold text-[#33413c]">Days At War:</span>
+                      {displayDaysAtWar(tooltip.node)}
+                    </div>
                   </div>
-                  {#if nodeDescriptorValue?.value && nodeDescriptorValue.value != "battle_deaths"}
-                    <div class="text-[#50615b]">
-                      {nodeDescriptorValue.label}: {nodeDescriptorDisplayValue(tooltip.node)}
+                  {#if metricRows.length}
+                    <div class="mt-2 border-t border-[#dfe5e1] pt-1.5">
+                      <div class="mb-1 font-extrabold text-[#33413c]">
+                        Timeframe: {timeframeValue?.label || "All Years"}
+                      </div>
+                      <div class="space-y-0.5 text-[#50615b]">
+                        {#each metricRows as row (row.field)}
+                          <div>
+                            <span class="font-semibold text-[#33413c]">{row.label}:</span>
+                            {row.value}
+                          </div>
+                        {/each}
+                      </div>
                     </div>
                   {/if}
                 </div>

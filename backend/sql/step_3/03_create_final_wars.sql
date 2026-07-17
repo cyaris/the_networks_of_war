@@ -29,7 +29,8 @@ select
             start_date_estimated := start_date_estimated,
             end_date_estimated := end_date_estimated,
             lagging_war := lagging_war,
-            leading_war := leading_war
+            leading_war := leading_war,
+            metrics := coalesce(metric_timeframes, json('{{}}'))
         )),
         coalesce(descriptor_timeframes, json('{{}}'))
     ) payload

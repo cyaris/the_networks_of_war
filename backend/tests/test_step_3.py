@@ -145,7 +145,9 @@ def test_step_3_manifest_runs_final_export_transformations(conn):
     assert "file_name" not in table_columns(conn, "final_wars")
     assert "total_days_in_war" in table_columns(conn, "final_wars")
     assert "graph_json" in table_columns(conn, "final_wars")
-    assert {"id", "node_key", "descriptor_timeframes"}.issubset(table_columns(conn, "final_participants"))
+    assert {"id", "node_key", "descriptor_timeframes", "metric_timeframes"}.issubset(
+        table_columns(conn, "final_participants")
+    )
     assert {"source", "target", "descriptor_timeframes"}.issubset(table_columns(conn, "final_dyads"))
 
 
@@ -198,6 +200,35 @@ def test_step_3_frontend_graph_data_prunes_unavailable_descriptor_fields(step_3_
             values = [number_or_none(link.get(timeframe, {}).get(field)) for link in links]
 
             assert any(value is not None and value > 0 for value in values)
+
+
+def test_step_3_frontend_graph_data_keeps_all_non_null_node_metrics_for_tooltips(
+    step_3_outputs: tuple[Path, Path],
+):
+    _, frontend_data_path = step_3_outputs
+    payload = json.loads(frontend_data_path.read_text())
+    graphs_with_extra_tooltip_metrics = 0
+
+    for graph in payload["graphsByWarId"].values():
+        for node in graph["nodes"]:
+            descriptor_pairs = set(descriptor_fields(node))
+            metric_pairs = set(metric_fields(node))
+
+            assert "metrics" in node
+            assert descriptor_pairs <= metric_pairs
+            assert all(
+                number_or_none(node["metrics"][timeframe][field]) is not None
+                for timeframe, field in metric_pairs
+            )
+            assert all(
+                number_or_none(node["metrics"][timeframe][field]) not in (-9, -8)
+                for timeframe, field in metric_pairs
+            )
+
+            if metric_pairs - descriptor_pairs:
+                graphs_with_extra_tooltip_metrics += 1
+
+    assert graphs_with_extra_tooltip_metrics > 0
 
 
 def test_step_3_frontend_graph_data_omits_first_and_last_year_for_single_year_wars(
@@ -460,6 +491,14 @@ def is_legacy_timeframe_field(field: str) -> bool:
 
 def descriptor_fields(row: dict):
     return [(timeframe, field) for timeframe in DESCRIPTOR_TIMEFRAMES for field in row.get(timeframe, {})]
+
+
+def metric_fields(row: dict):
+    return [
+        (timeframe, field)
+        for timeframe in DESCRIPTOR_TIMEFRAMES
+        for field in row.get("metrics", {}).get(timeframe, {})
+    ]
 
 
 def number_or_none(value):

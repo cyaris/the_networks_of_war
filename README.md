@@ -81,8 +81,9 @@ In Vite development, the menu is available at `/` and `/the_networks_of_war`. Th
 
 The frontend consumes ignored generated data at `frontend/src/lib/static/graphData.json`. Do not commit this file. Step
 3 writes it from `backend/sql/step_3/04_export_frontend_graph_data.sql` after the final Step 3 tables are built.
-Generated graph rows include only descriptor fields that pass per-war availability checks, so the frontend receives
-only selectable fields.
+Generated graph rows keep two metric layers: top-level timeframe fields contain only descriptor fields that pass per-war
+availability checks for graph controls, while each node's `metrics` object contains all non-null participant metrics for
+the tooltip.
 
 The graph metric data dictionary lives at
 [`frontend/src/lib/static/metricDataDictionary.json`](frontend/src/lib/static/metricDataDictionary.json). It is written
@@ -94,6 +95,10 @@ values also shrink to the minimum radius. A small `?` marker is shown beside nod
 unknown selected descriptor values; if many nodes are unknown, per-node markers are suppressed and the tooltip still
 displays the selected descriptor as `Unknown`. The no-descriptor default still uses equal fallback sizing so the graph
 remains readable before a size field is selected.
+
+Node tooltips show participant start date, end date, days at war, and every non-null participant metric available for the
+selected timeframe. Estimated start dates, end dates, and battle deaths are labeled with `(estimated)`. Ongoing-war
+participants show `Ongoing` as the end date so source-data caps are not mistaken for true conflict end dates.
 
 Tooltip numbers are rounded to at most two decimal places. Values of at least one million are shortened to readable
 million, billion, or trillion labels without showing the full underlying value. For example, `1,400,000` displays as
@@ -532,13 +537,14 @@ Those anchors are then linked to every overlapping participant on the opposite s
   stay `null` unless the source coverage or project derivation makes the value known to be zero, such as
   `concurrent_wars` when no overlapping participant war exists. Source unknown/not-applicable codes such as `-9`
   and `-8` become `null`, and the frontend displays `null` descriptor values as unknown rather than zero.
-- Step 3 participant outputs convert notebook-era unit-scaled fields while building `descriptor_timeframes`: COW trade
-  currency values from millions to dollars; NMC military expenditure, military personnel, population, iron/steel, and
-  energy values from thousands to base units; and displacement counts from thousands to people.
-- Step 3 prunes unavailable graph descriptor fields per war while building `final_participants` and `final_dyads`. Node
-  descriptor fields are kept only when they have a positive maximum value, fewer than half `null` values, and more than
-  one coalesced value after treating `null` values as zero. Link descriptor fields are kept only when at least one dyad has a
-  positive value.
+- Step 3 participant outputs convert notebook-era unit-scaled fields before graph export: COW trade currency values from
+  millions to dollars; NMC military expenditure, military personnel, population, iron/steel, and energy values from
+  thousands to base units; and displacement counts from thousands to people.
+- Step 3 keeps graph-control descriptors and tooltip metrics separate. Top-level node descriptor fields are kept only
+  when they have a positive maximum value, fewer than half `null` values, and more than one coalesced value after
+  treating `null` values as zero. Link descriptor fields are kept only when at least one dyad has a positive value. Node
+  tooltip metrics are stored under each node's `metrics` object and include all non-null participant metrics for the
+  timeframe, even when those metrics were too sparse or too uniform to be useful as node-size dropdown options.
 - Step 3 stores the per-war graph payload directly in `final_wars.graph_json`, and `pipeline.py` writes the single
   frontend payload from
   `backend/sql/step_3/04_export_frontend_graph_data.sql`.
