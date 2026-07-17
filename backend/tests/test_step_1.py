@@ -70,6 +70,15 @@ SOURCE_TABLE_KEYS = {
     "source_intrastate_wars": "intrastate_wars",
 }
 
+SOURCE_COW_CODE_COLUMNS = [
+    ("source_country_codes", ["c_code"]),
+    ("source_interstate_war_dyads", ["c_code_a", "c_code_b"]),
+    ("source_interstate_mid_dyads", ["c_code_a", "c_code_b"]),
+    ("source_extrastate_wars", ["c_code_a", "c_code_b"]),
+    ("source_interstate_wars", ["c_code"]),
+    ("source_intrastate_wars", ["c_code_a", "c_code_b"]),
+]
+
 RAW_SOURCE_DATE_COMPONENTS = [
     (
         "interstate_war_dyads",
@@ -326,6 +335,32 @@ def test_expected_cow_code_fields_are_not_null(conn):
 
     if failures:
         fail_sql_check("Expected COW code fields should not be null:", failures=failures)
+
+
+def test_step_1_source_cow_code_fields_resolve_country_codes(conn):
+    for table_name, column_names in SOURCE_COW_CODE_COLUMNS:
+        for column_name in column_names:
+            unresolved_codes_sql = f"""
+            select
+                {table_name!r} table_name,
+                {column_name!r} column_name,
+                a.{sql_identifier(column_name)} c_code,
+                count(*) row_count
+            from {sql_identifier(table_name)} a
+            left join country_codes b on a.{sql_identifier(column_name)} = b.c_code
+            where
+                a.{sql_identifier(column_name)} > 0
+                and b.c_code is null
+            group by 1, 2, 3
+            order by 1, 2, 3
+            """
+            fail_if_detected_rows(
+                conn,
+                unresolved_codes_sql,
+                "Positive c_code/c_code_a/c_code_b values should resolve through country_codes.",
+                f"unresolved {table_name}.{column_name}",
+                {"c_code"},
+            )
 
 
 def test_coded_participant_names_come_from_country_codes(conn):

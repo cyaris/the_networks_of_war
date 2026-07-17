@@ -321,45 +321,6 @@ def test_step_2_preserves_unknown_descriptive_values(conn):
     assert displaced_population_unknown_rows == []
 
 
-def test_step_2_cow_code_fields_resolve_country_codes(conn):
-    code_columns_sql = """
-    select
-        table_name,
-        column_name
-    from information_schema.columns
-    where
-        table_schema = current_schema()
-        and column_name in ('c_code', 'c_code_a', 'c_code_b')
-    order by table_name, column_name
-    """
-    code_columns = conn.execute(code_columns_sql).fetchall()
-
-    assert len(code_columns) > 0
-
-    for table_name, column_name in code_columns:
-        unresolved_codes_sql = f"""
-        select
-            {table_name!r} table_name,
-            {column_name!r} column_name,
-            a.{column_name} c_code,
-            count(*) row_count
-        from {sql_identifier(table_name)} a
-        left join country_codes b on a.{column_name} = b.c_code
-        where
-            a.{column_name} > 0
-            and b.c_code is null
-        group by 1, 2, 3
-        order by 1, 2, 3
-        """
-        fail_if_detected_rows(
-            conn,
-            unresolved_codes_sql,
-            "Positive c_code/c_code_a/c_code_b values should resolve through country_codes.",
-            f"unresolved {table_name}.{column_name}",
-            {"c_code"},
-        )
-
-
 def test_step_2_descriptor_tables_keep_expected_grain(conn):
     checks = [
         ("country_year_descriptives", ["c_code", "year"]),
