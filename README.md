@@ -99,6 +99,9 @@ remains readable before a size field is selected.
 Node tooltips show participant start date, end date, days at war, and every non-null participant metric available for the
 selected timeframe. Estimated start dates, end dates, and battle deaths are labeled with `(estimated)`. Ongoing-war
 participants show `Ongoing` as the end date so source-data caps are not mistaken for true conflict end dates.
+Some count-style node metrics are yearly counts summarized across a selected timeframe. Multi-year summaries can
+therefore be fractional averages, such as average concurrent wars per year, even though each yearly source count is a
+whole number.
 
 Tooltip numbers are rounded to at most two decimal places. Values of at least one million are shortened to readable
 million, billion, or trillion labels without showing the full underlying value. For example, `1,400,000` displays as

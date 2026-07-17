@@ -236,12 +236,12 @@
       "calculation": "Uses the number of internally displaced people in the participant country, then averages yearly values across the selected timeframe. The source reports thousands of people; the graph displays people."
     },
     "concurrent_wars": {
-      "label": "Concurrent Wars",
+      "label": "Average Concurrent Wars",
       "kind": "node",
-      "unit": "wars",
+      "unit": "average wars per year",
       "valueSuffix": "wars",
       "source": "Calculated from this project's war-participant data",
-      "calculation": "Counts how many other wars involved the same country in the same year, then uses the highest yearly count in the selected timeframe."
+      "calculation": "Counts how many other wars involved the same country in the same year, then averages those yearly counts across the selected timeframe. Multi-year timeframes can therefore show fractional average war counts."
     },
     "days_at_war": {
       "label": "Days At War",
