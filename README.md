@@ -21,10 +21,16 @@ economic, demographic, and displacement sources.
     - [Step 2 Source Tables](#step-2-source-tables)
   - [Materialized Tables](#materialized-tables)
   - [Final Outputs](#final-outputs)
+  - [Metric And Descriptor Notes](#metric-and-descriptor-notes)
+  - [Graph Display Behavior](#graph-display-behavior)
   - [Ingestion Assumptions](#ingestion-assumptions)
     - [Source Ingestion Rules](#source-ingestion-rules)
     - [Excluded Calculated Columns](#excluded-calculated-columns)
     - [Date Values](#date-values)
+      - [General Date Cleaning](#general-date-cleaning)
+      - [Start Dates](#start-dates)
+      - [End Dates](#end-dates)
+      - [Date-Estimation Flags](#date-estimation-flags)
     - [Encoding And Deduplication](#encoding-and-deduplication)
     - [Field Normalization](#field-normalization)
   - [Transformation Assumptions](#transformation-assumptions)
@@ -53,11 +59,10 @@ The backend `dev` extra includes `pdftotext`. The pipeline does not import `pdft
 installed so coding agents and maintainers can extract and search PDF source documentation under `backend/data/` when
 validating source assumptions.
 
-Install and run the frontend. From `the_networks_of_war/frontend`:
+Install the frontend dependencies. From `the_networks_of_war/frontend`:
 
 ```bash
 npm install
-npm run dev
 ```
 
 Regenerate the frontend data snapshot. This reruns the full backend pipeline through `../backend/.venv/bin/python` and
@@ -65,6 +70,12 @@ expects the backend virtual environment and source data to be available:
 
 ```bash
 npm run data:build
+```
+
+Run the Vite development server for normal local frontend development:
+
+```bash
+npm run dev
 ```
 
 Build the bundle for the Jekyll-rendered embedded surface. Use the SvelteKit/Vite routes for normal local frontend
@@ -105,38 +116,6 @@ npm run rollup
   - The dictionary is written for non-technical users.
   - The dictionary records each graph metric's source organization or study, high-level calculation, and display unit.
   - Keep the dictionary aligned with backend metric changes and with any README metric summaries.
-
-- Node-size descriptor behavior:
-  - Known zero values render at the minimum node radius.
-  - Unknown or `null` values also shrink to the minimum radius.
-  - A small `?` marker is shown beside node labels only when there are a few unknown selected descriptor values.
-  - If many nodes are unknown, per-node markers are suppressed and the tooltip still displays the selected descriptor as
-    `Unknown`.
-  - The no-descriptor default still uses equal fallback sizing so the graph remains readable before a size field is
-    selected.
-
-- Node tooltip behavior:
-  - Tooltips show participant start date, end date, days at war, and every non-null participant metric available for the
-    selected timeframe.
-  - Estimated start dates, end dates, and battle deaths are labeled with `(estimated)`.
-  - Ongoing-war participants show `Ongoing` as the end date so source-data caps are not mistaken for true conflict end
-    dates.
-  - Some count-style node metrics start as yearly counts and are then summarized for the selected timeframe.
-    - Example: `concurrent_wars` counts overlapping wars separately for each participant-year. `First Year` and
-      `Last Year` use the count from one year, while `All Years` averages the yearly counts across the participant's war
-      span.
-
-- Tooltip number formatting:
-  - Most numbers are rounded to at most two decimal places.
-    - Exception: `cinc_score` is formatted with fixed decimal places because the CINC index needs more precision than
-      whole-number style metrics.
-  - Values of at least one million are shortened to readable million, billion, or trillion labels without showing the
-    full underlying value.
-  - Examples:
-    - `1,400,000` displays as `1.4 million`.
-    - `1,400,010` displays as `1.4 million`.
-    - `56,546,000,000` displays as `56.55 billion`.
-  - Smaller values continue to display in comma-separated form.
 
 ## Data Layout
 
@@ -363,24 +342,6 @@ Step 2 also materializes descriptive output tables:
 - `dyad_year_descriptives`
 - `dyadic_descriptives`
 
-Descriptor dictionary additions, new metrics: `shared_arms_technology` is a link-dash descriptor equal to `1` when both
-countries in a dyad used at least one of the same COW arms technologies in the descriptor year.
-
-Descriptor dictionary additions, recalculated source metrics:
-
-- `arms_technologies_used`: node-size descriptor derived from the COW arms technology source's calculated `total_use`
-  column. Step 2 recalculates `arms_technologies_used` from individual technology rows in the descriptor year by
-  counting rows with `use` codes `1` or `9` and excluding the aggregate `Adopted technologies` row.
-- `cinc_score`: node-size descriptor derived in Step 2 from the six NMC component shares rather than ingested from the
-  source CSV's calculated `cinc` column. For each year, Step 2 divides each state's component values by that year's
-  system total for the same component, then averages the six shares:
-  - Military expenditure.
-  - Military personnel.
-  - Iron and steel production.
-  - Primary energy consumption.
-  - Total population.
-  - Urban population.
-
 ## Final Outputs
 
 Step 3 materializes the final merge and graph-export tables `final_participants`, `final_dyads`, and `final_wars`.
@@ -395,6 +356,63 @@ Node and link descriptor values are stored in `descriptor_timeframes` JSON keyed
 - `all_years`
 
 The frontend payload exposes those timeframe keys directly on each graph node or link.
+
+## Metric And Descriptor Notes
+
+`shared_arms_technology` is a link-dash descriptor equal to `1` when both countries in a dyad used at least one of the
+same COW arms technologies in the descriptor year.
+
+Recalculated source metrics:
+
+- `arms_technologies_used`: node-size descriptor derived from the COW arms technology source's calculated `total_use`
+  column. Step 2 recalculates `arms_technologies_used` from individual technology rows in the descriptor year by
+  counting rows with `use` codes `1` or `9` and excluding the aggregate `Adopted technologies` row.
+- `cinc_score`: node-size descriptor derived in Step 2 from the six NMC component shares rather than ingested from the
+  source CSV's calculated `cinc` column. For each year, Step 2 divides each state's component values by that year's
+  system total for the same component, then averages the six shares:
+  - Military expenditure.
+  - Military personnel.
+  - Iron and steel production.
+  - Primary energy consumption.
+  - Total population.
+  - Urban population.
+
+## Graph Display Behavior
+
+Node-size descriptor behavior:
+
+- Known zero values render at the minimum node radius.
+- Unknown or `null` values also shrink to the minimum node radius.
+- A small `?` marker is shown beside node labels only when there are a few unknown selected descriptor values.
+- If many nodes are unknown, per-node markers are suppressed and the tooltip still displays the selected descriptor as
+  `Unknown`.
+- The no-descriptor default still uses equal fallback sizing so the graph remains readable before a size field is
+  selected.
+
+Node tooltip behavior:
+
+- Tooltips show participant start date, end date, days at war, and every non-null participant metric available for the
+  selected timeframe.
+- Estimated start dates, end dates, and battle deaths are labeled with `(estimated)`.
+- Ongoing-war participants show `Ongoing` as the end date so source-data caps are not mistaken for true conflict end
+  dates.
+- Some count-style node metrics start as yearly counts and are then summarized for the selected timeframe.
+  - Example: `concurrent_wars` counts overlapping wars separately for each participant-year. `First Year` and
+    `Last Year` use the count from one year, while `All Years` averages the yearly counts across the participant's war
+    span.
+
+Tooltip number formatting:
+
+- Most numbers are rounded to at most two decimal places.
+  - Exception: `cinc_score` is formatted with fixed decimal places because the CINC index needs more precision than
+    whole-number style metrics.
+- Values of at least one million are shortened to readable million, billion, or trillion labels without showing the
+  full underlying value.
+- Examples:
+  - `1,400,000` displays as `1.4 million`.
+  - `1,400,010` displays as `1.4 million`.
+  - `56,546,000,000` displays as `56.55 billion`.
+- Smaller values continue to display in comma-separated form.
 
 ## Ingestion Assumptions
 
@@ -456,38 +474,41 @@ Derived replacements:
 
 ### Date Values
 
+#### General Date Cleaning
+
 - Blank strings are loaded as `null`.
-- These text values are also treated as `null` because the COW codebooks use negative values for ongoing, not
-  applicable, or unknown values:
-  - `-7`
-  - `-8`
-  - `-9`
-- These negative date component fields are loaded as `null`:
-  - Day fields.
-  - Month fields.
-  - Start-year fields.
-- Negative end-year values are loaded as `null` except for `-7`, which the COW codebooks document as the ongoing-war
-  marker.
-- Missing, invalid, unknown, or not-applicable start months are interpreted as January, and start days are interpreted
-  as day `1` of the resolved month.
-- Missing, invalid, unknown, or not-applicable end months are interpreted as December, and end days are interpreted as
-  the last day of the resolved month.
-- Day values are capped to the last valid day of the resolved month, so an end date with year `2012`, month `10`, and
-  missing day resolves to `2012-10-31`.
-- End year `-7` is treated as ongoing and resolved to the source file's release date from
-  `source_file_versions.source_release_date`. This keeps ongoing rows reproducible and prevents Step 2 `Last Year` and
-  `All Years` descriptors from expanding beyond the years covered by the released source data.
-- A date is flagged as estimated when the year is an ongoing marker or when a positive year has a missing or invalid
-  month or day.
+- COW special codes allowed before cleaning are `-7`, `-8`, and `-9`.
+- Month fields, day fields, and start-year fields load those special codes as `null` because the COW codebooks use
+  negative values for ongoing, not applicable, or unknown values.
 - Raw source date components are expected to be in basic valid domains before cleaning:
   - Months: `1-12`.
   - Days: `1-31`.
   - Years: `1500-2100`.
-- COW special codes allowed before cleaning:
-  - `-7`
-  - `-8`
-  - `-9`
 - Values outside these domains are treated as data-entry issues and documented below when accepted by the pipeline.
+
+#### Start Dates
+
+- Negative start-year values are loaded as `null`.
+- Missing, invalid, unknown, or not-applicable start months are interpreted as January.
+- Missing, invalid, unknown, or not-applicable start days are interpreted as day `1` of the resolved month.
+
+#### End Dates
+
+- Negative end-year values are loaded as `null` except for `-7`, which the COW codebooks document as the ongoing-war
+  marker.
+- End year `-7` is resolved to the source file's release date from `source_file_versions.source_release_date`. The
+  source-release cap keeps ongoing rows reproducible and prevents Step 2 `Last Year` and `All Years` descriptors from
+  expanding beyond the years covered by the released source data.
+- Missing, invalid, unknown, or not-applicable end months are interpreted as December.
+- Missing, invalid, unknown, or not-applicable end days are interpreted as the last day of the resolved month.
+- End day values are capped to the last valid day of the resolved month.
+  - Example: end date components with year `2012`, month `10`, and missing day resolve to `2012-10-31`.
+
+#### Date-Estimation Flags
+
+- `start_date_estimated` is set when a positive start year has a missing or invalid start month or day.
+- `end_date_estimated` is set when the end year is the ongoing-war marker or when a positive end year has a missing or
+  invalid end month or day.
 
 ### Encoding And Deduplication
 
@@ -655,7 +676,10 @@ Those anchors are then linked to every overlapping participant on the opposite s
   - The tooltip displays:
     - Non-zero metrics.
     - Selected zero-value metrics.
+      - Example: if `concurrent_wars` is the selected node-size descriptor, a participant with `concurrent_wars = 0`
+        still shows that value in the tooltip.
     - Zero values for metrics that are always useful to show.
+      - Example: `battle_deaths = 0` and `battle_deaths_per_day = 0` still display when available.
   - Top-level node descriptor fields are kept for node-size dropdown options only when they have:
     - At least one positive known value.
     - Fewer than half `null` values.
@@ -724,22 +748,6 @@ Those anchors are then linked to every overlapping participant on the opposite s
 
 ## Maintainer Notes
 
-- Documentation style:
-  - Prefer bullets and subbullets over inline listed-out prose when they make concrete technical lists easier to scan,
-    especially files, paths, source values/codes, table names, column names, commands, and metrics.
-  - Keep short phrase lists in prose when bullets would make the text feel fragmented.
-  - Do not use bullets solely to separate command examples or other code-block sections.
-  - Do not place separate bullet groups directly next to each other when they document different concepts.
-  - Keep each bullet list focused on one kind of item; move standout metadata, source notes, examples, row identifiers,
-    or downstream behavior notes into prose, a table, a new subsection, or a labeled subbullet group.
-  - Avoid starting bullets with ambiguous pronouns such as `it`, `this`, or `these` unless the noun is explicit in the
-    same bullet.
-  - Use prose instead of a bullet list when a section would contain only one bullet.
-  - Prefer prose over subbullets when a nested list would have only two items, unless the pair needs extra visual
-    separation to avoid ambiguity.
-  - Use `Example:` for one example and `Examples:` for multiple examples under an existing bullet.
-  - Let table-of-contents nesting reflect the document structure even when a section has only two children.
-  - Keep tables when they make dense reference data easier to compare.
 - Participant names for rows with COW codes come from `country_codes.state_name`. Use
   `participant_name_replacements.json` only when the source name cannot resolve through a COW code:
   - Non-state participants.

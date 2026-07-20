@@ -26,10 +26,11 @@
 - When an example supports an existing README bullet, make the example a subbullet under that point even when there is
   only one example. Use `Example:` for one example and `Examples:` for multiple examples.
 - Let table-of-contents nesting reflect the document structure even when a section has only two children.
+- Keep documentation style guidance in AGENTS.md instead of the README.
 - When documenting normalization or replacement rules, show the direction of the change with `source -> replacement`
   example subbullets instead of listing only the affected source values or categories.
-- Keep frontend-specific build artifact notes under the README frontend section instead of as standalone top-level
-  sections.
+- Keep frontend-specific build artifact notes near frontend setup or frontend commands instead of standalone top-level
+  README sections.
 - In Markdown files, always format the literal as `null`.
 - For data-related questions, consult the relevant source documentation in `backend/data/` before concluding whether a
   source value, adjustment, or transformation is correct.
