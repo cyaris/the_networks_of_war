@@ -377,15 +377,10 @@ Descriptor dictionary additions, recalculated source metrics:
 
 ## Final Outputs
 
-Step 3 materializes final merge and graph-export tables:
-
-- `final_participants`
-- `final_dyads`
-- `final_wars`
-
-- `final_wars.graph_json` stores one graph payload per `war_id`.
-- `final_participants` and `final_dyads` keep the normalized graph shape available for a Svelte app or API route.
-- `pipeline.py` writes the single frontend payload after Step 3 completes.
+Step 3 materializes the final merge and graph-export tables `final_participants`, `final_dyads`, and `final_wars`.
+`final_participants` and `final_dyads` keep the normalized graph shape available for a Svelte app or API route.
+`final_wars.graph_json` stores one graph payload per `war_id`, and `pipeline.py` writes the single frontend payload
+after Step 3 completes.
 
 Node and link descriptor values are stored in `descriptor_timeframes` JSON keyed by:
 

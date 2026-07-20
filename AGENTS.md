@@ -14,6 +14,8 @@
   tables when they make dense reference data easier to compare.
 - Do not use bullets solely to separate README command examples or other code-block sections. Introduce each code block
   with a short prose sentence instead.
+- Do not place separate bullet groups directly next to each other when they document different concepts, because
+  Markdown can render them as one list. Use prose, a table, or an explicit subsection label to separate the concepts.
 - Use prose instead of a bullet list when a section would contain only one bullet. Prefer prose over subbullets when a
   nested list would have only two items, unless the pair needs extra visual separation to avoid ambiguity.
 - Let table-of-contents nesting reflect the document structure even when a section has only two children.
