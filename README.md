@@ -80,7 +80,7 @@ In Vite development, the menu is available at `/` and `/the_networks_of_war`. Th
 `/tool` and `/the_networks_of_war/tool`.
 
 The frontend consumes ignored generated data at `frontend/src/lib/static/graphData.json`. Do not commit this file. Step
-3 writes it from `backend/sql/step_3/04_export_frontend_graph_data.sql` after the final Step 3 tables are built.
+3 writes it from `backend/src/sql/step_3/04_export_frontend_graph_data.sql` after the final Step 3 tables are built.
 Generated graph rows keep two metric layers: top-level timeframe fields contain only descriptor fields that pass per-war
 availability checks for graph controls, while each node's `metrics` object contains all non-null participant metrics for
 the tooltip.
@@ -379,8 +379,8 @@ Step 3 completes. Node and link descriptor values are stored in `descriptor_time
 - Source CSV schemas are compared when source versions change. Ingestion keeps relevant columns that remain available,
   adds newly useful fields when downstream transformations need them, and removes truly absent fields instead of
   fabricating placeholder `null` source columns.
-- Version-scoped source adjustments live in `backend/sql/step_1/03_create_source_adjustment_tables.sql` and
-  `backend/sql/step_1/04_insert_source_adjustments.sql`. The first file creates `source_file_versions` and adjustment
+- Version-scoped source adjustments live in `backend/src/sql/step_1/03_create_source_adjustment_tables.sql` and
+  `backend/src/sql/step_1/04_insert_source_adjustments.sql`. The first file creates `source_file_versions` and adjustment
   tables; the second inserts release metadata and adjustment rows for source facts that are not present in the source
   CSVs. Downstream transformations join adjustment tables to `source_file_versions` when an assignment is
   version-scoped. Step 1 date-span transformations also use `source_file_versions.source_release_date` to cap ongoing
@@ -388,8 +388,8 @@ Step 3 completes. Node and link descriptor values are stored in `descriptor_time
   Adjustment rows should stay lean: store only values used for joins, source corrections, or downstream transformations.
   Data-entry fixes applied while reading source CSVs are documented below.
 - Reference data that is not tied to an external source file, currently `war_types`, is created and inserted in
-  `backend/sql/step_1/05_create_reference_tables.sql` and
-  `backend/sql/step_1/06_insert_reference_tables.sql`.
+  `backend/src/sql/step_1/05_create_reference_tables.sql` and
+  `backend/src/sql/step_1/06_insert_reference_tables.sql`.
 
 ### Excluded Calculated Columns
 
@@ -551,7 +551,7 @@ Those anchors are then linked to every overlapping participant on the opposite s
   kept only when at least one dyad has a positive value.
 - Step 3 stores the per-war graph payload directly in `final_wars.graph_json`, and `pipeline.py` writes the single
   frontend payload from
-  `backend/sql/step_3/04_export_frontend_graph_data.sql`.
+  `backend/src/sql/step_3/04_export_frontend_graph_data.sql`.
 
 ## Data-Entry Fixes And Assignment Rules
 

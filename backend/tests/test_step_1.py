@@ -79,7 +79,7 @@ SOURCE_COW_CODE_COLUMNS = [
     ("source_intrastate_wars", ["c_code_a", "c_code_b"]),
 ]
 
-SQL_ROOT = Path(__file__).resolve().parents[1] / "sql"
+SQL_ROOT = Path(__file__).resolve().parents[1] / "src" / "sql"
 
 RAW_SOURCE_DATE_COMPONENTS = [
     (

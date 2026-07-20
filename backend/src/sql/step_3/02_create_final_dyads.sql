@@ -2,24 +2,6 @@ create or replace table final_dyads as
 
 with
 
-dyad_rows as (
-
-select
-    a.war_id,
-    b.war_name,
-    a.c_code_a,
-    a.c_code_b,
-    a.participant_a,
-    a.participant_b,
-    a.start_date,
-    if(b.ongoing_war = 1, null, a.end_date) end_date,
-    extract(year from a.start_date)::integer start_year,
-    if(b.ongoing_war = 1, null, extract(year from a.end_date)::integer) end_year,
-    a.start_date_estimated,
-    a.end_date_estimated
-from dyads a
-join wars b on a.war_id = b.war_id),
-
 dyad_descriptor_values as (
 
 select
@@ -70,26 +52,32 @@ select
     participant_b,
     json_group_object(lower(replace(timeframe, ' ', '_')), json(payload)) payload
 from link_field_json
-group by 1, 2, 3, 4, 5),
-
-final_dyad_rows as (
+group by 1, 2, 3, 4, 5)
 
 select
-    a.*,
-    d.payload descriptor_timeframes
-from dyad_rows a
-left join link_descriptor_json d on a.war_id = d.war_id
-                                 and a.c_code_a = d.c_code_a
-                                 and a.c_code_b = d.c_code_b
-                                 and a.participant_a = d.participant_a
-                                 and a.participant_b = d.participant_b)
-
-select
-    a.*,
-    b.id "source",
-    c.id "target"
-from final_dyad_rows a
-join final_participants b on a.war_id = b.war_id
-                          and if(a.c_code_a > 0, a.c_code_a::varchar, a.participant_a) = b.node_key
-join final_participants c on a.war_id = c.war_id
-                          and if(a.c_code_b > 0, a.c_code_b::varchar, a.participant_b) = c.node_key;
+    a.war_id,
+    b.war_name,
+    a.c_code_a,
+    a.c_code_b,
+    a.participant_a,
+    a.participant_b,
+    a.start_date,
+    if(b.ongoing_war = 1, null, a.end_date) end_date,
+    extract(year from a.start_date)::integer start_year,
+    if(b.ongoing_war = 1, null, extract(year from a.end_date)::integer) end_year,
+    a.start_date_estimated,
+    a.end_date_estimated,
+    c.payload descriptor_timeframes,
+    d.id "source",
+    e.id "target"
+from dyads a
+join wars b on a.war_id = b.war_id
+left join link_descriptor_json c on a.war_id = c.war_id
+                                and a.c_code_a = c.c_code_a
+                                and a.c_code_b = c.c_code_b
+                                and a.participant_a = c.participant_a
+                                and a.participant_b = c.participant_b
+join final_participants d on a.war_id = d.war_id
+                          and if(a.c_code_a > 0, a.c_code_a::varchar, a.participant_a) = d.node_key
+join final_participants e on a.war_id = e.war_id
+                          and if(a.c_code_b > 0, a.c_code_b::varchar, a.participant_b) = e.node_key;
