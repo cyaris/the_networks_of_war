@@ -40,29 +40,29 @@ economic, demographic, and displacement sources.
 
 ## Quickstart
 
-- Install the backend and build the DuckDB database first. From `the_networks_of_war/backend`:
+Install the backend and build the DuckDB database first. From `the_networks_of_war/backend`:
 
-  ```bash
-  python3 -m venv .venv
-  source .venv/bin/activate
-  pip install -e ".[dev]"
-  python src/pipeline.py
-  ```
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+python src/pipeline.py
+```
 
-  The backend `dev` extra includes `pdftotext`. The pipeline does not import it at runtime; it is installed so coding
-  agents and maintainers can extract and search PDF source documentation under `backend/data/` when validating source
-  assumptions.
+The backend `dev` extra includes `pdftotext`. The pipeline does not import it at runtime; it is installed so coding
+agents and maintainers can extract and search PDF source documentation under `backend/data/` when validating source
+assumptions.
 
-- Install and run the frontend. From `the_networks_of_war/frontend`:
+Install and run the frontend. From `the_networks_of_war/frontend`:
 
-  ```bash
-  npm install
-  npm run data:build
-  npm run dev
-  ```
+```bash
+npm install
+npm run data:build
+npm run dev
+```
 
-  `npm run data:build` reruns the full backend pipeline through `../backend/.venv/bin/python` and expects the backend
-  virtual environment and source data to be available.
+`npm run data:build` reruns the full backend pipeline through `../backend/.venv/bin/python` and expects the backend
+virtual environment and source data to be available.
 
 ## Current Architecture
 
@@ -171,60 +171,60 @@ Pipeline parameters:
 | `--query SQL` | none | Execute an inline SQL query after build completes, or immediately with `--no-build`. |
 | `--query-file PATH` | none | Execute SQL read from a local `.sql` file after build completes, or immediately with `--no-build`. Mutually exclusive with `--query`. |
 
-- Run or rebuild all pipeline steps:
+Run or rebuild all pipeline steps:
 
-  ```bash
-  python src/pipeline.py
-  ```
+```bash
+python src/pipeline.py
+```
 
-- Run the full build explicitly:
+Run the full build explicitly:
 
-  ```bash
-  python src/pipeline.py --build
-  ```
+```bash
+python src/pipeline.py --build
+```
 
-- Print table row counts after running the full build:
+Print table row counts after running the full build:
 
-  ```bash
-  python src/pipeline.py --inspect
-  ```
+```bash
+python src/pipeline.py --inspect
+```
 
-- Query the existing DuckDB database without rebuilding it:
+Query the existing DuckDB database without rebuilding it:
 
-  ```bash
-  python src/pipeline.py --no-build --query "select count(*) as row_count from dyads"
-  python src/pipeline.py --no-build --query "select * from wars limit 10"
-  ```
+```bash
+python src/pipeline.py --no-build --query "select count(*) as row_count from dyads"
+python src/pipeline.py --no-build --query "select * from wars limit 10"
+```
 
-- Query from a local SQL file:
+Query from a local SQL file:
 
-  ```bash
-  python src/pipeline.py --no-build --query-file queries/war_counts.sql
-  ```
+```bash
+python src/pipeline.py --no-build --query-file queries/war_counts.sql
+```
 
-- Run the full build, then query the freshly rebuilt tables:
+Run the full build, then query the freshly rebuilt tables:
 
-  ```bash
-  python src/pipeline.py --query "select war_id, war_name from wars limit 10"
-  ```
+```bash
+python src/pipeline.py --query "select war_id, war_name from wars limit 10"
+```
 
-- Use non-default input or database paths:
+Use non-default input or database paths:
 
-  ```bash
-  python src/pipeline.py --data-dir data --db-path the_networks_of_war.duckdb
-  ```
+```bash
+python src/pipeline.py --data-dir data --db-path the_networks_of_war.duckdb
+```
 
-- Create missing source-data subdirectories without running the build:
+Create missing source-data subdirectories without running the build:
 
-  ```bash
-  python src/pipeline.py --prepare-data --no-build
-  ```
+```bash
+python src/pipeline.py --prepare-data --no-build
+```
 
-- Recreate the full ignored source-data directory:
+Recreate the full ignored source-data directory:
 
-  ```bash
-  python src/pipeline.py --recreate-data --no-build
-  ```
+```bash
+python src/pipeline.py --recreate-data --no-build
+```
 
 ### Test Commands
 
@@ -234,31 +234,31 @@ From `the_networks_of_war/backend`:
 pytest
 ```
 
-- Run the Step 1 expectation tests:
+Run the Step 1 expectation tests:
 
-  ```bash
-  pytest tests/test_step_1.py
-  pytest tests/test_step_1.py -q
-  ```
+```bash
+pytest tests/test_step_1.py
+pytest tests/test_step_1.py -q
+```
 
-- Run the Step 3 final-output tests:
+Run the Step 3 final-output tests:
 
-  ```bash
-  pytest tests/test_step_3.py
-  ```
+```bash
+pytest tests/test_step_3.py
+```
 
-- Run a single test or matching group of tests:
+Run a single test or matching group of tests:
 
-  ```bash
-  pytest tests/test_step_1.py -k "negative_date_special_codes"
-  pytest tests/test_step_1.py -k "date_macros or dyads"
-  ```
+```bash
+pytest tests/test_step_1.py -k "negative_date_special_codes"
+pytest tests/test_step_1.py -k "date_macros or dyads"
+```
 
-- Show verbose test names and failures:
+Show verbose test names and failures:
 
-  ```bash
-  pytest tests/test_step_1.py -vv
-  ```
+```bash
+pytest tests/test_step_1.py -vv
+```
 
 The Step 1 expectation tests rebuild Step 1 into a temporary DuckDB database. They run when the ignored source files in
 `backend/data/` are available locally and skip automatically otherwise.
@@ -271,18 +271,18 @@ From `the_networks_of_war/frontend`, regenerate the frontend data snapshot from 
 npm run data:build
 ```
 
-- Run frontend checks:
+Run frontend checks:
 
-  ```bash
-  npm run check
-  npm run build
-  ```
+```bash
+npm run check
+npm run build
+```
 
-- Build the embedded bundle for the legacy Jekyll-rendered surface when needed:
+Build the embedded bundle for the legacy Jekyll-rendered surface when needed:
 
-  ```bash
-  npm run rollup
-  ```
+```bash
+npm run rollup
+```
 
 ## Source Tables
 
@@ -329,10 +329,7 @@ unless they explicitly identify the current source file's release date.
 
 ## Materialized Tables
 
-Step 1 materializes reference tables:
-
-- `country_codes`
-- `war_types`
+Step 1 materializes the reference tables `country_codes` and `war_types`.
 
 `war_types` is maintained as inline SQL reference data: `05_create_reference_tables.sql` creates the table and
 `06_insert_reference_tables.sql` inserts the rows.
