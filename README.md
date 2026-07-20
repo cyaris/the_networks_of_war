@@ -34,6 +34,8 @@ economic, demographic, and displacement sources.
       - [Date-Estimation Flags](#date-estimation-flags)
     - [Encoding And Deduplication](#encoding-and-deduplication)
     - [Field Normalization](#field-normalization)
+      - [Battle-Death Estimate Flags](#battle-death-estimate-flags)
+      - [Participant Name Normalization](#participant-name-normalization)
   - [Transformation Assumptions](#transformation-assumptions)
     - [Table Shape](#table-shape)
     - [Source War Dyads And Participants](#source-war-dyads-and-participants)
@@ -530,6 +532,8 @@ Derived replacements:
 
 ### Field Normalization
 
+#### Battle-Death Estimate Flags
+
 - `dyadic_mid_4.03.csv` side-specific fatality levels are converted during ingestion to representative battle-death
   estimate values:
   - `0 -> 0`
@@ -539,32 +543,28 @@ Derived replacements:
   - `4 -> 500`
   - `5 -> 999`
   - `6 -> 1000`
+- The source MID table stores these representative estimate values in `battle_deaths_estimated_a` and
+  `battle_deaths_estimated_b`.
+- After MID rows are merged into `dyads_after_mid`, `battle_deaths_estimated_a` and `battle_deaths_estimated_b` become
+  binary flags:
+  - `1`: the row's battle-death value comes from MID fatality-level estimates because summed source battle deaths were
+    missing or zero.
+  - `0`: the row's battle-death value comes from source battle-death fields or remains zero.
+- Participant tables carry the merged flag as `battle_deaths_estimated`.
 
-The source MID table stores these representative estimate values in `battle_deaths_estimated_a` and
-`battle_deaths_estimated_b`. After MID rows are merged into `dyads_after_mid`, those fields become binary flags.
-Participant tables carry the merged flag as `battle_deaths_estimated`.
+#### Participant Name Normalization
 
-The binary estimate-flag values mean:
-
-- `1`: the row's battle-death value comes from MID fatality-level estimates because summed source battle deaths were
-  missing or zero.
-- `0`: the row's battle-death value comes from source battle-death fields or remains zero.
-
-Participant name normalization:
-
-Participant names are normalized only for known display and matching issues. The full manual mapping lives in
-`backend/manual/participant_name_replacements.json`.
-
-Examples:
-
-- `United States -> United States of America`
-- `Baron von Ungern-Sternbergs White army -> Baron von Ungern-Sternberg's White army`
-- `Turkey/Ottoman Empire/Egypt -> Turkey, Ottoman Empire & Egypt`
-- `al-Qaeda & Iraqi resistence -> al-Qaeda & Iraqi Resistance`
-- `Bharatpuran rebels -> Bharatpuran Rebels`
-- `Wadai sultanate -> Wadai Sultanate`
-- `Zulu tribe -> Zulu Tribe`
-- ` Janissaries -> Janissaries`
+- Participant names are normalized only for known display and matching issues.
+- The full manual mapping lives in `backend/manual/participant_name_replacements.json`.
+- Examples:
+  - `United States -> United States of America`
+  - `Baron von Ungern-Sternbergs White army -> Baron von Ungern-Sternberg's White army`
+  - `Turkey/Ottoman Empire/Egypt -> Turkey, Ottoman Empire & Egypt`
+  - `al-Qaeda & Iraqi resistence -> al-Qaeda & Iraqi Resistance`
+  - `Bharatpuran rebels -> Bharatpuran Rebels`
+  - `Wadai sultanate -> Wadai Sultanate`
+  - `Zulu tribe -> Zulu Tribe`
+  - ` Janissaries -> Janissaries`
 
 ## Transformation Assumptions
 
