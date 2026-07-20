@@ -699,20 +699,17 @@ Those anchors are then linked to every overlapping participant on the opposite s
   - War `976` has `StartYr1` corrected from original value `2001` to `2011`. The intra-state war-level CSV identifies
     the Libyan Civil War of 2011 as war `976` with `StartYr1 = 2011`; the affected state-participant rows have March
     2001 dates despite a 2011 war name and 2011 end year.
-  - These wars are treated as ongoing because their source war names say `present` or `ongoing`:
-    - `942`
-    - `990.4`
-    - `991`
-    - `991.4`
-    - `992.5`
-  - `EndYr1` is set to `-7` for these ongoing rows.
-  - Original source values include:
-    - `-7`
-    - `-8`
-    - `-9`
-  - Only `-7` is treated as an ongoing end-year marker.
-  - Other negative end-year values are loaded as `null` because the codebooks use them for not applicable or unknown
-    values.
+  - End-year handling:
+    - Original source values include `-7`, `-8`, and `-9`.
+    - Only `-7` is treated as an ongoing end-year marker.
+    - Other negative end-year values are loaded as `null` because the codebooks use them for not applicable or unknown
+      values.
+    - The pipeline sets `EndYr1` to `-7` for source rows whose war names say `present` or `ongoing`:
+      - `942`
+      - `990.4`
+      - `991`
+      - `991.4`
+      - `992.5`
 
 ## Maintainer Notes
 
