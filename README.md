@@ -425,12 +425,11 @@ Tooltip number formatting:
   - Exception: `cinc_score` is formatted with fixed decimal places because the CINC index needs more precision than
     whole-number style metrics.
 - Values of at least one million are shortened to readable million, billion, or trillion labels without showing the
-  full underlying value.
-- Examples:
-  - `1,400,000` displays as `1.4 million`.
-  - `1,400,010` displays as `1.4 million`.
-  - `56,546,000,000` displays as `56.55 billion`.
-- Smaller values continue to display in comma-separated form.
+  full underlying value. Smaller values continue to display in comma-separated form.
+  - Examples:
+    - `1,400,000` displays as `1.4 million`.
+    - `1,400,010` displays as `1.4 million`.
+    - `56,546,000,000` displays as `56.55 billion`.
 
 ## Ingestion Assumptions
 
