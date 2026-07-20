@@ -140,12 +140,12 @@ npm run rollup
 
 ## Data Layout
 
-- Source data is downloaded into `backend/data/`, which is ignored by git.
-  - Each external source table gets its own subdirectory named after the source key without the `source_` table prefix.
-  - Example: `backend/data/interstate_mid_dyads/` corresponds to `source_interstate_mid_dyads`.
-  - The corresponding raw source data and source documentation live in that folder.
 - Source download metadata lives in `backend/manual/source_metadata.json`, including Step 1 source release dates used
   for ongoing-war date caps.
+- Source data is downloaded programmatically into `backend/data/`, which is ignored by git.
+  - Each external source table gets its own subdirectory named after the source key without the `source_` table prefix.
+    The corresponding raw source data and source documentation live in that folder.
+    - Example: `backend/data/interstate_mid_dyads/` corresponds to `source_interstate_mid_dyads`.
 - Source CSVs that need explicit encoding handling use `latin-1` by default. Prepared copies are written to UTF-8 under
   ignored `backend/.work/` before DuckDB reads them.
 - Prepared source subdirectories keep only durable source CSVs and PDF or JSON source documentation. Archive files,
