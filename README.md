@@ -441,7 +441,8 @@ Currently excluded calculated fields:
 Derived replacements:
 
 - Duration and day-count fields are calculated from the pipeline's resolved start and end dates, after applying the date
-  assumptions below. For example, the pipeline uses the last day of the year when only the end year is known.
+  assumptions below.
+  - Example: the pipeline uses the last day of the year when only the end year is known.
 - `arms_technologies_used` is derived in Step 2 by recounting individual technology rows.
 - `cinc_score` is derived in Step 2 by averaging each state's yearly shares of the six NMC components.
 
@@ -598,12 +599,11 @@ Derived replacements:
   - Exactly one named non-state participant.
   - Exactly one state participant.
 - More than one anchor can be selected for the same war, including anchors on both sides.
+  - Example: in the Third Somalia War (`war_id = 940.8`), the source intra-state participant file lists six side 1
+    states and two side 2 participants. Side 2 has exactly one named non-state participant, ICU (`c_code = -8`), and
+    exactly one state participant, Eritrea (`c_code = 531`), so both become anchors.
 - Named non-state participants with COW code `-8` are retained in `dyads`. Unnamed or literal aggregate
   placeholders are excluded.
-
-For example, in the Third Somalia War (`war_id = 940.8`), the source intra-state participant file lists six side 1
-states and two side 2 participants. Side 2 has exactly one named non-state participant, ICU (`c_code = -8`), and exactly
-one state participant, Eritrea (`c_code = 531`), so both become anchors.
 
 | Side | Source participants | Anchor rule | Selected anchors |
 | --- | --- | --- | --- |
@@ -619,8 +619,8 @@ Those anchors are then linked to every overlapping participant on the opposite s
 
 ### Dyads
 
-- Source dyads with COW code `-8` on one side are expanded against every actual participant on that side. For example,
-  if `c_code_a = -8`, side B is treated as having fought each source participant on side A for that conflict.
+- Source dyads with COW code `-8` on one side are expanded against every actual participant on that side.
+  - Example: if `c_code_a = -8`, side B is treated as having fought each source participant on side A for that conflict.
 - Unnamed aggregate dyads are excluded from `dyads` after those rows are used for named-participant expansion.
 - Inferred dyads are only created where the anchor and opposing participant date ranges overlap.
 - Final dyads are deduplicated to one row per `war_id` and unordered participant pair. When duplicate spans exist, the

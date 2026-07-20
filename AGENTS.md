@@ -18,9 +18,11 @@
   Markdown can render them as one list. Use prose, a table, or an explicit subsection label to separate the concepts.
 - Use prose instead of a bullet list when a section would contain only one bullet. Prefer prose over subbullets when a
   nested list would have only two items, unless the pair needs extra visual separation to avoid ambiguity.
+- When an example supports an existing README bullet, make the example a subbullet under that point even when there is
+  only one example. Use `Example:` for one example and `Examples:` for multiple examples.
 - Let table-of-contents nesting reflect the document structure even when a section has only two children.
 - When documenting normalization or replacement rules, show the direction of the change with `source -> replacement`
-  examples instead of listing only the affected source values or categories.
+  example subbullets instead of listing only the affected source values or categories.
 - Keep frontend-specific build artifact notes under the README frontend section instead of as standalone top-level
   sections.
 - In Markdown files, always format the literal as `null`.
