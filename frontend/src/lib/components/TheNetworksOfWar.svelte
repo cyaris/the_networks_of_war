@@ -193,6 +193,7 @@
   ]
   const compactNumberMinimum = 1_000_000
   const tooltipFractionDigits = 2
+  const fixedFractionDigitMetricFields = new Set(["cinc_score"])
   const alwaysShowZeroMetricFields = new Set(["battle_deaths", "battle_deaths_per_day"])
   const metricSuffixOmittedByField = new Set([
     "allied_countries",
@@ -253,14 +254,14 @@
     return Number.isFinite(parsed) ? parsed : null
   }
 
-  function displayExactNumber(value) {
-    return value.toLocaleString("en-US", { maximumFractionDigits: tooltipFractionDigits })
+  function displayExactNumber(value, minimumFractionDigits = 0) {
+    return value.toLocaleString("en-US", { minimumFractionDigits, maximumFractionDigits: tooltipFractionDigits })
   }
 
-  function displayCompactNumber(value) {
+  function displayCompactNumber(value, minimumFractionDigits = 0) {
     let absoluteValue = Math.abs(value)
 
-    if (absoluteValue < compactNumberMinimum) return displayExactNumber(value)
+    if (absoluteValue < compactNumberMinimum) return displayExactNumber(value, minimumFractionDigits)
 
     let unit = compactNumberUnits.find(({ value: unitValue }) => absoluteValue >= unitValue)
 
@@ -291,8 +292,9 @@
     let prefix = metric.valuePrefix || ""
     let suffix = displayMetricSuffix(parsed, field, metric.valueSuffix || "")
     let suffixSeparator = suffix && !suffix.startsWith("%") ? " " : ""
+    let minimumFractionDigits = fixedFractionDigitMetricFields.has(field) ? tooltipFractionDigits : 0
 
-    return `${prefix}${displayCompactNumber(parsed)}${suffix ? `${suffixSeparator}${suffix}` : ""}`
+    return `${prefix}${displayCompactNumber(parsed, minimumFractionDigits)}${suffix ? `${suffixSeparator}${suffix}` : ""}`
   }
 
   function displayDate(value, estimated = false) {
