@@ -8,6 +8,7 @@ economic, demographic, and displacement sources.
 - [The Networks of War](#the-networks-of-war)
   - [Table Of Contents](#table-of-contents)
   - [Quickstart](#quickstart)
+  - [Pipeline Overview](#pipeline-overview)
   - [Current Architecture](#current-architecture)
     - [Backend](#backend)
     - [Frontend](#frontend)
@@ -85,6 +86,16 @@ development:
 npm run rollup
 ```
 
+## Pipeline Overview
+
+The backend build runs three ordered steps:
+
+| Step | Purpose |
+| --- | --- |
+| Step 1 | Ingest source files, apply source-level normalization and adjustments, and create the base war, participant, dyad, and dyad-year tables. |
+| Step 2 | Add country-year, participant, and dyad descriptors from military, economic, demographic, displacement, terrorism, and related sources. |
+| Step 3 | Merge the final participant, dyad, and war outputs, then produce the graph payload used by the frontend. |
+
 ## Current Architecture
 
 ### Backend
@@ -105,8 +116,6 @@ npm run rollup
   at `/tool` and `/the_networks_of_war/tool`.
 
 - The frontend consumes ignored generated data at `frontend/src/lib/static/graphData.json`; this file is not committed.
-  Step 3 writes `graphData.json` from `backend/src/sql/step_3/04_export_frontend_graph_data.sql` after the final Step 3
-  tables are built.
 - Generated graph rows keep two metric layers:
   - Top-level timeframe fields keep descriptor fields that pass per-war availability checks for graph controls.
   - Each node's `metrics` object keeps non-null participant metrics for the tooltip.
@@ -128,8 +137,6 @@ npm run rollup
   - Source subdirectories keep durable CSVs and PDF or JSON documentation only. Archives, original Excel/Stata
     workbooks, text exports, and temporary download caches are discarded, so `backend/data/` does not include
     `_downloads/`.
-- Source CSVs that need explicit encoding handling use `latin-1` by default. Prepared copies are written to UTF-8 under
-  ignored `backend/.work/` before DuckDB reads them.
 - Ignored generated paths:
   - `the_networks_of_war/backend/data/`
   - `the_networks_of_war/backend/.work/`
@@ -346,8 +353,10 @@ Step 2 also materializes descriptive output tables:
 
 Step 3 materializes the final merge and graph-export tables `final_participants`, `final_dyads`, and `final_wars`.
 `final_participants` and `final_dyads` keep the normalized graph shape available for a Svelte app or API route.
-`final_wars.graph_json` stores one graph payload per `war_id`, and `pipeline.py` writes the single frontend payload
-after Step 3 completes.
+`final_wars.graph_json` stores one graph payload per `war_id`.
+
+After Step 3 completes, `pipeline.py` writes the single frontend payload from
+`backend/src/sql/step_3/04_export_frontend_graph_data.sql`.
 
 Node and link descriptor values are stored in `descriptor_timeframes` JSON keyed by:
 
@@ -456,7 +465,7 @@ Currently excluded calculated fields:
 
 | Source CSV | Excluded calculated fields |
 | --- | --- |
-| Unversioned `directed_dyadic_war.csv` | `batdths`, `durindx` |
+| `directed_dyadic_war.csv` | `batdths`, `durindx` |
 | `dyadic_mid_4.03.csv` | `durindx`, `duration`, `cumdurat` |
 | `INTRA-STATE_State_participants v5.1 CSV.csv` | `WDuratDays`, `WDuratMo`, `TotalBDeaths` |
 | `cow_arms_tech_long.csv` | `total_use` |
@@ -685,9 +694,6 @@ Those anchors are then linked to every overlapping participant on the opposite s
     - Fewer than half `null` values.
     - Either more than one known value or a useful known/unknown distinction.
   - Link descriptor fields are kept only when at least one dyad has a positive value.
-- Step 3 stores the per-war graph payload directly in `final_wars.graph_json`, and `pipeline.py` writes the single
-  frontend payload from
-  `backend/src/sql/step_3/04_export_frontend_graph_data.sql`.
 
 ## Data-Entry Fixes And Assignment Rules
 
