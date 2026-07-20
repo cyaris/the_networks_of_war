@@ -8,6 +8,17 @@
   `frontend/src/lib/static/metricDataDictionary.json` in the same change. Keep README references and any README metric
   summaries aligned with that JSON so users never see conflicting source, calculation, or unit descriptions.
 - Split long README assumption sections into small, scannable subsections rather than maintaining one long bullet list.
+- Prefer bullets and subbullets over inline listed-out prose in README and Markdown documentation when they make
+  concrete technical lists easier to scan, especially files, paths, source values/codes, table names, column names,
+  commands, and metrics. Keep short phrase lists in prose when bullets would make the text feel fragmented, and keep
+  tables when they make dense reference data easier to compare.
+- Use prose instead of a bullet list when a section would contain only one bullet. Prefer prose over subbullets when a
+  nested list would have only two items, unless the pair needs extra visual separation to avoid ambiguity.
+- Let table-of-contents nesting reflect the document structure even when a section has only two children.
+- When documenting normalization or replacement rules, show the direction of the change with `source -> replacement`
+  examples instead of listing only the affected source values or categories.
+- Keep frontend-specific build artifact notes under the README frontend section instead of as standalone top-level
+  sections.
 - In Markdown files, always format the literal as `null`.
 - For data-related questions, consult the relevant source documentation in `backend/data/` before concluding whether a
   source value, adjustment, or transformation is correct.
@@ -32,4 +43,4 @@
 
 ## Notebooks
 
-- Do not update `.ipynb` files while working on the backend replacement unless explicitly requested.
+Do not update `.ipynb` files while working on the backend replacement unless explicitly requested.

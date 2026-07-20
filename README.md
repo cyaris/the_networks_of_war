@@ -11,6 +11,7 @@ economic, demographic, and displacement sources.
   - [Current Architecture](#current-architecture)
     - [Backend](#backend)
     - [Frontend](#frontend)
+      - [Embedded Build Artifacts](#embedded-build-artifacts)
   - [Data Layout](#data-layout)
   - [Commands](#commands)
     - [Pipeline Commands](#pipeline-commands)
@@ -35,96 +36,117 @@ economic, demographic, and displacement sources.
     - [Participant Inference](#participant-inference)
     - [Dyads](#dyads)
   - [Data-Entry Fixes And Assignment Rules](#data-entry-fixes-and-assignment-rules)
-  - [Embedded Build Artifacts](#embedded-build-artifacts)
   - [Maintainer Notes](#maintainer-notes)
 
 ## Quickstart
 
-Install the backend and build the DuckDB database first. From `the_networks_of_war/backend`:
+- Install the backend and build the DuckDB database first. From `the_networks_of_war/backend`:
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
-python src/pipeline.py
-```
+  ```bash
+  python3 -m venv .venv
+  source .venv/bin/activate
+  pip install -e ".[dev]"
+  python src/pipeline.py
+  ```
 
-The backend `dev` extra includes `pdftotext`. The pipeline does not import it at runtime; it is installed so coding
-agents and maintainers can extract and search PDF source documentation under `backend/data/` when validating source
-assumptions.
+  The backend `dev` extra includes `pdftotext`. The pipeline does not import it at runtime; it is installed so coding
+  agents and maintainers can extract and search PDF source documentation under `backend/data/` when validating source
+  assumptions.
 
-Then install and run the frontend. From `the_networks_of_war/frontend`:
+- Install and run the frontend. From `the_networks_of_war/frontend`:
 
-```bash
-npm install
-npm run data:build
-npm run dev
-```
+  ```bash
+  npm install
+  npm run data:build
+  npm run dev
+  ```
 
-`npm run data:build` reruns the full backend pipeline through `../backend/.venv/bin/python`, so it expects the backend
-virtual environment and source data to be available.
+  `npm run data:build` reruns the full backend pipeline through `../backend/.venv/bin/python` and expects the backend
+  virtual environment and source data to be available.
 
 ## Current Architecture
 
 ### Backend
 
-The DuckDB backend rebuilds preprocessing steps with native SQL. Python resolves file paths, prepares downloaded source
-files, normalizes configured CSV encodings, and runs the SQL files in order.
+- The DuckDB backend rebuilds preprocessing steps with native SQL.
+- Python handles supporting orchestration:
+  - Resolves file paths.
+  - Prepares downloaded source files.
+  - Normalizes configured CSV encodings.
+  - Runs the SQL files in order.
 
 ### Frontend
 
-The Svelte frontend lives in `frontend/`. It provides a routed Svelte app and a usable war browser backed by the Step 3
-graph export.
+- The Svelte frontend lives in `frontend/`.
+- It provides a routed Svelte app and a usable war browser backed by the Step 3 graph export.
 
-In Vite development, the menu is available at `/` and `/the_networks_of_war`. The browser itself is available at
-`/tool` and `/the_networks_of_war/tool`.
+- In Vite development, the menu is available at `/` and `/the_networks_of_war`, while the browser itself is available
+  at `/tool` and `/the_networks_of_war/tool`.
 
-The frontend consumes ignored generated data at `frontend/src/lib/static/graphData.json`. Do not commit this file. Step
-3 writes it from `backend/src/sql/step_3/04_export_frontend_graph_data.sql` after the final Step 3 tables are built.
-Generated graph rows keep two metric layers: top-level timeframe fields contain only descriptor fields that pass per-war
-availability checks for graph controls, while each node's `metrics` object contains all non-null participant metrics for
-the tooltip.
+- The frontend consumes ignored generated data at `frontend/src/lib/static/graphData.json`; do not commit this file.
+  Step 3 writes it from `backend/src/sql/step_3/04_export_frontend_graph_data.sql` after the final Step 3 tables are
+  built.
+- Generated graph rows keep two metric layers: top-level timeframe fields contain only descriptor fields that pass
+  per-war availability checks for graph controls, while each node's `metrics` object contains all non-null participant
+  metrics for the tooltip.
 
-The graph metric data dictionary lives at
-[`frontend/src/lib/static/metricDataDictionary.json`](frontend/src/lib/static/metricDataDictionary.json). It is written
-for non-technical users and records each graph metric's source organization or study, high-level calculation, and display
-unit. Keep this file aligned with backend metric changes and with any README metric summaries.
+- The graph metric data dictionary lives at
+  [`frontend/src/lib/static/metricDataDictionary.json`](frontend/src/lib/static/metricDataDictionary.json).
+  - It is written for non-technical users.
+  - It records each graph metric's source organization or study, high-level calculation, and display unit.
+  - Keep this file aligned with backend metric changes and with any README metric summaries.
 
-When a node-size descriptor is selected, known zero values render at the minimum node radius and unknown or `null`
-values also shrink to the minimum radius. A small `?` marker is shown beside node labels only when there are a few
-unknown selected descriptor values; if many nodes are unknown, per-node markers are suppressed and the tooltip still
-displays the selected descriptor as `Unknown`. The no-descriptor default still uses equal fallback sizing so the graph
-remains readable before a size field is selected.
+- Node-size descriptor behavior:
+  - Known zero values render at the minimum node radius.
+  - Unknown or `null` values also shrink to the minimum radius.
+  - A small `?` marker is shown beside node labels only when there are a few unknown selected descriptor values.
+  - If many nodes are unknown, per-node markers are suppressed and the tooltip still displays the selected descriptor as
+    `Unknown`.
+  - The no-descriptor default still uses equal fallback sizing so the graph remains readable before a size field is
+    selected.
 
-Node tooltips show participant start date, end date, days at war, and every non-null participant metric available for the
-selected timeframe. Estimated start dates, end dates, and battle deaths are labeled with `(estimated)`. Ongoing-war
-participants show `Ongoing` as the end date so source-data caps are not mistaken for true conflict end dates.
-Some count-style node metrics are yearly counts summarized across a selected timeframe. Multi-year summaries can
-therefore be fractional averages, such as average concurrent wars per year, even though each yearly source count is a
-whole number.
+- Node tooltip behavior:
+  - Tooltips show participant start date, end date, days at war, and every non-null participant metric available for the
+    selected timeframe.
+  - Estimated start dates, end dates, and battle deaths are labeled with `(estimated)`.
+  - Ongoing-war participants show `Ongoing` as the end date so source-data caps are not mistaken for true conflict end
+    dates.
+  - Some count-style node metrics are yearly counts summarized across a selected timeframe.
+  - Multi-year summaries can therefore be fractional averages, such as average concurrent wars per year, even though
+    each yearly source count is a whole number.
 
-Tooltip numbers are rounded to at most two decimal places. Values of at least one million are shortened to readable
-million, billion, or trillion labels without showing the full underlying value. For example, `1,400,000` displays as
-`1.4 million`, `1,400,010` also displays as `1.4 million`, and `56,546,000,000` displays as `56.55 billion`. Smaller
-values continue to display in comma-separated form.
+- Tooltip number formatting:
+  - Numbers are rounded to at most two decimal places.
+  - Values of at least one million are shortened to readable million, billion, or trillion labels without showing the
+    full underlying value.
+  - Examples:
+    - `1,400,000` displays as `1.4 million`.
+    - `1,400,010` displays as `1.4 million`.
+    - `56,546,000,000` displays as `56.55 billion`.
+  - Smaller values continue to display in comma-separated form.
+
+#### Embedded Build Artifacts
+
+`npm run rollup` builds `frontend/dist/bundle.js` and `frontend/dist/bundle.css` for the Jekyll-rendered embedded
+surface. Use the SvelteKit/Vite routes for normal local frontend development.
 
 ## Data Layout
 
-Source data is downloaded into `backend/data/`, which is ignored by git. Each external source table gets its own
-subdirectory named after the source key without the `source_` table prefix, such as
-`backend/data/interstate_mid_dyads/` for `source_interstate_mid_dyads`. The corresponding raw source data and source
-documentation live in that folder. Source download metadata, including Step 1 source release dates used for ongoing-war
-date caps, lives in `backend/manual/source_metadata.json`. Source CSVs that need explicit encoding handling use
-`latin-1` by default; prepared copies are written to UTF-8 under ignored `backend/.work/` before DuckDB reads them. The
-generated DuckDB database is ignored:
-
-Prepared source subdirectories keep only durable source CSVs and PDF or JSON source documentation. Archive files,
-original Excel/Stata workbooks, text exports, and temporary download caches are discarded after extraction or conversion;
-the expected `backend/data/` layout excludes `_downloads/`.
-
-- `the_networks_of_war/backend/data/`
-- `the_networks_of_war/backend/.work/`
-- `the_networks_of_war/backend/the_networks_of_war.duckdb`
+- Source data is downloaded into `backend/data/`, which is ignored by git.
+  - Each external source table gets its own subdirectory named after the source key without the `source_` table prefix.
+  - Example: `backend/data/interstate_mid_dyads/` corresponds to `source_interstate_mid_dyads`.
+  - The corresponding raw source data and source documentation live in that folder.
+- Source download metadata lives in `backend/manual/source_metadata.json`, including Step 1 source release dates used
+  for ongoing-war date caps.
+- Source CSVs that need explicit encoding handling use `latin-1` by default. Prepared copies are written to UTF-8 under
+  ignored `backend/.work/` before DuckDB reads them.
+- Prepared source subdirectories keep only durable source CSVs and PDF or JSON source documentation. Archive files,
+  original Excel/Stata workbooks, text exports, and temporary download caches are discarded after extraction or
+  conversion; the expected `backend/data/` layout excludes `_downloads/`.
+- Ignored generated paths:
+  - `the_networks_of_war/backend/data/`
+  - `the_networks_of_war/backend/.work/`
+  - `the_networks_of_war/backend/the_networks_of_war.duckdb`
 
 ## Commands
 
@@ -149,60 +171,60 @@ Pipeline parameters:
 | `--query SQL` | none | Execute an inline SQL query after build completes, or immediately with `--no-build`. |
 | `--query-file PATH` | none | Execute SQL read from a local `.sql` file after build completes, or immediately with `--no-build`. Mutually exclusive with `--query`. |
 
-Run or rebuild all pipeline steps:
+- Run or rebuild all pipeline steps:
 
-```bash
-python src/pipeline.py
-```
+  ```bash
+  python src/pipeline.py
+  ```
 
-Run the full build explicitly:
+- Run the full build explicitly:
 
-```bash
-python src/pipeline.py --build
-```
+  ```bash
+  python src/pipeline.py --build
+  ```
 
-Print table row counts after running the full build:
+- Print table row counts after running the full build:
 
-```bash
-python src/pipeline.py --inspect
-```
+  ```bash
+  python src/pipeline.py --inspect
+  ```
 
-Query the existing DuckDB database without rebuilding it:
+- Query the existing DuckDB database without rebuilding it:
 
-```bash
-python src/pipeline.py --no-build --query "select count(*) as row_count from dyads"
-python src/pipeline.py --no-build --query "select * from wars limit 10"
-```
+  ```bash
+  python src/pipeline.py --no-build --query "select count(*) as row_count from dyads"
+  python src/pipeline.py --no-build --query "select * from wars limit 10"
+  ```
 
-Query from a local SQL file:
+- Query from a local SQL file:
 
-```bash
-python src/pipeline.py --no-build --query-file queries/war_counts.sql
-```
+  ```bash
+  python src/pipeline.py --no-build --query-file queries/war_counts.sql
+  ```
 
-Run the full build, then query the freshly rebuilt tables:
+- Run the full build, then query the freshly rebuilt tables:
 
-```bash
-python src/pipeline.py --query "select war_id, war_name from wars limit 10"
-```
+  ```bash
+  python src/pipeline.py --query "select war_id, war_name from wars limit 10"
+  ```
 
-Use non-default input or database paths:
+- Use non-default input or database paths:
 
-```bash
-python src/pipeline.py --data-dir data --db-path the_networks_of_war.duckdb
-```
+  ```bash
+  python src/pipeline.py --data-dir data --db-path the_networks_of_war.duckdb
+  ```
 
-Create missing source-data subdirectories without running the build:
+- Create missing source-data subdirectories without running the build:
 
-```bash
-python src/pipeline.py --prepare-data --no-build
-```
+  ```bash
+  python src/pipeline.py --prepare-data --no-build
+  ```
 
-Recreate the full ignored source-data directory:
+- Recreate the full ignored source-data directory:
 
-```bash
-python src/pipeline.py --recreate-data --no-build
-```
+  ```bash
+  python src/pipeline.py --recreate-data --no-build
+  ```
 
 ### Test Commands
 
@@ -212,31 +234,31 @@ From `the_networks_of_war/backend`:
 pytest
 ```
 
-Run the Step 1 expectation tests:
+- Run the Step 1 expectation tests:
 
-```bash
-pytest tests/test_step_1.py
-pytest tests/test_step_1.py -q
-```
+  ```bash
+  pytest tests/test_step_1.py
+  pytest tests/test_step_1.py -q
+  ```
 
-Run the Step 3 final-output tests:
+- Run the Step 3 final-output tests:
 
-```bash
-pytest tests/test_step_3.py
-```
+  ```bash
+  pytest tests/test_step_3.py
+  ```
 
-Run a single test or matching group of tests:
+- Run a single test or matching group of tests:
 
-```bash
-pytest tests/test_step_1.py -k "negative_date_special_codes"
-pytest tests/test_step_1.py -k "date_macros or dyads"
-```
+  ```bash
+  pytest tests/test_step_1.py -k "negative_date_special_codes"
+  pytest tests/test_step_1.py -k "date_macros or dyads"
+  ```
 
-Show verbose test names and failures:
+- Show verbose test names and failures:
 
-```bash
-pytest tests/test_step_1.py -vv
-```
+  ```bash
+  pytest tests/test_step_1.py -vv
+  ```
 
 The Step 1 expectation tests rebuild Step 1 into a temporary DuckDB database. They run when the ignored source files in
 `backend/data/` are available locally and skip automatically otherwise.
@@ -249,18 +271,18 @@ From `the_networks_of_war/frontend`, regenerate the frontend data snapshot from 
 npm run data:build
 ```
 
-Run frontend checks:
+- Run frontend checks:
 
-```bash
-npm run check
-npm run build
-```
+  ```bash
+  npm run check
+  npm run build
+  ```
 
-Build the embedded bundle for the legacy Jekyll-rendered surface when needed:
+- Build the embedded bundle for the legacy Jekyll-rendered surface when needed:
 
-```bash
-npm run rollup
-```
+  ```bash
+  npm run rollup
+  ```
 
 ## Source Tables
 
@@ -347,9 +369,14 @@ Descriptor dictionary additions, recalculated source metrics:
   column. Step 2 recalculates it from individual technology rows in the descriptor year by counting rows with `use`
   codes `1` or `9` and excluding the aggregate `Adopted technologies` row.
 - `cinc_score`: node-size descriptor derived in Step 2 from the six NMC component shares rather than ingested from the
-  source CSV's calculated `cinc` column. For each year, Step 2 divides each state's military expenditure, military
-  personnel, iron and steel production, primary energy consumption, total population, and urban population values by
-  that year's system total for the same component, then averages the six shares.
+  source CSV's calculated `cinc` column. For each year, Step 2 divides each state's component values by that year's
+  system total for the same component, then averages the six shares:
+  - Military expenditure.
+  - Military personnel.
+  - Iron and steel production.
+  - Primary energy consumption.
+  - Total population.
+  - Urban population.
 
 ## Final Outputs
 
@@ -359,55 +386,87 @@ Step 3 materializes final merge and graph-export tables:
 - `final_dyads`
 - `final_wars`
 
-`final_wars.graph_json` stores one graph payload per `war_id`, while `final_participants` and `final_dyads` keep the
-normalized graph shape available for a Svelte app or API route. `pipeline.py` writes the single frontend payload after
-Step 3 completes. Node and link descriptor values are stored in `descriptor_timeframes` JSON keyed by `first_year`,
-`last_year`, and `all_years`; the frontend payload exposes those timeframe keys directly on each graph node or link.
+- `final_wars.graph_json` stores one graph payload per `war_id`.
+- `final_participants` and `final_dyads` keep the normalized graph shape available for a Svelte app or API route.
+- `pipeline.py` writes the single frontend payload after Step 3 completes.
+
+Node and link descriptor values are stored in `descriptor_timeframes` JSON keyed by:
+
+- `first_year`
+- `last_year`
+- `all_years`
+
+The frontend payload exposes those timeframe keys directly on each graph node or link.
 
 ## Ingestion Assumptions
 
 ### Source Ingestion Rules
 
-- The primary source tables listed above come directly from their source CSV files, with only type coercion, column
-  renaming, encoding normalization, and the data-entry fixes documented below applied during load.
-- Source CSV headers are aliased to canonical pipeline names as early as possible. COW `WarNum`/`war_num` fields are
-  loaded as `war_id`, numeric war-type fields are loaded as `war_type_id`, and the human-readable label comes from
-  `war_types.war_type`. Ongoing-war markers and derived flags are exposed as `ongoing_war` table and frontend payload
-  fields.
+- The primary source tables listed above come directly from their source CSV files. During load, the pipeline applies
+  only:
+  - Type coercion.
+  - Column renaming.
+  - Encoding normalization.
+  - The data-entry fixes documented below.
+- Source CSV headers are aliased to canonical pipeline names as early as possible:
+  - COW `WarNum` and `war_num` fields are loaded as `war_id`.
+  - Numeric war-type fields are loaded as `war_type_id`.
+  - The human-readable label comes from `war_types.war_type`.
+  - Ongoing-war markers and derived flags are exposed as `ongoing_war` table and frontend payload fields.
 - `source_global_terrorism_database` stacks two prepared GTD CSVs with `union all` after confirming distinct `eventid`
   coverage across the files.
 - Source CSV schemas are compared when source versions change. Ingestion keeps relevant columns that remain available,
   adds newly useful fields when downstream transformations need them, and removes truly absent fields instead of
   fabricating placeholder `null` source columns.
 - Version-scoped source adjustments live in `backend/src/sql/step_1/03_create_source_adjustment_tables.sql` and
-  `backend/src/sql/step_1/04_insert_source_adjustments.sql`. The first file creates `source_file_versions` and adjustment
-  tables; the second inserts release metadata and adjustment rows for source facts that are not present in the source
-  CSVs. Downstream transformations join adjustment tables to `source_file_versions` when an assignment is
-  version-scoped. Step 1 date-span transformations also use `source_file_versions.source_release_date` to cap ongoing
-  source rows at the date the current source file was released or, when no explicit release note is published, uploaded.
-  Adjustment rows should stay lean: store only values used for joins, source corrections, or downstream transformations.
-  Data-entry fixes applied while reading source CSVs are documented below.
+  `backend/src/sql/step_1/04_insert_source_adjustments.sql`.
+- `03_create_source_adjustment_tables.sql` creates `source_file_versions` and adjustment tables.
+- `04_insert_source_adjustments.sql` inserts release metadata and adjustment rows for source facts that are not present
+  in the source CSVs.
+- Downstream transformations join adjustment tables to `source_file_versions` when an assignment is version-scoped.
+- Step 1 date-span transformations also use `source_file_versions.source_release_date` to cap ongoing source rows at
+  the date the current source file was released or, when no explicit release note is published, uploaded.
+- Adjustment rows should stay lean. Store only values used for joins, source corrections, or downstream transformations.
+- Data-entry fixes applied while reading source CSVs are documented below.
 - Reference data that is not tied to an external source file, currently `war_types`, is created and inserted in
   `backend/src/sql/step_1/05_create_reference_tables.sql` and
   `backend/src/sql/step_1/06_insert_reference_tables.sql`.
 
 ### Excluded Calculated Columns
 
-- The pipeline ingests raw source fields and recalculates simple derived columns from canonical inputs. Currently
-  excluded calculated fields are `batdths` and `durindx` from unversioned `directed_dyadic_war.csv`; `durindx`,
-  `duration`, and `cumdurat` from `dyadic_mid_4.03.csv`; and `WDuratDays`, `WDuratMo`, and `TotalBDeaths` from
-  `INTRA-STATE_State_participants v5.1 CSV.csv`; `total_use` from `cow_arms_tech_long.csv`; and `cinc` from
-  `NMC-70-wsupplementary.csv`. Duration and day-count fields are calculated from the pipeline's resolved start and end
-  dates, after applying the date assumptions below, such as using the last day of the year when only the end year is
-  known. `arms_technologies_used` is derived in Step 2 by recounting individual technology rows, and `cinc_score` is
-  derived in Step 2 by averaging each state's yearly shares of the six NMC components.
+The pipeline ingests raw source fields and recalculates simple derived columns from canonical inputs.
+
+Currently excluded calculated fields:
+
+| Source CSV | Excluded calculated fields |
+| --- | --- |
+| Unversioned `directed_dyadic_war.csv` | `batdths`, `durindx` |
+| `dyadic_mid_4.03.csv` | `durindx`, `duration`, `cumdurat` |
+| `INTRA-STATE_State_participants v5.1 CSV.csv` | `WDuratDays`, `WDuratMo`, `TotalBDeaths` |
+| `cow_arms_tech_long.csv` | `total_use` |
+| `NMC-70-wsupplementary.csv` | `cinc` |
+
+Derived replacements:
+
+- Duration and day-count fields are calculated from the pipeline's resolved start and end dates, after applying the date
+  assumptions below. For example, the pipeline uses the last day of the year when only the end year is known.
+- `arms_technologies_used` is derived in Step 2 by recounting individual technology rows.
+- `cinc_score` is derived in Step 2 by averaging each state's yearly shares of the six NMC components.
 
 ### Date Values
 
-- Blank strings are loaded as `null`. Text values `-7`, `-8`, and `-9` are also treated as `null` because the COW codebooks
-  use negative values for ongoing, not applicable, or unknown values.
-- Negative day, month, and start-year date fields are loaded as `null`. Negative end-year values are loaded as `null` except
-  for `-7`, which the COW codebooks document as the ongoing-war marker.
+- Blank strings are loaded as `null`.
+- These text values are also treated as `null` because the COW codebooks use negative values for ongoing, not
+  applicable, or unknown values:
+  - `-7`
+  - `-8`
+  - `-9`
+- These negative date component fields are loaded as `null`:
+  - Day fields.
+  - Month fields.
+  - Start-year fields.
+- Negative end-year values are loaded as `null` except for `-7`, which the COW codebooks document as the ongoing-war
+  marker.
 - Missing, invalid, unknown, or not-applicable start months are interpreted as January, and start days are interpreted
   as day `1` of the resolved month.
 - Missing, invalid, unknown, or not-applicable end months are interpreted as December, and end days are interpreted as
@@ -419,24 +478,44 @@ Step 3 completes. Node and link descriptor values are stored in `descriptor_time
   `All Years` descriptors from expanding beyond the years covered by the released source data.
 - A date is flagged as estimated when the year is an ongoing marker or when a positive year has a missing or invalid
   month or day.
-- Raw source date components are expected to be in basic valid domains before cleaning: months `1-12`, days `1-31`,
-  and years `1500-2100`, while COW special codes `-7`, `-8`, and `-9` are allowed. Values outside these domains are treated
-  as data-entry issues and documented below when accepted by the pipeline.
+- Raw source date components are expected to be in basic valid domains before cleaning:
+  - Months: `1-12`.
+  - Days: `1-31`.
+  - Years: `1500-2100`.
+- COW special codes allowed before cleaning:
+  - `-7`
+  - `-8`
+  - `-9`
+- Values outside these domains are treated as data-entry issues and documented below when accepted by the pipeline.
 
 ### Encoding And Deduplication
 
 - `COW-country-codes.csv` is deduplicated by `c_code`; the first row per code is retained.
-- Source CSVs that need explicit encoding handling use `latin-1` by default. The non-default source encoding is
-  `Extra-StateWarData_v4.0.csv` as `cp1252`; prepared copies are written as UTF-8 under `backend/.work/` before DuckDB
-  reads them.
+- Source CSVs that need explicit encoding handling use `latin-1` by default.
+- The non-default source encoding is `Extra-StateWarData_v4.0.csv` as `cp1252`.
+- Prepared copies are written as UTF-8 under `backend/.work/` before DuckDB reads them.
 
 ### Field Normalization
 
 - `dyadic_mid_4.03.csv` side-specific fatality levels are converted during ingestion to representative battle-death
-  estimates as follows: `0 -> 0`, `1 -> 25`, `2 -> 100`, `3 -> 250`, `4 -> 500`, `5 -> 999`, and `6 -> 1000`.
-- Participant names are normalized only for known display and matching issues: United States, Baron von
-  Ungern-Sternberg's White army, Janissaries, Turkey/Ottoman Empire/Egypt, and a small set of lower-case rebel,
-  resistance, sultanate, and tribe suffixes.
+  estimates:
+  - `0 -> 0`
+  - `1 -> 25`
+  - `2 -> 100`
+  - `3 -> 250`
+  - `4 -> 500`
+  - `5 -> 999`
+  - `6 -> 1000`
+- Participant names are normalized only for known display and matching issues. The full manual mapping lives in
+  `backend/manual/participant_name_replacements.json`; representative `source -> replacement` examples:
+  - `United States -> United States of America`
+  - `Baron von Ungern-Sternbergs White army -> Baron von Ungern-Sternberg's White army`
+  - `Turkey/Ottoman Empire/Egypt -> Turkey, Ottoman Empire & Egypt`
+  - `al-Qaeda & Iraqi resistence -> al-Qaeda & Iraqi Resistance`
+  - `Bharatpuran rebels -> Bharatpuran Rebels`
+  - `Wadai sultanate -> Wadai Sultanate`
+  - `Zulu tribe -> Zulu Tribe`
+  - ` Janissaries -> Janissaries`
 
 ## Transformation Assumptions
 
@@ -444,24 +523,39 @@ Step 3 completes. Node and link descriptor values are stored in `descriptor_time
 
 - Directed dyadic interstate war records get war name and war type metadata from `source_interstate_wars` by `war_id`;
   synthetic MID-only wars get metadata from source adjustment tables.
-- Transformed tables carry pipeline-facing fields after source-only identifiers and outcome fields (`disno`, `dyindex`,
-  `outcome_a`, `outcome_b`, and `outcome`) have served their matching and transformation roles. MID matching still uses
-  `disno` internally where needed.
-- After source date components are resolved, transformed tables carry `start_date`, `end_date`, and date-estimation
-  flags instead of the original day/month/year component columns.
+- Transformed tables carry pipeline-facing fields after source-only identifiers and outcome fields have served their
+  matching and transformation roles:
+  - `disno`
+  - `dyindex`
+  - `outcome_a`
+  - `outcome_b`
+  - `outcome`
+- MID matching still uses `disno` internally where needed.
+- After source date components are resolved, transformed tables carry:
+  - `start_date`
+  - `end_date`
+  - Date-estimation flags.
+- Transformed tables do not carry the original day/month/year component columns.
 - Step 2 final descriptive tables use a `timeframe` column to distinguish the span summarized for each war participant
-  or dyad: `First Year`, `Last Year`, and `All Years`.
+  or dyad:
+  - `First Year`
+  - `Last Year`
+  - `All Years`
 
 ### Source War Dyads And Participants
 
 - Extra-state and intra-state war dyads are treated as side A versus side B rows, with side A assigned side `1` and
   side B assigned side `2`.
 - Extra-state and intra-state participant rows are derived from both sides of the corresponding dyad rows.
-- Directed dyadic interstate source rows represent row position with `c_code_a` and `c_code_b`. The original directed
-  dyadic role fields are retained as `role_a`, `role_b`, `dyad_role_a`, and `dyad_role_b`.
-- In the transformed `war_dyads` view, interstate `side_a` and `side_b` are resolved back to substantive participant
-  sides from `source_interstate_wars`; extra-state and intra-state dyads keep their source side A versus side B
-  convention.
+- Directed dyadic interstate source rows represent row position with `c_code_a` and `c_code_b`.
+- The original directed dyadic role fields are retained as:
+  - `role_a`
+  - `role_b`
+  - `dyad_role_a`
+  - `dyad_role_b`
+- In the transformed `war_dyads` view, interstate side fields `side_a` and `side_b` are resolved back to substantive
+  participant sides from `source_interstate_wars`.
+- Extra-state and intra-state dyads keep their source side A versus side B convention.
 
 ### Date Spans
 
@@ -501,13 +595,16 @@ Step 3 completes. Node and link descriptor values are stored in `descriptor_time
 - Remaining version-specific participant side assignments are stored in `source_participant_side_adjustments` and joined
   during participant creation. These adjustments store source facts needed beyond participant and dyadic rows.
 - Interstate war participant sides are taken from `source_interstate_wars`, either directly in `war_participants` or
-  through semantic side values on `war_dyads`, because the directed dyadic source can include reciprocal rows where the
-  same state appears as both `c_code_a` and `c_code_b` for the same war or dispute.
+  through semantic side values on `war_dyads`.
+- The directed dyadic source can include reciprocal rows where the same state appears as both `c_code_a` and `c_code_b`
+  for the same war or dispute.
 - Inferred dyads are created by choosing anchor participants for each war. An anchor is a participant that is treated as
   a known adversary for all overlapping participants on the opposite side when source dyadic records are incomplete.
-- Anchor selection is independent by side and participant type. A participant is selected as an anchor when its side has
-  exactly one total participant, exactly one named non-state participant, or exactly one state participant. More than one
-  anchor can be selected for the same war, including anchors on both sides.
+- Anchor selection is independent by side and participant type. A participant is selected as an anchor when its side has:
+  - Exactly one total participant.
+  - Exactly one named non-state participant.
+  - Exactly one state participant.
+- More than one anchor can be selected for the same war, including anchors on both sides.
 - Named non-state participants with COW code `-8` are retained in `dyads`. Unnamed or literal aggregate
   placeholders are excluded.
 
@@ -538,17 +635,26 @@ Those anchors are then linked to every overlapping participant on the opposite s
 - `dyad_years` expands `dyads` into one row per year for years in the range `1500` through `2099`.
 - Step 2 and Step 3 preserve the semantic difference between unknown values and known zeros. Missing descriptor values
   stay `null` unless the source coverage or project derivation makes the value known to be zero, such as
-  `concurrent_wars` when no overlapping participant war exists. Source unknown/not-applicable codes such as `-9`
-  and `-8` become `null`, and the frontend displays `null` descriptor values as unknown rather than zero.
-- Step 3 participant outputs convert notebook-era unit-scaled fields before graph export: COW trade currency values from
-  millions to dollars; NMC military expenditure, military personnel, population, iron/steel, and energy values from
-  thousands to base units; and displacement counts from thousands to people.
-- Step 3 keeps graph-control descriptors and tooltip metrics separate. Node tooltip metrics are stored under each node's
-  `metrics` object and include all non-null participant metrics for the timeframe. The tooltip displays non-zero metrics,
-  plus selected zero-value metrics and zero values for metrics that are always useful to show. Top-level node descriptor
-  fields are kept for node-size dropdown options only when they have at least one positive known value, fewer than half
-  `null` values, and either more than one known value or a useful known/unknown distinction. Link descriptor fields are
-  kept only when at least one dyad has a positive value.
+  `concurrent_wars` when no overlapping participant war exists.
+- Source unknown/not-applicable codes `-9` and `-8` become `null`.
+- The frontend displays `null` descriptor values as unknown rather than zero.
+- Step 3 participant outputs convert notebook-era unit-scaled fields before graph export:
+  - COW trade currency values: from millions to dollars.
+  - NMC military expenditure, military personnel, population, iron/steel, and energy values: from thousands to base
+    units.
+  - Displacement counts: from thousands to people.
+- Step 3 keeps graph-control descriptors and tooltip metrics separate.
+  - Node tooltip metrics are stored under each node's `metrics` object and include all non-null participant metrics for
+    the timeframe.
+  - The tooltip displays:
+    - Non-zero metrics.
+    - Selected zero-value metrics.
+    - Zero values for metrics that are always useful to show.
+  - Top-level node descriptor fields are kept for node-size dropdown options only when they have:
+    - At least one positive known value.
+    - Fewer than half `null` values.
+    - Either more than one known value or a useful known/unknown distinction.
+  - Link descriptor fields are kept only when at least one dyad has a positive value.
 - Step 3 stores the per-war graph payload directly in `final_wars.graph_json`, and `pipeline.py` writes the single
   frontend payload from
   `backend/src/sql/step_3/04_export_frontend_graph_data.sql`.
@@ -561,43 +667,70 @@ Those anchors are then linked to every overlapping participant on the opposite s
   - End year is corrected from original value `19118` to `1918`.
   - The World War I Japan dyads against Germany and Austria-Hungary are added as version-scoped source adjustments
     because Japan appears as a World War I participant in `Inter-StateWarData_v4.0.csv`, but the directed dyadic war
-    source has no World War I dyads involving Japan. Japan is linked to Germany from `1914-08-23` through
-    `1918-11-11` and to Austria-Hungary from `1914-08-23` through `1918-11-03`, using the overlapping participant
-    date spans from `Inter-StateWarData_v4.0.csv`.
-  - The World War II Thailand dyad (`war_id = 139`, `statea = 800`, `stateb = 710`) is loaded with Thailand battle
-    deaths corrected from original blank `batdtha` to `5,569`. The Thailand death count comes from Wikipedia's summary
-    of [Thailand in World War II](https://en.wikipedia.org/wiki/Thailand_in_World_War_II).
+    source has no World War I dyads involving Japan. Japan links:
+    - Germany: `1914-08-23` through `1918-11-11`.
+    - Austria-Hungary: `1914-08-23` through `1918-11-03`.
+    - Date spans use the overlapping participant date spans from `Inter-StateWarData_v4.0.csv`.
+  - The World War II Thailand dyad is loaded with Thailand battle deaths corrected from original blank `batdtha` to
+    `5,569`:
+    - `war_id = 139`
+    - `statea = 800`
+    - `stateb = 710`
+    - The Thailand death count comes from Wikipedia's summary of
+      [Thailand in World War II](https://en.wikipedia.org/wiki/Thailand_in_World_War_II).
 - `dyadic_mid_4.03.csv`
   - Rows are assigned to known COW wars by matching `disno` to `directed_dyadic_war.csv` where possible.
-  - Unmatched MID disputes `3582`, `3583`, and `3585` are assigned from original missing `war_id` to World War II
-    (`war_id = 139`) after manual review.
+  - These unmatched MID disputes are assigned from original missing `war_id` to World War II (`war_id = 139`) after
+    manual review:
+    - `3582`
+    - `3583`
+    - `3585`
   - Unmatched MID dispute `4339` is assigned from original missing `war_id` to Africa's World War (`war_id = 905`)
     after manual review.
-  - Unmatched MID dispute `4182` between Lebanon (`660`) and Israel (`666`) is assigned synthetic `war_id = 4182` and
-    named `Israeli–Hezbollah Conflict (South Lebanon)`. This fake war id uses the MID `disno` because the conflict
-    appears in the dyadic MID records with `war = 1`, but no corresponding `war_id` exists for it in the interstate
-    war data. Lebanon is assigned participant side `1`, and Israel is assigned participant side `2`.
+  - Unmatched MID dispute `4182` is assigned synthetic `war_id = 4182` and named
+    `Israeli–Hezbollah Conflict (South Lebanon)`:
+    - Lebanon: `660`, participant side `1`.
+    - Israel: `666`, participant side `2`.
+    - This fake war id uses the MID `disno` because the conflict appears in the dyadic MID records with `war = 1`, but
+      no corresponding `war_id` exists for it in the interstate war data.
   - These assignments are implemented as version-scoped source adjustments that transformations join explicitly.
 - `INTRA-STATE_State_participants v5.1 CSV.csv`
-  - War number `977` is corrected to `979`. The intra-state war-level CSV and codebook identify the Syrian Arab
-    Spring War as war `979`, and no war `977` exists there; the state-participant file has one `977` row for Iran with
-    the same Syrian war name and start date.
+  - War number `977` is corrected to `979`:
+    - The intra-state war-level CSV and codebook identify the Syrian Arab Spring War as war `979`.
+    - No war `977` exists there.
+    - The state-participant file has one `977` row for Iran with the same Syrian war name and start date.
   - War `976` has `StartYr1` corrected from original value `2001` to `2011`. The intra-state war-level CSV identifies
     the Libyan Civil War of 2011 as war `976` with `StartYr1 = 2011`; the affected state-participant rows have March
     2001 dates despite a 2011 war name and 2011 end year.
-  - Wars `942`, `990.4`, `991`, `991.4`, and `992.5` are treated as ongoing because their source war names say
-    `present` or `ongoing`; `EndYr1` is set to `-7` for these rows. The original source values include `-7`, `-8`, and
-    `-9`, but only `-7` is treated as an ongoing end-year marker. Other negative end-year values are loaded as `null`
-    because the codebooks use them for not applicable or unknown values.
-
-## Embedded Build Artifacts
-
-- `npm run rollup` builds `frontend/dist/bundle.js` and `frontend/dist/bundle.css` for the Jekyll-rendered embedded
-  surface. Use the SvelteKit/Vite routes for normal local frontend development.
+  - These wars are treated as ongoing because their source war names say `present` or `ongoing`:
+    - `942`
+    - `990.4`
+    - `991`
+    - `991.4`
+    - `992.5`
+  - `EndYr1` is set to `-7` for these ongoing rows.
+  - Original source values include:
+    - `-7`
+    - `-8`
+    - `-9`
+  - Only `-7` is treated as an ongoing end-year marker.
+  - Other negative end-year values are loaded as `null` because the codebooks use them for not applicable or unknown
+    values.
 
 ## Maintainer Notes
 
+- Documentation style:
+  - Prefer bullets and subbullets over inline listed-out prose when they make concrete technical lists easier to scan,
+    especially files, paths, source values/codes, table names, column names, commands, and metrics.
+  - Keep short phrase lists in prose when bullets would make the text feel fragmented.
+  - Use prose instead of a bullet list when a section would contain only one bullet.
+  - Prefer prose over subbullets when a nested list would have only two items, unless the pair needs extra visual
+    separation to avoid ambiguity.
+  - Let table-of-contents nesting reflect the document structure even when a section has only two children.
+  - Keep tables when they make dense reference data easier to compare.
 - Participant names for rows with COW codes come from `country_codes.state_name`. Use
-  `participant_name_replacements.json` only when the source name cannot resolve through a COW code, such as non-state
-  participants, uncoded manual rows, and source tables that do not carry `c_code` values. Replacement targets may match
-  `country_codes.state_name` only for no-code source inputs such as CO2 country names.
+  `participant_name_replacements.json` only when the source name cannot resolve through a COW code:
+  - Non-state participants.
+  - Uncoded manual rows.
+  - Source tables that do not carry `c_code` values.
+- Replacement targets may match `country_codes.state_name` only for no-code source inputs such as CO2 country names.
