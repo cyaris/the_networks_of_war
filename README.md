@@ -526,7 +526,8 @@ Derived replacements:
 - After source date components are resolved, transformed tables carry:
   - `start_date`
   - `end_date`
-  - Date-estimation flags.
+  - `start_date_estimated` and `end_date_estimated` flags, which mark dates resolved from an ongoing marker or from a
+    positive year with a missing or invalid month or day.
 - Transformed tables do not carry the original day/month/year component columns.
 - Step 2 final descriptive tables use a `timeframe` column to distinguish the span summarized for each war participant
   or dyad:
