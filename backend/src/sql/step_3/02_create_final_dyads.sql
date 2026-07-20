@@ -73,10 +73,10 @@ select
 from dyads a
 join wars b on a.war_id = b.war_id
 left join link_descriptor_json c on a.war_id = c.war_id
-                                and a.c_code_a = c.c_code_a
-                                and a.c_code_b = c.c_code_b
-                                and a.participant_a = c.participant_a
-                                and a.participant_b = c.participant_b
+                                 and a.c_code_a = c.c_code_a
+                                 and a.c_code_b = c.c_code_b
+                                 and a.participant_a = c.participant_a
+                                 and a.participant_b = c.participant_b
 join final_participants d on a.war_id = d.war_id
                           and if(a.c_code_a > 0, a.c_code_a::varchar, a.participant_a) = d.node_key
 join final_participants e on a.war_id = e.war_id
