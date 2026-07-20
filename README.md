@@ -666,9 +666,10 @@ Those anchors are then linked to every overlapping participant on the opposite s
     - Date spans use the overlapping participant date spans from `Inter-StateWarData_v4.0.csv`.
   - The World War II Thailand dyad is loaded with Thailand battle deaths corrected from original blank `batdtha` to
     `5,569`:
-    - `war_id = 139`
-    - `statea = 800`
-    - `stateb = 710`
+    - Source row:
+      - `war_id = 139`
+      - `statea = 800`
+      - `stateb = 710`
     - The Thailand death count comes from Wikipedia's summary of
       [Thailand in World War II](https://en.wikipedia.org/wiki/Thailand_in_World_War_II).
 - `dyadic_mid_4.03.csv`
