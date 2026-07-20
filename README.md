@@ -92,9 +92,9 @@ The backend build runs three ordered steps:
 
 | Step | Purpose |
 | --- | --- |
-| Step 1 | Ingest source files, apply source-level normalization and adjustments, and create the base war, participant, dyad, and dyad-year tables. |
-| Step 2 | Add country-year, participant, and dyad descriptors from military, economic, demographic, displacement, terrorism, and related sources. |
-| Step 3 | Merge the final participant, dyad, and war outputs, then produce the graph payload used by the frontend. |
+| 1 | Ingest source files, apply source-level normalization and adjustments, and create the base war, participant, dyad, and dyad-year tables. |
+| 2 | Add country-year, participant, and dyad descriptors from military, economic, demographic, displacement, terrorism, and related sources. |
+| 3 | Merge the final participant, dyad, and war outputs, then produce the graph payload used by the frontend. |
 
 ## Current Architecture
 
@@ -111,15 +111,12 @@ The backend build runs three ordered steps:
 
 - The Svelte frontend lives in `frontend/`.
 - The frontend provides a routed Svelte app and a usable war browser backed by the Step 3 graph export.
-
 - In Vite development, the menu is available at `/` and `/the_networks_of_war`, while the browser itself is available
   at `/tool` and `/the_networks_of_war/tool`.
-
 - The frontend consumes ignored generated data at `frontend/src/lib/static/graphData.json`; this file is not committed.
 - Generated graph rows keep two metric layers:
   - Top-level timeframe fields keep descriptor fields that pass per-war availability checks for graph controls.
   - Each node's `metrics` object keeps non-null participant metrics for the tooltip.
-
 - The graph metric data dictionary lives at
   [`frontend/src/lib/static/metricDataDictionary.json`](frontend/src/lib/static/metricDataDictionary.json).
   - The dictionary is written for non-technical users.
@@ -409,7 +406,10 @@ Node tooltip behavior:
 
 - Tooltips show participant start date, end date, days at war, and every non-null participant metric available for the
   selected timeframe.
-- Estimated start dates, end dates, and battle deaths are labeled with `(estimated)`.
+- Estimated values are labeled with `(estimated)`:
+  - Start dates use `start_date_estimated`.
+  - End dates use `end_date_estimated`.
+  - Battle deaths use `battle_deaths_estimated`.
 - Ongoing-war participants show `Ongoing` as the end date so source-data caps are not mistaken for true conflict end
   dates.
 - Some count-style node metrics start as yearly counts and are then summarized for the selected timeframe.
@@ -456,13 +456,8 @@ Tooltip number formatting:
   - `04_insert_source_adjustments.sql` inserts release metadata and adjustment rows for source facts that are not
     present in the source CSVs.
 - Downstream transformations join adjustment tables to `source_file_versions` when an assignment is version-scoped.
-- Step 1 date-span transformations also use `source_file_versions.source_release_date` to cap ongoing source rows at
-  the date the current source file was released or, when no explicit release note is published, uploaded.
 - Adjustment rows should stay lean. Store only values used for joins, source corrections, or downstream transformations.
 - Data-entry fixes applied while reading source CSVs are documented below.
-- Reference data that is not tied to an external source file, currently `war_types`, is created and inserted in
-  `backend/src/sql/step_1/05_create_reference_tables.sql` and
-  `backend/src/sql/step_1/06_insert_reference_tables.sql`.
 
 ### Excluded Calculated Columns
 
@@ -483,10 +478,10 @@ Derived replacements:
 - Duration and day-count fields are calculated from the pipeline's resolved start and end dates, after applying the date
   assumptions below.
   - Example: the pipeline uses the last day of the year when only the end year is known.
-- `arms_technologies_used` replaces the source's calculated `total_use` column and is derived in Step 2 by recounting
-  individual technology rows.
-- `cinc_score` replaces the source's calculated `cinc` column and is derived in Step 2 by averaging each state's yearly
-  shares of the six NMC components.
+- The source's calculated `total_use` column is replaced by `arms_technologies_used`; the calculation is described in
+  the [Metric And Descriptor Notes](#metric-and-descriptor-notes) section.
+- The source's calculated `cinc` column is replaced by `cinc_score`; the calculation is described in the
+  [Metric And Descriptor Notes](#metric-and-descriptor-notes) section.
 
 ### Date Values
 
@@ -529,14 +524,14 @@ Derived replacements:
 ### Encoding And Deduplication
 
 - `COW-country-codes.csv` is deduplicated by `c_code`; the first row per code is retained.
-- Source CSVs that need explicit encoding handling use `latin-1` by default.
-- The non-default source encoding is `Extra-StateWarData_v4.0.csv` as `cp1252`.
+- Source CSVs that need explicit encoding handling use `latin-1` by default; `Extra-StateWarData_v4.0.csv` is the
+  exception and uses `cp1252`.
 - Prepared copies are written as UTF-8 under `backend/.work/` before DuckDB reads them.
 
 ### Field Normalization
 
 - `dyadic_mid_4.03.csv` side-specific fatality levels are converted during ingestion to representative battle-death
-  estimates:
+  estimate values:
   - `0 -> 0`
   - `1 -> 25`
   - `2 -> 100`
@@ -544,17 +539,32 @@ Derived replacements:
   - `4 -> 500`
   - `5 -> 999`
   - `6 -> 1000`
-- Participant names are normalized only for known display and matching issues. The full manual mapping lives in
-  `backend/manual/participant_name_replacements.json`.
-  - Examples:
-    - `United States -> United States of America`
-    - `Baron von Ungern-Sternbergs White army -> Baron von Ungern-Sternberg's White army`
-    - `Turkey/Ottoman Empire/Egypt -> Turkey, Ottoman Empire & Egypt`
-    - `al-Qaeda & Iraqi resistence -> al-Qaeda & Iraqi Resistance`
-    - `Bharatpuran rebels -> Bharatpuran Rebels`
-    - `Wadai sultanate -> Wadai Sultanate`
-    - `Zulu tribe -> Zulu Tribe`
-    - ` Janissaries -> Janissaries`
+
+The source MID table stores these representative estimate values in `battle_deaths_estimated_a` and
+`battle_deaths_estimated_b`. After MID rows are merged into `dyads_after_mid`, those fields become binary flags.
+Participant tables carry the merged flag as `battle_deaths_estimated`.
+
+The binary estimate-flag values mean:
+
+- `1`: the row's battle-death value comes from MID fatality-level estimates because summed source battle deaths were
+  missing or zero.
+- `0`: the row's battle-death value comes from source battle-death fields or remains zero.
+
+Participant name normalization:
+
+Participant names are normalized only for known display and matching issues. The full manual mapping lives in
+`backend/manual/participant_name_replacements.json`.
+
+Examples:
+
+- `United States -> United States of America`
+- `Baron von Ungern-Sternbergs White army -> Baron von Ungern-Sternberg's White army`
+- `Turkey/Ottoman Empire/Egypt -> Turkey, Ottoman Empire & Egypt`
+- `al-Qaeda & Iraqi resistence -> al-Qaeda & Iraqi Resistance`
+- `Bharatpuran rebels -> Bharatpuran Rebels`
+- `Wadai sultanate -> Wadai Sultanate`
+- `Zulu tribe -> Zulu Tribe`
+- ` Janissaries -> Janissaries`
 
 ## Transformation Assumptions
 
@@ -597,8 +607,8 @@ Derived replacements:
 - For extra-state and intra-state rows with multiple date spans, the pipeline uses the earliest start date and latest
   end date as the war dyad/participant span.
 - Interstate participant dates use the earliest start date and latest end date across the two source date spans.
-- Before source rows with multiple date spans are collapsed, each date pair must have `start_date <= end_date`.
-- Rows that fail the pair check should be corrected or explicitly accepted before relying on the row-level
+- Before source rows with multiple date spans are collapsed, each date pair must have `start_date <= end_date`; rows
+  with `start_date > end_date` should be corrected or explicitly accepted before relying on the row-level
   earliest-start/latest-end span.
 
 ### Directed Dyads And MID Records
@@ -634,7 +644,8 @@ Derived replacements:
   for the same war or dispute.
 - Inferred dyads are created by choosing anchor participants for each war. An anchor is a participant that is treated as
   a known adversary for all overlapping participants on the opposite side when source dyadic records are incomplete.
-- Anchor selection is independent by side and participant type. A participant is selected as an anchor when its side has:
+- Anchor selection is independent by side and participant type. A participant is selected as an anchor when any one of
+  these conditions is true for its side:
   - Exactly one total participant.
   - Exactly one named non-state participant.
   - Exactly one state participant.
