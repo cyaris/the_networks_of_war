@@ -328,18 +328,18 @@ Step 1 materializes the reference tables `country_codes` and `war_types`.
 `war_types` is maintained as inline SQL reference data: `05_create_reference_tables.sql` creates the table and
 `06_insert_reference_tables.sql` inserts the rows.
 
-Step 1 also materializes transformed tables:
+Step 1 also materializes transformed staging tables:
 
-- `dyads_after_mid`
-- `dyads_after_sources`
-- `war_participants`
+- `war_participants`: participant rows derived from source war and dyad records.
+- `dyads_after_sources`: source war dyads made directed by adding a reversed copy of each dyad.
+- `dyads_after_mid`: directed source war dyads plus eligible dyadic MID records.
 
 Step 1 also materializes base output tables:
 
-- `dyads`
-- `dyad_years`
-- `participants`
-- `wars`
+- `wars`: normalized war-level rows.
+- `participants`: normalized war-participant rows.
+- `dyads`: normalized unordered participant-pair rows.
+- `dyad_years`: one row per dyad-year for years in the range `1500` through `2099`.
 
 Step 2 also materializes descriptive output tables:
 
@@ -348,6 +348,13 @@ Step 2 also materializes descriptive output tables:
 - `participant_descriptives`
 - `dyad_year_descriptives`
 - `dyadic_descriptives`
+
+The Step 2 final descriptive tables use a `timeframe` column to distinguish the span summarized for each war
+participant or dyad:
+
+- `First Year`
+- `Last Year`
+- `All Years`
 
 ## Final Outputs
 
@@ -569,11 +576,6 @@ Derived replacements:
   - `start_date_estimated` and `end_date_estimated` flags, which mark dates resolved from an ongoing marker or from a
     positive year with a missing or invalid month or day.
 - Transformed tables do not carry the original day/month/year component columns.
-- Step 2 final descriptive tables use a `timeframe` column to distinguish the span summarized for each war participant
-  or dyad:
-  - `First Year`
-  - `Last Year`
-  - `All Years`
 
 ### Source War Dyads And Participants
 
@@ -595,15 +597,13 @@ Derived replacements:
 - For extra-state and intra-state rows with multiple date spans, the pipeline uses the earliest start date and latest
   end date as the war dyad/participant span.
 - Interstate participant dates use the earliest start date and latest end date across the two source date spans.
-- Source rows with multiple date spans are validated by date pair before spans are collapsed. Bad pairs should be
-  corrected or explicitly accepted before relying on the row-level earliest-start/latest-end span.
-  - Example: `start_1 > end_1`.
+- Before source rows with multiple date spans are collapsed, each date pair must have `start_date <= end_date`.
+- Rows that fail the pair check should be corrected or explicitly accepted before relying on the row-level
+  earliest-start/latest-end span.
 
 ### Directed Dyads And MID Records
 
 - Participants that appear on both side 1 and side 2 in dyadic data are assigned side `3` programmatically.
-- `dyads_after_sources` makes source war dyads directed by adding a reversed copy of each dyad.
-- `dyads_after_mid` adds dyadic MID records to source war dyads.
 - Only dyadic MID records with `war = 1` are incorporated.
 - MID dyads are incorporated only when the same directed dyad in the same war has no overlapping source war-dyad row.
 - Existing battle-death values take precedence over MID fatality estimates for remaining merged rows. MID estimates are
@@ -665,7 +665,6 @@ Those anchors are then linked to every overlapping participant on the opposite s
 - Inferred dyads are only created where the anchor and opposing participant date ranges overlap.
 - Final dyads are deduplicated to one row per `war_id` and unordered participant pair. When duplicate spans exist, the
   final row keeps the earliest start date and latest end date from the unordered dyad pair.
-- `dyad_years` expands `dyads` into one row per year for years in the range `1500` through `2099`.
 
 ### Graph Export And Descriptor Semantics
 
@@ -692,7 +691,9 @@ Those anchors are then linked to every overlapping participant on the opposite s
   - Top-level node descriptor fields are kept for node-size dropdown options only when they have:
     - At least one positive known value.
     - Fewer than half `null` values.
-    - Either more than one known value or a useful known/unknown distinction.
+    - Sizing variation across known values or between positive known values and unknown values.
+      - Example: a descriptor with one positive known value and some `null` values can still be offered because it
+        distinguishes known participants from unknown participants.
   - Link descriptor fields are kept only when at least one dyad has a positive value.
 
 ## Data-Entry Fixes And Assignment Rules
@@ -717,7 +718,7 @@ Those anchors are then linked to every overlapping participant on the opposite s
     - The Thailand death count comes from Wikipedia's summary of
       [Thailand in World War II](https://en.wikipedia.org/wiki/Thailand_in_World_War_II).
 - `dyadic_mid_4.03.csv`
-  - Rows are assigned to known COW wars by matching `disno` to `directed_dyadic_war.csv` where possible.
+  - Rows with a `disno` found in `directed_dyadic_war.csv` inherit that COW `war_id`.
   - These unmatched MID disputes are assigned from original missing `war_id` to World War II (`war_id = 139`) after
     manual review:
     - `3582`
