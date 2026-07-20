@@ -16,6 +16,9 @@
   with a short prose sentence instead.
 - Do not place separate bullet groups directly next to each other when they document different concepts, because
   Markdown can render them as one list. Use prose, a table, or an explicit subsection label to separate the concepts.
+- Keep each README bullet list focused on one kind of item. If a bullet stands out as metadata, a source note, an
+  example, a row identifier, or a downstream behavior note rather than a peer of the surrounding bullets, move it into
+  prose, a table, a new subsection, or a clearly labeled subbullet group.
 - Use prose instead of a bullet list when a section would contain only one bullet. Prefer prose over subbullets when a
   nested list would have only two items, unless the pair needs extra visual separation to avoid ambiguity.
 - When an example supports an existing README bullet, make the example a subbullet under that point even when there is

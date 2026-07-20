@@ -35,6 +35,7 @@ economic, demographic, and displacement sources.
     - [Directed Dyads And MID Records](#directed-dyads-and-mid-records)
     - [Participant Inference](#participant-inference)
     - [Dyads](#dyads)
+    - [Graph Export And Descriptor Semantics](#graph-export-and-descriptor-semantics)
   - [Data-Entry Fixes And Assignment Rules](#data-entry-fixes-and-assignment-rules)
   - [Maintainer Notes](#maintainer-notes)
 
@@ -112,8 +113,8 @@ virtual environment and source data to be available.
   - Ongoing-war participants show `Ongoing` as the end date so source-data caps are not mistaken for true conflict end
     dates.
   - Some count-style node metrics are yearly counts summarized across a selected timeframe.
-  - Multi-year summaries can therefore be fractional averages, such as average concurrent wars per year, even though
-    each yearly source count is a whole number.
+  - Multi-year summaries can therefore be fractional averages, even though each yearly source count is a whole number.
+    - Example: average concurrent wars per year.
 
 - Tooltip number formatting:
   - Numbers are rounded to at most two decimal places.
@@ -355,10 +356,8 @@ Step 2 also materializes descriptive output tables:
 - `dyad_year_descriptives`
 - `dyadic_descriptives`
 
-Descriptor dictionary additions, new metrics:
-
-- `shared_arms_technology`: link-dash descriptor equal to `1` when both countries in a dyad used at least one of the
-  same COW arms technologies in the descriptor year.
+Descriptor dictionary additions, new metrics: `shared_arms_technology` is a link-dash descriptor equal to `1` when both
+countries in a dyad used at least one of the same COW arms technologies in the descriptor year.
 
 Descriptor dictionary additions, recalculated source metrics:
 
@@ -403,6 +402,7 @@ The frontend payload exposes those timeframe keys directly on each graph node or
 - Source CSV headers are aliased to canonical pipeline names as early as possible:
   - COW `WarNum` and `war_num` fields are loaded as `war_id`.
   - Numeric war-type fields are loaded as `war_type_id`.
+- Derived or lookup-backed fields are exposed under canonical names:
   - The human-readable label comes from `war_types.war_type`.
   - Ongoing-war markers and derived flags are exposed as `ongoing_war` table and frontend payload fields.
 - `source_global_terrorism_database` stacks two prepared GTD CSVs with `union all` after confirming distinct `eventid`
@@ -410,11 +410,10 @@ The frontend payload exposes those timeframe keys directly on each graph node or
 - Source CSV schemas are compared when source versions change. Ingestion keeps relevant columns that remain available,
   adds newly useful fields when downstream transformations need them, and removes truly absent fields instead of
   fabricating placeholder `null` source columns.
-- Version-scoped source adjustments live in `backend/src/sql/step_1/03_create_source_adjustment_tables.sql` and
-  `backend/src/sql/step_1/04_insert_source_adjustments.sql`.
-- `03_create_source_adjustment_tables.sql` creates `source_file_versions` and adjustment tables.
-- `04_insert_source_adjustments.sql` inserts release metadata and adjustment rows for source facts that are not present
-  in the source CSVs.
+- Version-scoped source adjustment files live under `backend/src/sql/step_1/`:
+  - `03_create_source_adjustment_tables.sql` creates `source_file_versions` and adjustment tables.
+  - `04_insert_source_adjustments.sql` inserts release metadata and adjustment rows for source facts that are not
+    present in the source CSVs.
 - Downstream transformations join adjustment tables to `source_file_versions` when an assignment is version-scoped.
 - Step 1 date-span transformations also use `source_file_versions.source_release_date` to cap ongoing source rows at
   the date the current source file was released or, when no explicit release note is published, uploaded.
@@ -500,15 +499,16 @@ Derived replacements:
   - `5 -> 999`
   - `6 -> 1000`
 - Participant names are normalized only for known display and matching issues. The full manual mapping lives in
-  `backend/manual/participant_name_replacements.json`; representative `source -> replacement` examples:
-  - `United States -> United States of America`
-  - `Baron von Ungern-Sternbergs White army -> Baron von Ungern-Sternberg's White army`
-  - `Turkey/Ottoman Empire/Egypt -> Turkey, Ottoman Empire & Egypt`
-  - `al-Qaeda & Iraqi resistence -> al-Qaeda & Iraqi Resistance`
-  - `Bharatpuran rebels -> Bharatpuran Rebels`
-  - `Wadai sultanate -> Wadai Sultanate`
-  - `Zulu tribe -> Zulu Tribe`
-  - ` Janissaries -> Janissaries`
+  `backend/manual/participant_name_replacements.json`.
+  - Examples:
+    - `United States -> United States of America`
+    - `Baron von Ungern-Sternbergs White army -> Baron von Ungern-Sternberg's White army`
+    - `Turkey/Ottoman Empire/Egypt -> Turkey, Ottoman Empire & Egypt`
+    - `al-Qaeda & Iraqi resistence -> al-Qaeda & Iraqi Resistance`
+    - `Bharatpuran rebels -> Bharatpuran Rebels`
+    - `Wadai sultanate -> Wadai Sultanate`
+    - `Zulu tribe -> Zulu Tribe`
+    - ` Janissaries -> Janissaries`
 
 ## Transformation Assumptions
 
@@ -556,9 +556,9 @@ Derived replacements:
 - For extra-state and intra-state rows with multiple date spans, the pipeline uses the earliest start date and latest
   end date as the war dyad/participant span.
 - Interstate participant dates use the earliest start date and latest end date across the two source date spans.
-- Source rows with multiple date spans are validated by date pair before spans are collapsed. A bad pair such as
-  `start_1 > end_1` should be corrected or explicitly accepted before relying on the row-level earliest-start/latest-end
-  span.
+- Source rows with multiple date spans are validated by date pair before spans are collapsed. Bad pairs should be
+  corrected or explicitly accepted before relying on the row-level earliest-start/latest-end span.
+  - Example: `start_1 > end_1`.
 
 ### Directed Dyads And MID Records
 
@@ -577,9 +577,10 @@ Derived replacements:
   data is accepted as authoritative.
 - Manual interstate war-dyad additions that are missing from `directed_dyadic_war.csv` are stored in
   `source_interstate_war_dyad_adjustments` and merged after source and MID dyads.
-- Synthetic war metadata, such as the Lebanon-Israel MID conflict (`disno = 4182`) named
-  `Israeli–Hezbollah Conflict (South Lebanon)`, is stored in `source_interstate_war_metadata_adjustments` and joined
-  during transformation without adding partial rows to `source_interstate_wars`.
+- Synthetic war metadata is stored in `source_interstate_war_metadata_adjustments` and joined during transformation
+  without adding partial rows to `source_interstate_wars`.
+  - Example: the Lebanon-Israel MID conflict (`disno = 4182`) named
+    `Israeli–Hezbollah Conflict (South Lebanon)`.
 
 ### Participant Inference
 
@@ -626,9 +627,12 @@ Those anchors are then linked to every overlapping participant on the opposite s
 - Final dyads are deduplicated to one row per `war_id` and unordered participant pair. When duplicate spans exist, the
   final row keeps the earliest start date and latest end date from the unordered dyad pair.
 - `dyad_years` expands `dyads` into one row per year for years in the range `1500` through `2099`.
+
+### Graph Export And Descriptor Semantics
+
 - Step 2 and Step 3 preserve the semantic difference between unknown values and known zeros. Missing descriptor values
-  stay `null` unless the source coverage or project derivation makes the value known to be zero, such as
-  `concurrent_wars` when no overlapping participant war exists.
+  stay `null` unless the source coverage or project derivation makes the value known to be zero.
+  - Example: `concurrent_wars` is known to be zero when no overlapping participant war exists.
 - Source unknown/not-applicable codes `-9` and `-8` become `null`.
 - The frontend displays `null` descriptor values as unknown rather than zero.
 - Step 3 participant outputs convert notebook-era unit-scaled fields before graph export:
@@ -660,9 +664,10 @@ Those anchors are then linked to every overlapping participant on the opposite s
   - End year is corrected from original value `19118` to `1918`.
   - The World War I Japan dyads against Germany and Austria-Hungary are added as version-scoped source adjustments
     because Japan appears as a World War I participant in `Inter-StateWarData_v4.0.csv`, but the directed dyadic war
-    source has no World War I dyads involving Japan. Japan links:
-    - Germany: `1914-08-23` through `1918-11-11`.
-    - Austria-Hungary: `1914-08-23` through `1918-11-03`.
+    source has no World War I dyads involving Japan.
+    - Added links:
+      - Germany: `1914-08-23` through `1918-11-11`.
+      - Austria-Hungary: `1914-08-23` through `1918-11-03`.
     - Date spans use the overlapping participant date spans from `Inter-StateWarData_v4.0.csv`.
   - The World War II Thailand dyad is loaded with Thailand battle deaths corrected from original blank `batdtha` to
     `5,569`:
@@ -714,9 +719,14 @@ Those anchors are then linked to every overlapping participant on the opposite s
   - Prefer bullets and subbullets over inline listed-out prose when they make concrete technical lists easier to scan,
     especially files, paths, source values/codes, table names, column names, commands, and metrics.
   - Keep short phrase lists in prose when bullets would make the text feel fragmented.
+  - Do not use bullets solely to separate command examples or other code-block sections.
+  - Do not place separate bullet groups directly next to each other when they document different concepts.
+  - Keep each bullet list focused on one kind of item; move standout metadata, source notes, examples, row identifiers,
+    or downstream behavior notes into prose, a table, a new subsection, or a labeled subbullet group.
   - Use prose instead of a bullet list when a section would contain only one bullet.
   - Prefer prose over subbullets when a nested list would have only two items, unless the pair needs extra visual
     separation to avoid ambiguity.
+  - Use `Example:` for one example and `Examples:` for multiple examples under an existing bullet.
   - Let table-of-contents nesting reflect the document structure even when a section has only two children.
   - Keep tables when they make dense reference data easier to compare.
 - Participant names for rows with COW codes come from `country_codes.state_name`. Use
@@ -724,4 +734,5 @@ Those anchors are then linked to every overlapping participant on the opposite s
   - Non-state participants.
   - Uncoded manual rows.
   - Source tables that do not carry `c_code` values.
-- Replacement targets may match `country_codes.state_name` only for no-code source inputs such as CO2 country names.
+- Replacement targets may match `country_codes.state_name` only for no-code source inputs.
+  - Example: CO2 country names.
