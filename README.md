@@ -11,7 +11,6 @@ economic, demographic, and displacement sources.
   - [Current Architecture](#current-architecture)
     - [Backend](#backend)
     - [Frontend](#frontend)
-      - [Embedded Build Artifacts](#embedded-build-artifacts)
   - [Data Layout](#data-layout)
   - [Commands](#commands)
     - [Pipeline Commands](#pipeline-commands)
@@ -50,20 +49,30 @@ pip install -e ".[dev]"
 python src/pipeline.py
 ```
 
-The backend `dev` extra includes `pdftotext`. The pipeline does not import it at runtime; it is installed so coding
-agents and maintainers can extract and search PDF source documentation under `backend/data/` when validating source
-assumptions.
+The backend `dev` extra includes `pdftotext`. The pipeline does not import `pdftotext` at runtime; the package is
+installed so coding agents and maintainers can extract and search PDF source documentation under `backend/data/` when
+validating source assumptions.
 
 Install and run the frontend. From `the_networks_of_war/frontend`:
 
 ```bash
 npm install
-npm run data:build
 npm run dev
 ```
 
-`npm run data:build` reruns the full backend pipeline through `../backend/.venv/bin/python` and expects the backend
-virtual environment and source data to be available.
+Regenerate the frontend data snapshot. This reruns the full backend pipeline through `../backend/.venv/bin/python` and
+expects the backend virtual environment and source data to be available:
+
+```bash
+npm run data:build
+```
+
+Build the bundle for the Jekyll-rendered embedded surface. Use the SvelteKit/Vite routes for normal local frontend
+development:
+
+```bash
+npm run rollup
+```
 
 ## Current Architecture
 
@@ -79,23 +88,23 @@ virtual environment and source data to be available.
 ### Frontend
 
 - The Svelte frontend lives in `frontend/`.
-- It provides a routed Svelte app and a usable war browser backed by the Step 3 graph export.
+- The frontend provides a routed Svelte app and a usable war browser backed by the Step 3 graph export.
 
 - In Vite development, the menu is available at `/` and `/the_networks_of_war`, while the browser itself is available
   at `/tool` and `/the_networks_of_war/tool`.
 
-- The frontend consumes ignored generated data at `frontend/src/lib/static/graphData.json`; do not commit this file.
-  Step 3 writes it from `backend/src/sql/step_3/04_export_frontend_graph_data.sql` after the final Step 3 tables are
-  built.
-- Generated graph rows keep two metric layers: top-level timeframe fields contain only descriptor fields that pass
-  per-war availability checks for graph controls, while each node's `metrics` object contains all non-null participant
-  metrics for the tooltip.
+- The frontend consumes ignored generated data at `frontend/src/lib/static/graphData.json`; this file is not committed.
+  Step 3 writes `graphData.json` from `backend/src/sql/step_3/04_export_frontend_graph_data.sql` after the final Step 3
+  tables are built.
+- Generated graph rows keep two metric layers:
+  - Top-level timeframe fields keep descriptor fields that pass per-war availability checks for graph controls.
+  - Each node's `metrics` object keeps non-null participant metrics for the tooltip.
 
 - The graph metric data dictionary lives at
   [`frontend/src/lib/static/metricDataDictionary.json`](frontend/src/lib/static/metricDataDictionary.json).
-  - It is written for non-technical users.
-  - It records each graph metric's source organization or study, high-level calculation, and display unit.
-  - Keep this file aligned with backend metric changes and with any README metric summaries.
+  - The dictionary is written for non-technical users.
+  - The dictionary records each graph metric's source organization or study, high-level calculation, and display unit.
+  - Keep the dictionary aligned with backend metric changes and with any README metric summaries.
 
 - Node-size descriptor behavior:
   - Known zero values render at the minimum node radius.
@@ -112,12 +121,15 @@ virtual environment and source data to be available.
   - Estimated start dates, end dates, and battle deaths are labeled with `(estimated)`.
   - Ongoing-war participants show `Ongoing` as the end date so source-data caps are not mistaken for true conflict end
     dates.
-  - Some count-style node metrics are yearly counts summarized across a selected timeframe.
-  - Multi-year summaries can therefore be fractional averages, even though each yearly source count is a whole number.
-    - Example: average concurrent wars per year.
+  - Some count-style node metrics start as yearly counts and are then summarized for the selected timeframe.
+    - Example: `concurrent_wars` counts overlapping wars separately for each participant-year. `First Year` and
+      `Last Year` use the count from one year, while `All Years` averages the yearly counts across the participant's war
+      span.
 
 - Tooltip number formatting:
-  - Numbers are rounded to at most two decimal places.
+  - Most numbers are rounded to at most two decimal places.
+    - Exception: `cinc_score` is formatted with fixed decimal places because the CINC index needs more precision than
+      whole-number style metrics.
   - Values of at least one million are shortened to readable million, billion, or trillion labels without showing the
     full underlying value.
   - Examples:
@@ -125,11 +137,6 @@ virtual environment and source data to be available.
     - `1,400,010` displays as `1.4 million`.
     - `56,546,000,000` displays as `56.55 billion`.
   - Smaller values continue to display in comma-separated form.
-
-#### Embedded Build Artifacts
-
-`npm run rollup` builds `frontend/dist/bundle.js` and `frontend/dist/bundle.css` for the Jekyll-rendered embedded
-surface. Use the SvelteKit/Vite routes for normal local frontend development.
 
 ## Data Layout
 
@@ -362,8 +369,8 @@ countries in a dyad used at least one of the same COW arms technologies in the d
 Descriptor dictionary additions, recalculated source metrics:
 
 - `arms_technologies_used`: node-size descriptor derived from the COW arms technology source's calculated `total_use`
-  column. Step 2 recalculates it from individual technology rows in the descriptor year by counting rows with `use`
-  codes `1` or `9` and excluding the aggregate `Adopted technologies` row.
+  column. Step 2 recalculates `arms_technologies_used` from individual technology rows in the descriptor year by
+  counting rows with `use` codes `1` or `9` and excluding the aggregate `Adopted technologies` row.
 - `cinc_score`: node-size descriptor derived in Step 2 from the six NMC component shares rather than ingested from the
   source CSV's calculated `cinc` column. For each year, Step 2 divides each state's component values by that year's
   system total for the same component, then averages the six shares:
@@ -442,8 +449,10 @@ Derived replacements:
 - Duration and day-count fields are calculated from the pipeline's resolved start and end dates, after applying the date
   assumptions below.
   - Example: the pipeline uses the last day of the year when only the end year is known.
-- `arms_technologies_used` is derived in Step 2 by recounting individual technology rows.
-- `cinc_score` is derived in Step 2 by averaging each state's yearly shares of the six NMC components.
+- `arms_technologies_used` replaces the source's calculated `total_use` column and is derived in Step 2 by recounting
+  individual technology rows.
+- `cinc_score` replaces the source's calculated `cinc` column and is derived in Step 2 by averaging each state's yearly
+  shares of the six NMC components.
 
 ### Date Values
 
@@ -690,8 +699,8 @@ Those anchors are then linked to every overlapping participant on the opposite s
     `Israeli–Hezbollah Conflict (South Lebanon)`:
     - Lebanon: `660`, participant side `1`.
     - Israel: `666`, participant side `2`.
-    - This fake war id uses the MID `disno` because the conflict appears in the dyadic MID records with `war = 1`, but
-      no corresponding `war_id` exists for it in the interstate war data.
+    - The synthetic war id uses the MID `disno` because the conflict appears in the dyadic MID records with `war = 1`,
+      but no corresponding `war_id` exists for that conflict in the interstate war data.
   - These assignments are implemented as version-scoped source adjustments that transformations join explicitly.
 - `INTRA-STATE_State_participants v5.1 CSV.csv`
   - War number `977` is corrected to `979`:
@@ -723,6 +732,8 @@ Those anchors are then linked to every overlapping participant on the opposite s
   - Do not place separate bullet groups directly next to each other when they document different concepts.
   - Keep each bullet list focused on one kind of item; move standout metadata, source notes, examples, row identifiers,
     or downstream behavior notes into prose, a table, a new subsection, or a labeled subbullet group.
+  - Avoid starting bullets with ambiguous pronouns such as `it`, `this`, or `these` unless the noun is explicit in the
+    same bullet.
   - Use prose instead of a bullet list when a section would contain only one bullet.
   - Prefer prose over subbullets when a nested list would have only two items, unless the pair needs extra visual
     separation to avoid ambiguity.
