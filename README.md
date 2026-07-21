@@ -116,6 +116,7 @@ The backend build runs three ordered steps:
   - `/` and `/the_networks_of_war` render the menu.
   - `/tool` and `/the_networks_of_war/tool` render the network analysis tool.
 - Generated frontend data is written to `frontend/src/lib/static/graphData.json`, which is not committed.
+  - The export query lives at `backend/src/sql/step_3/04_export_frontend_graph_data.sql`.
 - Generated graph rows keep two metric layers:
   - Top-level timeframe fields hold descriptor values that can appear in node-size or link-style controls.
   - Each node's `metrics` object holds participant metric values for tooltips, including fields that are not eligible
@@ -545,7 +546,8 @@ Derived replacements:
 #### Participant Name Normalization
 
 - Participant names for rows with COW codes resolve from `country_codes.state_name`.
-- Manual name replacements cover source names that cannot resolve through a COW code:
+- Manual name replacements cover known display or matching issues for source names that cannot resolve through a COW
+  code:
   - Non-state participants.
   - Uncoded manual rows.
   - Source tables that do not carry `c_code` values.
