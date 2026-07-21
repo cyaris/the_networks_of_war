@@ -350,7 +350,10 @@ participant or dyad:
 
 Step 3 materializes the final merge and graph-export tables:
 
-- `final_participants` and `final_dyads`: normalized graph rows for a Svelte app or API route.
+- `final_participants`: participant nodes with war metadata, dates, battle deaths, node descriptor fields, and tooltip
+  metrics.
+- `final_dyads`: participant-pair links with war metadata, dates, `source` and `target` node ids, and link descriptor
+  fields.
 - `final_wars`: war-level rows, including one `graph_json` payload per `war_id`.
 
 Node and link descriptor values are stored in `descriptor_timeframes` JSON; in the frontend payload, the same timeframe
