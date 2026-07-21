@@ -27,6 +27,8 @@
   only one example. Use `Example:` for one example and `Examples:` for multiple examples.
 - Let table-of-contents nesting reflect the document structure even when a section has only two children.
 - Keep documentation style guidance in AGENTS.md instead of the README.
+- Keep future maintainer instructions in AGENTS.md instead of the README. The README should describe project behavior,
+  data assumptions, commands, and outputs rather than telling future editors what they should do.
 - When documenting normalization or replacement rules, show the direction of the change with `source -> replacement`
   example subbullets instead of listing only the affected source values or categories.
 - Keep frontend-specific build artifact notes near frontend setup or frontend commands instead of standalone top-level
@@ -48,6 +50,10 @@
   corresponding raw source data and PDF or JSON source documentation live inside each folder.
 - Keep source adjustments minimal and only add values that downstream joins, corrections, or transformations actually
   need.
+- For participant names, prefer `country_codes.state_name` for rows with COW codes. Use
+  `backend/manual/participant_name_replacements.json` only when the source name cannot resolve through a COW code, such
+  as non-state participants, uncoded manual rows, or source tables that do not carry `c_code` values. Replacement targets
+  may match `country_codes.state_name` only for no-code source inputs.
 - Do not include source columns documented as calculated in `source_` tables; derive those values in downstream
   transformation SQL when the project still needs them.
 - Do not preserve backward compatibility for removed or renamed project interfaces unless the user explicitly asks for a

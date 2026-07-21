@@ -45,7 +45,6 @@ military, economic, demographic, and displacement sources.
     - [Dyads](#dyads)
     - [Graph Export And Descriptor Semantics](#graph-export-and-descriptor-semantics)
   - [Data-Entry Fixes And Assignment Rules](#data-entry-fixes-and-assignment-rules)
-  - [Maintainer Notes](#maintainer-notes)
 
 ## Quickstart
 
@@ -118,14 +117,13 @@ The backend build runs three ordered steps:
   - `/tool` and `/the_networks_of_war/tool` render the network analysis tool.
 - Generated frontend data is written to `frontend/src/lib/static/graphData.json`, which is not committed.
 - Generated graph rows keep two metric layers:
-  - Top-level timeframe fields provide the selectable node-size and link-style descriptors.
-  - Each node's `metrics` object provides tooltip-only participant metrics, including fields that are not available as
-    node-size choices.
+  - Top-level timeframe fields hold descriptor values that can appear in node-size or link-style controls.
+  - Each node's `metrics` object holds participant metric values for tooltips, including fields that are not eligible
+    for node-size controls.
 - The graph metric data dictionary lives at
   [`frontend/src/lib/static/metricDataDictionary.json`](frontend/src/lib/static/metricDataDictionary.json).
   - The dictionary is written for non-technical users.
   - The dictionary records each graph metric's source organization or study, high-level calculation, and display unit.
-  - Keep the dictionary aligned with backend metric changes and with any README metric summaries.
 
 ## Data Layout
 
@@ -135,7 +133,8 @@ The backend build runs three ordered steps:
   - Each external source table gets its own subdirectory named after the source key without the `source_` table prefix.
     The corresponding raw source data lives in that folder.
     - Example: `backend/data/interstate_mid_dyads/` corresponds to `source_interstate_mid_dyads`.
-  - Downloaded PDF or JSON source documentation supports source validation when available.
+  - The downloader also looks for PDF or JSON source documentation and saves it with the source data so
+    source-specific assumptions can be checked.
   - Source subdirectories keep durable CSVs and PDF or JSON documentation only. Archives, original Excel/Stata
     workbooks, text exports, and temporary download caches are discarded, so `backend/data/` does not include
     `_downloads/`.
@@ -357,7 +356,7 @@ Step 3 materializes the final merge and graph-export tables:
 - `final_wars`: war-level rows, including one `graph_json` payload per `war_id`.
 
 Node and link descriptor values are stored in `descriptor_timeframes` JSON; in the frontend payload, the same timeframe
-keys appear directly on each node or link:
+keys appear as top-level JSON properties on each node or link:
 
 - `first_year`
 - `last_year`
@@ -399,24 +398,24 @@ Node-size descriptor behavior:
 
 Node tooltip behavior:
 
-- Tooltips show participant start date, end date, days at war, and every non-null participant metric available for the
+- Tooltips show participant start date, end date, days at war, and every non-null participant metric present for the
   selected timeframe.
 - Estimated values are labeled with `(estimated)`:
-  - Start dates use `start_date_estimated`.
-  - End dates use `end_date_estimated`.
-  - Battle deaths use `battle_deaths_estimated`.
+  - Start dates are labeled when `start_date_estimated = 1`.
+  - End dates are labeled when `end_date_estimated = 1`.
+  - Battle deaths are labeled when `battle_deaths_estimated = 1`.
 - Ongoing-war participants show `Ongoing` as the end date so source-data caps are not mistaken for true conflict end
   dates.
 - Some count-style node metrics start as yearly counts and are then summarized for the selected timeframe.
   - Example: `concurrent_wars` counts overlapping wars separately for each participant-year. `First Year` and
-    `Last Year` use the count from one year, while `All Years` averages the yearly counts across the participant's war
+    `Last Year` take the count from one year, while `All Years` averages the yearly counts across the participant's war
     span.
 
 Tooltip number formatting:
 
 - Most numbers are rounded to at most two decimal places.
   - Exception: `cinc_score` is formatted with fixed decimal places because the CINC index needs more precision than
-    whole-number style metrics.
+    integer or count-style metrics.
 - Values of at least one million are shortened to readable million, billion, or trillion labels without showing the
   full underlying value. Smaller values continue to display in comma-separated form.
   - Examples:
@@ -437,9 +436,9 @@ Tooltip number formatting:
 - Source CSV headers are aliased to canonical pipeline names as early as possible:
   - COW `WarNum` and `war_num` fields are loaded as `war_id`.
   - Numeric war-type fields are loaded as `war_type_id`.
-- Derived or lookup-backed fields are exposed under canonical names:
-  - The human-readable label comes from `war_types.war_type`.
-  - Ongoing-war markers and derived flags are exposed as `ongoing_war` table and frontend payload fields.
+- Fields derived during ingestion or populated by lookup tables use canonical names:
+  - `war_type` comes from `war_types.war_type`.
+  - Ongoing-war markers are stored as `ongoing_war` columns in backend tables and frontend payload rows.
 - `source_global_terrorism_database` stacks two prepared GTD CSVs with `union all` after confirming distinct `eventid`
   coverage across the files.
 - Source CSV schemas are compared when source versions change. Ingestion keeps relevant columns that remain available,
@@ -450,12 +449,11 @@ Tooltip number formatting:
   - The adjustment-row SQL inserts release metadata and adjustment rows for source facts that are not present in the
     source CSVs.
 - Downstream transformations join adjustment tables to `source_file_versions` when an assignment is version-scoped.
-- Adjustment rows should stay lean. Store only values used for joins, source corrections, or downstream transformations.
 - Data-entry fixes applied while reading source CSVs are documented below.
 
 ### Excluded Calculated Columns
 
-The pipeline ingests raw source fields and recalculates simple derived columns from canonical inputs.
+The pipeline ingests raw source fields and recalculates derived columns from canonical inputs.
 
 Excluded calculated fields:
 
@@ -535,7 +533,7 @@ Derived replacements:
   - `4 -> 500`
   - `5 -> 999`
   - `6 -> 1000`
-- The source MID table stores these representative estimate values in `battle_deaths_estimated_a` and
+- `source_interstate_mid_dyads` stores these representative estimate values in `battle_deaths_estimated_a` and
   `battle_deaths_estimated_b`.
 - After MID rows are merged into `dyads_after_mid`, `battle_deaths_estimated_a` and `battle_deaths_estimated_b` become
   binary flags:
@@ -546,7 +544,11 @@ Derived replacements:
 
 #### Participant Name Normalization
 
-- Participant names are normalized only for known display and matching issues.
+- Participant names for rows with COW codes resolve from `country_codes.state_name`.
+- Manual name replacements cover source names that cannot resolve through a COW code:
+  - Non-state participants.
+  - Uncoded manual rows.
+  - Source tables that do not carry `c_code` values.
 - The full manual mapping lives in `backend/manual/participant_name_replacements.json`.
 - Examples:
   - `United States -> United States of America`
@@ -564,8 +566,7 @@ Derived replacements:
 
 - Directed dyadic interstate war records get war name and war type metadata from `source_interstate_wars` by `war_id`;
   synthetic MID-only wars get metadata from source adjustment tables.
-- Transformed tables carry pipeline-facing fields after source-only identifiers and outcome fields have served their
-  matching and transformation roles:
+- Transformed tables retain the source identifiers and outcome fields needed by later joins or outputs:
   - `disno`, retained for MID matching.
   - `dyindex`
   - `outcome_a`
@@ -599,22 +600,22 @@ Derived replacements:
   end date as the war dyad/participant span.
 - Interstate participant dates use the earliest start date and latest end date across the two source date spans.
 - Before source rows with multiple date spans are collapsed, each date pair must have `start_date <= end_date`; rows
-  with `start_date > end_date` should be corrected or explicitly accepted before relying on the row-level
-  earliest-start/latest-end span.
+  with `start_date > end_date` require correction or explicit acceptance before the row-level earliest-start/latest-end
+  span is reliable.
 
 ### Directed Dyads And MID Records
 
 - Participants that appear on both side 1 and side 2 in dyadic data are assigned side `3` programmatically.
 - Only dyadic MID records with `war = 1` are incorporated.
 - MID dyads are incorporated only when the same directed dyad in the same war has no overlapping source war-dyad row.
-- Existing battle-death values take precedence over MID fatality estimates for remaining merged rows. MID estimates are
-  used when summed source battle deaths are `null` or zero and summed estimates are positive.
+- Existing battle-death values take precedence over MID fatality estimates after source and MID dyads are merged. MID
+  estimates are used when summed source battle deaths are `null` or zero and summed estimates are positive.
 - MID dyads are assigned to known wars by `disno` from `source_interstate_war_dyads` and version-scoped rows in
   `source_interstate_mid_war_id_adjustments`.
-- Missing MID `disno` to `war_id` relationships are stored in the Step 1 source adjustment tables when the current CSV
-  version still needs them. If a future CSV version introduces a new unmatched MID war,
-  `test_mid_dyads_resolve_all_mid_war_ids` should fail until the source adjustment file is updated or the new source
-  data is accepted as authoritative.
+- Missing MID `disno` to `war_id` relationships are stored in the Step 1 source adjustment tables when those
+  relationships are absent from the current CSV version. If a future CSV version introduces a new unmatched MID war,
+  `test_mid_dyads_resolve_all_mid_war_ids` is expected to fail until the source adjustment file is updated or the new
+  source data is accepted as authoritative.
 - Manual interstate war-dyad additions that are missing from `directed_dyadic_war.csv` are stored in
   `source_interstate_war_dyad_adjustments` and merged after source and MID dyads.
 - Synthetic war metadata is stored in `source_interstate_war_metadata_adjustments` and joined during transformation
@@ -628,7 +629,8 @@ Derived replacements:
   dyadic side A records.
 - Missing participant sides are inferred from the opposite participant in dyadic data when that inference is unambiguous.
 - Remaining version-specific participant side assignments are stored in `source_participant_side_adjustments` and joined
-  during participant creation. These adjustments store source facts needed beyond participant and dyadic rows.
+  during participant creation. These adjustments store source facts that cannot be recovered from participant and dyadic
+  rows alone.
 - Interstate war participant sides are taken from `source_interstate_wars`, either directly in `war_participants` or
   through semantic side values on `war_dyads`.
 - The directed dyadic source can include reciprocal rows where the same state appears as both `c_code_a` and `c_code_b`
@@ -663,7 +665,7 @@ The selected anchors are then linked to every overlapping participant on the opp
 
 - Source dyads with COW code `-8` on one side are expanded against every actual participant on that side.
   - Example: if `c_code_a = -8`, side B is treated as having fought each source participant on side A for that conflict.
-- Unnamed aggregate dyads are excluded from `dyads` after those rows are used for named-participant expansion.
+- Unnamed aggregate dyads are excluded from `dyads` after the aggregate rows are used for named-participant expansion.
 - Inferred dyads are only created where the anchor and opposing participant date ranges overlap.
 - Final dyads are deduplicated to one row per `war_id` and unordered participant pair. When duplicate spans exist, the
   final row keeps the earliest start date and latest end date from the unordered dyad pair.
@@ -675,7 +677,7 @@ The selected anchors are then linked to every overlapping participant on the opp
   - Example: `concurrent_wars` is known to be zero when no overlapping participant war exists.
 - Source unknown/not-applicable codes `-9` and `-8` become `null`.
 - The frontend displays `null` descriptor values as unknown rather than zero.
-- Step 3 participant outputs convert notebook-era unit-scaled fields before graph export:
+- Step 3 participant outputs convert unit-scaled fields inherited from the earlier notebook workflow before graph export:
   - COW trade currency values: from millions to dollars.
   - NMC military expenditure, military personnel, population, iron/steel, and energy values: from thousands to base
     units.
@@ -689,7 +691,7 @@ The selected anchors are then linked to every overlapping participant on the opp
       - Example: if `concurrent_wars` is the selected node-size descriptor, a participant with `concurrent_wars = 0`
         still shows that value in the tooltip.
     - Zero values for metrics that are always useful to show.
-      - Example: `battle_deaths = 0` and `battle_deaths_per_day = 0` still display when available.
+      - Example: `battle_deaths = 0` and `battle_deaths_per_day = 0` still display when those fields are present.
   - Top-level node descriptor fields are kept for node-size dropdown options only when they have:
     - At least one positive known value.
     - Fewer than half `null` values.
@@ -710,7 +712,7 @@ The selected anchors are then linked to every overlapping participant on the opp
     - Added links:
       - Germany: `1914-08-23` through `1918-11-11`.
       - Austria-Hungary: `1914-08-23` through `1918-11-03`.
-    - Date spans use the overlapping participant date spans from `Inter-StateWarData_v4.0.csv`.
+    - Added-link date spans use the overlapping participant date spans from `Inter-StateWarData_v4.0.csv`.
   - The World War II Thailand dyad is loaded with Thailand battle deaths corrected from original blank `batdtha` to
     `5,569`:
     - Source row:
@@ -721,8 +723,7 @@ The selected anchors are then linked to every overlapping participant on the opp
       [Thailand in World War II](https://en.wikipedia.org/wiki/Thailand_in_World_War_II).
 - `dyadic_mid_4.03.csv`
   - Rows with a `disno` found in `directed_dyadic_war.csv` inherit that COW `war_id`.
-  - These unmatched MID disputes are assigned from original missing `war_id` to World War II (`war_id = 139`) after
-    manual review:
+  - MID disputes missing `war_id` in the source file are assigned to World War II (`war_id = 139`) after manual review:
     - `3582`
     - `3583`
     - `3585`
@@ -732,14 +733,14 @@ The selected anchors are then linked to every overlapping participant on the opp
     `Israeli–Hezbollah Conflict (South Lebanon)`:
     - Lebanon: `660`, participant side `1`.
     - Israel: `666`, participant side `2`.
-    - The synthetic war id uses the MID `disno` because the conflict appears in the dyadic MID records with `war = 1`,
-      but no corresponding `war_id` exists for that conflict in the interstate war data.
+    - The synthetic `war_id` is set to the MID `disno` because the conflict appears in the dyadic MID records with
+      `war = 1`, but no corresponding `war_id` exists for that conflict in the interstate war data.
   - The MID war-id assignments above are implemented as version-scoped source adjustments that transformations join
     explicitly.
 - `INTRA-STATE_State_participants v5.1 CSV.csv`
   - War number `977` is corrected to `979`:
     - The intra-state war-level CSV and codebook identify the Syrian Arab Spring War as war `979`.
-    - No war `977` exists there.
+    - No war `977` exists in the intra-state war-level CSV or codebook.
     - The state-participant file has one `977` row for Iran with the same Syrian war name and start date.
   - War `976` has `StartYr1` corrected from original value `2001` to `2011`. The intra-state war-level CSV identifies
     the Libyan Civil War of 2011 as war `976` with `StartYr1 = 2011`; the affected state-participant rows have March
@@ -755,13 +756,3 @@ The selected anchors are then linked to every overlapping participant on the opp
       - `991`
       - `991.4`
       - `992.5`
-
-## Maintainer Notes
-
-- Participant names for rows with COW codes come from `country_codes.state_name`. Use the manual participant-name
-  mapping only when the source name cannot resolve through a COW code:
-  - Non-state participants.
-  - Uncoded manual rows.
-  - Source tables that do not carry `c_code` values.
-- Replacement targets may match `country_codes.state_name` only for no-code source inputs.
-  - Example: CO2 country names.
