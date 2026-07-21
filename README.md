@@ -116,7 +116,7 @@ The backend build runs three ordered steps:
 - In Vite development, routes are mirrored for the local root and the simulated GitHub Pages base:
   - `/` and `/the_networks_of_war` render the menu.
   - `/tool` and `/the_networks_of_war/tool` render the network analysis tool.
-- The frontend consumes generated data at `frontend/src/lib/static/graphData.json`; this file is not committed.
+- Generated frontend data is written to `frontend/src/lib/static/graphData.json`, which is not committed.
 - Generated graph rows keep two metric layers:
   - Top-level timeframe fields provide the selectable node-size and link-style descriptors.
   - Each node's `metrics` object provides tooltip-only participant metrics, including fields that are not available as
@@ -275,8 +275,7 @@ npm run build
 
 ## Source Tables
 
-The current backend ingests the following source files. Downloaded source subdirectories include the relevant PDFs and
-supporting files from each source bundle when available.
+The current backend ingests the following source files.
 
 ### Step 1 Source Tables
 
@@ -331,7 +330,7 @@ Step 1 also materializes base output tables:
 - `dyads`: normalized unordered participant-pair rows.
 - `dyad_years`: one row per dyad-year for years in the range `1500` through `2099`.
 
-Step 2 also materializes descriptive output tables:
+Step 2 materializes descriptive output tables:
 
 - `country_year_descriptives`
 - `participant_year_descriptives`
@@ -348,24 +347,24 @@ participant or dyad:
 
 ## Final Outputs
 
-Step 3 materializes the final merge and graph-export tables `final_participants`, `final_dyads`, and `final_wars`.
-`final_participants` and `final_dyads` keep the normalized graph shape available for a Svelte app or API route.
-`final_wars.graph_json` stores one graph payload per `war_id`.
+Step 3 materializes the final merge and graph-export tables:
 
-After Step 3 completes, the pipeline writes the single frontend payload.
+- `final_participants` and `final_dyads`: normalized graph rows for a Svelte app or API route.
+- `final_wars`: war-level rows, including one `graph_json` payload per `war_id`.
 
-Node and link descriptor values are stored in `descriptor_timeframes` JSON keyed by:
+Node and link descriptor values are stored in `descriptor_timeframes` JSON; in the frontend payload, the same timeframe
+keys appear directly on each node or link:
 
 - `first_year`
 - `last_year`
 - `all_years`
 
-The frontend payload exposes those timeframe keys directly on each graph node or link.
-
 ## Metric And Descriptor Notes
 
-`shared_arms_technology` is a link-dash descriptor equal to `1` when both countries in a dyad used at least one of the
-same COW arms technologies in the descriptor year.
+Link descriptor:
+
+- `shared_arms_technology`: link-dash descriptor equal to `1` when both countries in a dyad used at least one of the
+  same COW arms technologies in the descriptor year.
 
 Recalculated source metrics:
 
@@ -563,12 +562,11 @@ Derived replacements:
   synthetic MID-only wars get metadata from source adjustment tables.
 - Transformed tables carry pipeline-facing fields after source-only identifiers and outcome fields have served their
   matching and transformation roles:
-  - `disno`
+  - `disno`, retained for MID matching.
   - `dyindex`
   - `outcome_a`
   - `outcome_b`
   - `outcome`
-- MID matching still uses `disno` internally where needed.
 - After source date components are resolved, transformed tables carry:
   - `start_date`
   - `end_date`
@@ -650,7 +648,7 @@ Derived replacements:
 | 1 | United States of America, Uganda, Kenya, Burundi, Somalia, Ethiopia | No single total, non-state, or state participant | None |
 | 2 | ICU, Eritrea | One named non-state participant; one state participant | ICU, Eritrea |
 
-Those anchors are then linked to every overlapping participant on the opposite side:
+The selected anchors are then linked to every overlapping participant on the opposite side:
 
 | Anchor | Linked opposite-side participants |
 | --- | --- |
@@ -732,7 +730,8 @@ Those anchors are then linked to every overlapping participant on the opposite s
     - Israel: `666`, participant side `2`.
     - The synthetic war id uses the MID `disno` because the conflict appears in the dyadic MID records with `war = 1`,
       but no corresponding `war_id` exists for that conflict in the interstate war data.
-  - These assignments are implemented as version-scoped source adjustments that transformations join explicitly.
+  - The MID war-id assignments above are implemented as version-scoped source adjustments that transformations join
+    explicitly.
 - `INTRA-STATE_State_participants v5.1 CSV.csv`
   - War number `977` is corrected to `979`:
     - The intra-state war-level CSV and codebook identify the Syrian Arab Spring War as war `979`.
