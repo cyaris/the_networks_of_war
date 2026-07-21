@@ -103,10 +103,10 @@ The backend build runs three ordered steps:
 
 - The DuckDB backend rebuilds preprocessing steps with native SQL.
 - Python handles supporting orchestration:
-  - Resolves file paths.
-  - Prepares downloaded source files.
-  - Normalizes configured CSV encodings.
-  - Runs the SQL files in order.
+  - Resolves file paths
+  - Prepares downloaded source files
+  - Normalizes configured CSV encodings
+  - Runs the SQL files in order
 
 ### Frontend
 
@@ -378,12 +378,12 @@ Recalculated source metrics:
 - `cinc_score`: node-size descriptor derived in Step 2 from the six NMC component shares rather than ingested from the
   source CSV's calculated `cinc` column. For each year, Step 2 divides each state's component values by that year's
   system total for the same component, then averages the six shares:
-  - Military expenditure.
-  - Military personnel.
-  - Iron and steel production.
-  - Primary energy consumption.
-  - Total population.
-  - Urban population.
+  - Military expenditure
+  - Military personnel
+  - Iron and steel production
+  - Primary energy consumption
+  - Total population
+  - Urban population
 
 ## Graph Display Behavior
 
@@ -430,10 +430,10 @@ Tooltip number formatting:
 
 - The primary source tables listed above come directly from their source CSV files. During load, the pipeline applies
   only:
-  - Type coercion.
-  - Column renaming.
-  - Encoding normalization.
-  - The data-entry fixes documented below.
+  - Type coercion
+  - Column renaming
+  - Encoding normalization
+  - The data-entry fixes documented below
 - Source CSV headers are aliased to canonical pipeline names as early as possible:
   - COW `WarNum` and `war_num` fields are loaded as `war_id`.
   - Numeric war-type fields are loaded as `war_type_id`.
@@ -485,9 +485,9 @@ Derived replacements:
 - Month fields, day fields, and start-year fields load those special codes as `null` because the COW codebooks use
   negative values for ongoing, not applicable, or unknown values.
 - Raw source date components are expected to be in basic valid domains before cleaning:
-  - Months: `1-12`.
-  - Days: `1-31`.
-  - Years: `1500-2100`.
+  - Months: `1-12`
+  - Days: `1-31`
+  - Years: `1500-2100`
 - Values outside these domains are treated as data-entry issues and documented below when accepted by the pipeline.
 
 #### Start Dates
@@ -548,9 +548,9 @@ Derived replacements:
 - Participant names for rows with COW codes resolve from `country_codes.state_name`.
 - Manual name replacements cover known display or matching issues for source names that cannot resolve through a COW
   code:
-  - Non-state participants.
-  - Uncoded manual rows.
-  - Source tables that do not carry `c_code` values.
+  - Non-state participants
+  - Uncoded manual rows
+  - Source tables that do not carry `c_code` values
 - The full manual mapping lives in `backend/manual/participant_name_replacements.json`.
 - Examples:
   - `United States -> United States of America`
@@ -569,7 +569,7 @@ Derived replacements:
 - Directed dyadic interstate war records get war name and war type metadata from `source_interstate_wars` by `war_id`;
   synthetic MID-only wars get metadata from source adjustment tables.
 - Transformed tables retain the source identifiers and outcome fields needed by later joins or outputs:
-  - `disno`, retained for MID matching.
+  - `disno`, retained for MID matching
   - `dyindex`
   - `outcome_a`
   - `outcome_b`
@@ -641,9 +641,9 @@ Derived replacements:
   a known adversary for all overlapping participants on the opposite side when source dyadic records are incomplete.
 - Anchor selection is independent by side and participant type. A participant is selected as an anchor when any one of
   these conditions is true for its side:
-  - Exactly one total participant.
-  - Exactly one named non-state participant.
-  - Exactly one state participant.
+  - Exactly one total participant
+  - Exactly one named non-state participant
+  - Exactly one state participant
 - More than one anchor can be selected for the same war, including anchors on both sides.
   - Example: in the Third Somalia War (`war_id = 940.8`), the source intra-state participant file lists six side 1
     states and two side 2 participants. Side 2 has exactly one named non-state participant, ICU (`c_code = -8`), and
@@ -680,24 +680,24 @@ The selected anchors are then linked to every overlapping participant on the opp
 - Source unknown/not-applicable codes `-9` and `-8` become `null`.
 - The frontend displays `null` descriptor values as unknown rather than zero.
 - Step 3 participant outputs convert unit-scaled fields inherited from the earlier notebook workflow before graph export:
-  - COW trade currency values: from millions to dollars.
+  - COW trade currency values: from millions to dollars
   - NMC military expenditure, military personnel, population, iron/steel, and energy values: from thousands to base
-    units.
-  - Displacement counts: from thousands to people.
+    units
+  - Displacement counts: from thousands to people
 - Step 3 keeps graph-control descriptors and tooltip metrics separate.
   - Node tooltip metrics are stored under each node's `metrics` object and include all non-null participant metrics for
     the timeframe.
   - The tooltip displays:
-    - Non-zero metrics.
-    - Selected zero-value metrics.
+    - Non-zero metrics
+    - Selected zero-value metrics
       - Example: if `concurrent_wars` is the selected node-size descriptor, a participant with `concurrent_wars = 0`
         still shows that value in the tooltip.
-    - Zero values for metrics that are always useful to show.
+    - Zero values for metrics that are always useful to show
       - Example: `battle_deaths = 0` and `battle_deaths_per_day = 0` still display when those fields are present.
   - Top-level node descriptor fields are kept for node-size dropdown options only when they have:
-    - At least one positive known value.
-    - Fewer than half `null` values.
-    - Sizing variation across known values or between positive known values and unknown values.
+    - At least one positive known value
+    - Fewer than half `null` values
+    - Sizing variation across known values or between positive known values and unknown values
       - Example: a descriptor with one positive known value and some `null` values can still be offered because it
         distinguishes known participants from unknown participants.
   - Link descriptor fields are kept only when at least one dyad has a positive value.
@@ -712,8 +712,8 @@ The selected anchors are then linked to every overlapping participant on the opp
     because Japan appears as a World War I participant in `Inter-StateWarData_v4.0.csv`, but the directed dyadic war
     source has no World War I dyads involving Japan.
     - Added links:
-      - Germany: `1914-08-23` through `1918-11-11`.
-      - Austria-Hungary: `1914-08-23` through `1918-11-03`.
+      - Germany: `1914-08-23` through `1918-11-11`
+      - Austria-Hungary: `1914-08-23` through `1918-11-03`
     - Added-link date spans use the overlapping participant date spans from `Inter-StateWarData_v4.0.csv`.
   - The World War II Thailand dyad is loaded with Thailand battle deaths corrected from original blank `batdtha` to
     `5,569`:
@@ -733,8 +733,8 @@ The selected anchors are then linked to every overlapping participant on the opp
     after manual review.
   - Unmatched MID dispute `4182` is assigned synthetic `war_id = 4182` and named
     `Israeli–Hezbollah Conflict (South Lebanon)`:
-    - Lebanon: `660`, participant side `1`.
-    - Israel: `666`, participant side `2`.
+    - Lebanon: `660`, participant side `1`
+    - Israel: `666`, participant side `2`
     - The synthetic `war_id` is set to the MID `disno` because the conflict appears in the dyadic MID records with
       `war = 1`, but no corresponding `war_id` exists for that conflict in the interstate war data.
   - The MID war-id assignments above are implemented as version-scoped source adjustments that transformations join
