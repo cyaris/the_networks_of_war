@@ -133,10 +133,9 @@ The backend build runs three ordered steps:
   for ongoing-war date caps.
 - Source data is downloaded programmatically into `backend/data/`.
   - Each external source table gets its own subdirectory named after the source key without the `source_` table prefix.
-    The corresponding raw source data lives in that folder, along with downloaded PDF or JSON source documentation when
-    available.
+    The corresponding raw source data lives in that folder.
     - Example: `backend/data/interstate_mid_dyads/` corresponds to `source_interstate_mid_dyads`.
-  - Downloaded documentation supports source validation but is not ingested as a source table.
+  - Downloaded PDF or JSON source documentation supports source validation when available.
   - Source subdirectories keep durable CSVs and PDF or JSON documentation only. Archives, original Excel/Stata
     workbooks, text exports, and temporary download caches are discarded, so `backend/data/` does not include
     `_downloads/`.
