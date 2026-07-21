@@ -113,12 +113,14 @@ The backend build runs three ordered steps:
 
 - The Svelte frontend lives in `frontend/`.
 - The frontend provides a routed Svelte network analysis tool backed by the Step 3 graph export.
-- In Vite development, the menu is available at `/` and `/the_networks_of_war`, while the network analysis tool is
-  available at `/tool` and `/the_networks_of_war/tool`.
-- The frontend consumes ignored generated data at `frontend/src/lib/static/graphData.json`; this file is not committed.
+- In Vite development, routes are mirrored for the local root and the simulated GitHub Pages base:
+  - `/` and `/the_networks_of_war` render the menu.
+  - `/tool` and `/the_networks_of_war/tool` render the network analysis tool.
+- The frontend consumes generated data at `frontend/src/lib/static/graphData.json`; this file is not committed.
 - Generated graph rows keep two metric layers:
-  - Top-level timeframe fields keep descriptor fields that pass per-war availability checks for graph controls.
-  - Each node's `metrics` object keeps non-null participant metrics for the tooltip.
+  - Top-level timeframe fields provide the selectable node-size and link-style descriptors.
+  - Each node's `metrics` object provides tooltip-only participant metrics, including fields that are not available as
+    node-size choices.
 - The graph metric data dictionary lives at
   [`frontend/src/lib/static/metricDataDictionary.json`](frontend/src/lib/static/metricDataDictionary.json).
   - The dictionary is written for non-technical users.
@@ -213,7 +215,7 @@ Create missing source-data subdirectories without running the build:
 python src/pipeline.py --prepare-data --no-build
 ```
 
-Recreate the full ignored source-data directory:
+Recreate the full source-data directory:
 
 ```bash
 python src/pipeline.py --recreate-data --no-build
@@ -253,7 +255,7 @@ Show verbose test names and failures:
 pytest tests/test_step_1.py -vv
 ```
 
-The Step 1 expectation tests rebuild Step 1 into a temporary DuckDB database. They run when the ignored source files in
+The Step 1 expectation tests rebuild Step 1 into a temporary DuckDB database. They run when the source files in
 `backend/data/` are available locally and skip automatically otherwise.
 
 ### Frontend Commands
