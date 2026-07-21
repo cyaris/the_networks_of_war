@@ -318,9 +318,6 @@ explicitly identify the current source file's release date.
 
 Step 1 materializes the reference tables `country_codes` and `war_types`.
 
-`war_types` is maintained as inline SQL reference data: `05_create_reference_tables.sql` creates the table and
-`06_insert_reference_tables.sql` inserts the rows.
-
 Step 1 also materializes transformed staging tables:
 
 - `war_participants`: participant rows derived from source war and dyad records.
@@ -355,8 +352,7 @@ Step 3 materializes the final merge and graph-export tables `final_participants`
 `final_participants` and `final_dyads` keep the normalized graph shape available for a Svelte app or API route.
 `final_wars.graph_json` stores one graph payload per `war_id`.
 
-After Step 3 completes, `pipeline.py` writes the single frontend payload from
-`backend/src/sql/step_3/04_export_frontend_graph_data.sql`.
+After Step 3 completes, the pipeline writes the single frontend payload.
 
 Node and link descriptor values are stored in `descriptor_timeframes` JSON keyed by:
 
@@ -447,9 +443,9 @@ Tooltip number formatting:
   adds newly useful fields when downstream transformations need them, and removes truly absent fields instead of
   fabricating placeholder `null` source columns.
 - Version-scoped source adjustment files live under `backend/src/sql/step_1/`:
-  - `03_create_source_adjustment_tables.sql` creates `source_file_versions` and adjustment tables.
-  - `04_insert_source_adjustments.sql` inserts release metadata and adjustment rows for source facts that are not
-    present in the source CSVs.
+  - The adjustment-table SQL creates `source_file_versions` and the source adjustment tables.
+  - The adjustment-row SQL inserts release metadata and adjustment rows for source facts that are not present in the
+    source CSVs.
 - Downstream transformations join adjustment tables to `source_file_versions` when an assignment is version-scoped.
 - Adjustment rows should stay lean. Store only values used for joins, source corrections, or downstream transformations.
 - Data-entry fixes applied while reading source CSVs are documented below.
@@ -458,7 +454,7 @@ Tooltip number formatting:
 
 The pipeline ingests raw source fields and recalculates simple derived columns from canonical inputs.
 
-Currently excluded calculated fields:
+Excluded calculated fields:
 
 | Source CSV | Excluded calculated fields |
 | --- | --- |
@@ -759,8 +755,8 @@ Those anchors are then linked to every overlapping participant on the opposite s
 
 ## Maintainer Notes
 
-- Participant names for rows with COW codes come from `country_codes.state_name`. Use
-  `participant_name_replacements.json` only when the source name cannot resolve through a COW code:
+- Participant names for rows with COW codes come from `country_codes.state_name`. Use the manual participant-name
+  mapping only when the source name cannot resolve through a COW code:
   - Non-state participants.
   - Uncoded manual rows.
   - Source tables that do not carry `c_code` values.
