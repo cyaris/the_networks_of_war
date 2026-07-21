@@ -1,7 +1,7 @@
 # The Networks of War
 
-A DuckDB and Svelte project for building and browsing war-participant networks from COW and other conflict, military,
-economic, demographic, and displacement sources.
+A DuckDB and Svelte project for building a war-participant network analysis tool from COW and other conflict,
+military, economic, demographic, and displacement sources.
 
 ## Table Of Contents
 
@@ -112,9 +112,9 @@ The backend build runs three ordered steps:
 ### Frontend
 
 - The Svelte frontend lives in `frontend/`.
-- The frontend provides a routed Svelte app and a usable war browser backed by the Step 3 graph export.
-- In Vite development, the menu is available at `/` and `/the_networks_of_war`, while the browser itself is available
-  at `/tool` and `/the_networks_of_war/tool`.
+- The frontend provides a routed Svelte network analysis tool backed by the Step 3 graph export.
+- In Vite development, the menu is available at `/` and `/the_networks_of_war`, while the network analysis tool is
+  available at `/tool` and `/the_networks_of_war/tool`.
 - The frontend consumes ignored generated data at `frontend/src/lib/static/graphData.json`; this file is not committed.
 - Generated graph rows keep two metric layers:
   - Top-level timeframe fields keep descriptor fields that pass per-war availability checks for graph controls.
@@ -269,12 +269,6 @@ Run frontend checks:
 ```bash
 npm run check
 npm run build
-```
-
-Build the embedded bundle for the legacy Jekyll-rendered surface when needed:
-
-```bash
-npm run rollup
 ```
 
 ## Source Tables
