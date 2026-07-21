@@ -280,19 +280,17 @@ supporting files from each source bundle when available.
 
 ### Step 1 Source Tables
 
-| Table | Organization | Source CSV | Version | Release date | Download source |
-| --- | --- | --- | --- | --- | --- |
-| `source_country_codes` | Correlates of War Project (COW) | `COW-country-codes.csv` | unversioned | 2022-09-07 upload | [Data](https://correlatesofwar.org/wp-content/uploads/COW-country-codes.csv) |
-| `source_extrastate_wars` | Correlates of War Project (COW) | `Extra-StateWarData_v4.0.csv` | 4.0 | 2011-12-08 release | [Data](https://correlatesofwar.org/wp-content/uploads/Extra-StateWarData_v4.0.csv)<br>[Doc](https://correlatesofwar.org/wp-content/uploads/Extra-StateWars_Codebook.pdf) |
-| `source_interstate_mid_dyads` | Correlates of War Project (COW) | `dyadic_mid_4.03.csv` | 4.03 | 2025-04-06 upload | [Release](https://correlatesofwar.org/wp-content/uploads/dyadic_mid_4.03_update.zip) |
-| `source_interstate_war_dyads` | Correlates of War Project (COW) | `directed_dyadic_war.csv` | unversioned | 2022-07-12 upload | [Release](https://correlatesofwar.org/wp-content/uploads/Dyadic-Interstate-War-Dataset.zip) |
-| `source_interstate_wars` | Correlates of War Project (COW) | `Inter-StateWarData_v4.0.csv` | 4.0 | 2011-03-01 release | [Data](https://correlatesofwar.org/wp-content/uploads/Inter-StateWarData_v4.0.csv)<br>[Doc 1](https://correlatesofwar.org/wp-content/uploads/Inter-StateWars_Codebook.pdf)<br>[Doc 2](https://correlatesofwar.org/wp-content/uploads/Inter-StateWarsList.pdf) |
-| `source_intrastate_wars` | Correlates of War Project (COW) | `INTRA-STATE_State_participants v5.1 CSV.csv` | 5.1 | 2020-04-06 release | [Release](https://correlatesofwar.org/wp-content/uploads/Intra-State-Wars-v5.1.zip) |
+| Table | Organization | Source CSV | Version | Release Date | Release Date Source | Download source |
+| --- | --- | --- | --- | --- | --- | --- |
+| `source_country_codes` | Correlates of War Project (COW) | `COW-country-codes.csv` | unversioned | 2022-09-07 | WordPress media attachment date | [Data](https://correlatesofwar.org/wp-content/uploads/COW-country-codes.csv) |
+| `source_extrastate_wars` | Correlates of War Project (COW) | `Extra-StateWarData_v4.0.csv` | 4.0 | 2011-12-08 | COW war-data release note | [Data](https://correlatesofwar.org/wp-content/uploads/Extra-StateWarData_v4.0.csv)<br>[Doc](https://correlatesofwar.org/wp-content/uploads/Extra-StateWars_Codebook.pdf) |
+| `source_interstate_mid_dyads` | Correlates of War Project (COW) | `dyadic_mid_4.03.csv` | 4.03 | 2025-04-06 | WordPress media attachment date | [Release](https://correlatesofwar.org/wp-content/uploads/dyadic_mid_4.03_update.zip) |
+| `source_interstate_war_dyads` | Correlates of War Project (COW) | `directed_dyadic_war.csv` | unversioned | 2022-07-12 | WordPress media attachment date | [Release](https://correlatesofwar.org/wp-content/uploads/Dyadic-Interstate-War-Dataset.zip) |
+| `source_interstate_wars` | Correlates of War Project (COW) | `Inter-StateWarData_v4.0.csv` | 4.0 | 2011-03-01 | COW war-data release note | [Data](https://correlatesofwar.org/wp-content/uploads/Inter-StateWarData_v4.0.csv)<br>[Doc 1](https://correlatesofwar.org/wp-content/uploads/Inter-StateWars_Codebook.pdf)<br>[Doc 2](https://correlatesofwar.org/wp-content/uploads/Inter-StateWarsList.pdf) |
+| `source_intrastate_wars` | Correlates of War Project (COW) | `INTRA-STATE_State_participants v5.1 CSV.csv` | 5.1 | 2020-04-06 | COW war-data release note | [Release](https://correlatesofwar.org/wp-content/uploads/Intra-State-Wars-v5.1.zip) |
 
-Release dates above use the COW war-data page when that page states the day a source became available. For Step 1 files
-without a dated release note on the source page, the date is the COW WordPress media attachment date for the exact file
-URL the pipeline downloads. Local PDF text and metadata were checked but are treated as documentation/build metadata
-unless they explicitly identify the current source file's release date.
+Local PDF text and metadata were checked but are treated as documentation/build metadata unless they explicitly identify
+the current source file's release date.
 
 ### Step 2 Source Tables
 
