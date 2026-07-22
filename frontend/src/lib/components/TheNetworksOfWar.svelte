@@ -116,13 +116,7 @@
   }
 
   function updateWarValue(event) {
-    let nextWar = event.detail.d
-
-    selectValue.war = nextWar
-
-    if (nextWar && selectValue.country && !selectValue.country.warIds.has(nextWar.value)) {
-      selectValue.country = null
-    }
+    selectValue.war = event.detail.d
   }
 
   function emptyNodeMargins() {
@@ -312,11 +306,7 @@
     war => !selectedCountryWarIds || selectedCountryWarIds.has(String(war.war_id))
   )
   $: {
-    let nextCountryItems = countryItemsForWars(
-      selectValue.war
-        ? filteredWarsByType.filter(war => String(war.war_id) == selectValue.war.value)
-        : filteredWarsByType
-    )
+    let nextCountryItems = countryItemsForWars(filteredWarsByType)
 
     selectItems.country = nextCountryItems
     syncSelectValue("country", nextCountryItems)
