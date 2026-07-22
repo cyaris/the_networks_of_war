@@ -198,6 +198,7 @@
   let selectedWar = null
 
   let width = 900
+  let viewportWidth = 900
   let viewportHeight = 700
   let simulation
   let svg
@@ -1073,6 +1074,7 @@
       ? metricTooltip(selectValue.linkDescriptor.value, controlTooltips.link_dash)
       : controlTooltips.link_dash
   }
+  $: warSecondaryLabelIdentifier = viewportWidth < 640 ? "mobileSecondaryLabel" : "secondaryLabel"
   $: sizingSignature = `${selectValue.timeframe?.value || "all_years"}|${selectValue.nodeDescriptor?.value || "none"}|${width}|${graphLayout.height}|${graphLayout.pressure}|${nodes.length}|${links.length}`
   $: if (nodes.length && sizingSignature != currentSizingSignature) {
     currentSizingSignature = sizingSignature
@@ -1106,7 +1108,12 @@
   })
 </script>
 
-<svelte:window bind:innerHeight={viewportHeight} on:pointermove={drag} on:pointerup={endDrag} />
+<svelte:window
+  bind:innerWidth={viewportWidth}
+  bind:innerHeight={viewportHeight}
+  on:pointermove={drag}
+  on:pointerup={endDrag}
+/>
 <main class="relative flex h-full w-full flex-col items-center justify-center" data-svelte-lib-tooltip-root>
   <div class="box-border flex w-full flex-col gap-4 px-3 py-4 min-[1300px]:w-[70%] min-[1300px]:px-0 min-[1300px]:py-5">
     <section class="network-filter-panel grid min-w-0 gap-3 border border-[#d8d3c4] bg-white p-3 min-[1300px]:p-4">
@@ -1153,7 +1160,7 @@
           value={selectValue.war}
           groupBy="war_type"
           labelConstruction={true}
-          secondaryLabelIdentifier="secondaryLabel"
+          secondaryLabelIdentifier={warSecondaryLabelIdentifier}
           placeholder="Select a war"
           noItemsMessage={selectNoItemsMessage.war}
           on:valueChange={updateWarValue}
