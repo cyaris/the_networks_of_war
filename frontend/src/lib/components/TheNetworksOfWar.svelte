@@ -92,10 +92,6 @@
     }
   }
 
-  function selectedWarTypesIncludes(war) {
-    return selectedWarTypeValues.includes(war.war_type)
-  }
-
   function countryItemsForWars(warList) {
     let availableWarIds = new Set(warList.map(war => String(war.war_id)))
 
@@ -310,7 +306,7 @@
   }
   $: selectedWarTypeValues = selectedWarTypes?.length ? selectedWarTypes : []
   $: selectedCountryWarIds = selectValue.country?.warIds
-  $: filteredWarsByType = wars.filter(selectedWarTypesIncludes)
+  $: filteredWarsByType = wars.filter(war => selectedWarTypeValues.includes(war.war_type))
   $: filteredWars = filteredWarsByType.filter(
     war => !selectedCountryWarIds || selectedCountryWarIds.has(String(war.war_id))
   )
