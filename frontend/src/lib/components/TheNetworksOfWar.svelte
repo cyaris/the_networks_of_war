@@ -183,6 +183,10 @@
   const nodeSizeWarningLabelGap = 14
   const maxVisibleNodeSizeWarnings = 6
   const graphCenterY = height * 0.5
+  const controlLabelClasses = "mb-1 flex items-center gap-2 text-sm font-extrabold text-[#596b64]"
+  const summaryLabelClasses = "font-bold text-[#60706a]"
+  const tooltipLabelClasses = "font-bold text-[#33413c]"
+  const tooltipMetricLabelClasses = "font-semibold text-[#33413c]"
   const addedMarginSize = Math.max(linkNodeSize, 10)
   const tooltipOffset = 16
   const tooltipPadding = 8
@@ -1027,280 +1031,277 @@
   <div class="px-8 py-12 text-center text-lg min-[1300px]:hidden">
     This visualization is best viewed on a larger screen. So, grab a computer and come back soon!
   </div>
-  <div class="hidden min-[1300px]:block" style="width:{pageWidth ? pageWidth * 0.7 : 0}px">
-    <div class="mx-auto flex w-full flex-col gap-4 py-5">
-      <section class="grid gap-3 border border-[#d8d3c4] bg-white p-4">
-        <div>
-          <div class="mb-2 text-sm font-extrabold text-[#596b64]">War Types</div>
-          <div class="flex flex-wrap gap-x-5 gap-y-2 text-sm">
-            {#each warTypeItems as warTypeItem (warTypeItem.value)}
-              <CheckboxFilter
-                labelClasses="mb-0 font-medium"
-                label={warTypeItem.label}
-                value={warTypeItem.value}
-                selection={selectedWarTypes}
-                deselection={deselectedWarTypes}
-                on:update={({ detail }) => {
-                  selectedWarTypes = detail.selection
-                  deselectedWarTypes = detail.deselection
-                }}
-              />
-            {/each}
-          </div>
+  <div class="hidden flex-col gap-4 py-5 min-[1300px]:flex" style="width:{pageWidth ? pageWidth * 0.7 : 0}px">
+    <section class="grid gap-3 border border-[#d8d3c4] bg-white p-4">
+      <div>
+        <div class="mb-2 text-sm font-extrabold text-[#596b64]">War Types</div>
+        <div class="flex flex-wrap gap-x-5 gap-y-2 text-sm">
+          {#each warTypeItems as warTypeItem (warTypeItem.value)}
+            <CheckboxFilter
+              labelClasses="mb-0 font-medium"
+              label={warTypeItem.label}
+              value={warTypeItem.value}
+              selection={selectedWarTypes}
+              deselection={deselectedWarTypes}
+              on:update={({ detail }) => {
+                selectedWarTypes = detail.selection
+                deselectedWarTypes = detail.deselection
+              }}
+            />
+          {/each}
         </div>
-        <div>
-          <div class="mb-1 flex items-center gap-2 text-sm font-extrabold text-[#596b64]">
-            Country
-            <InfoIcon title={controlTooltips.country} tooltipClasses="max-w-80" />
-          </div>
-          <Select
-            items={selectItems.country}
-            value={selectValue.country}
-            labelConstruction={true}
-            secondaryLabelIdentifier="secondaryLabel"
-            placeholder="Filter by country"
-            noItemsMessage="No countries available."
-            on:valueChange={({ detail: e }) => (selectValue.country = e.d)}
-          />
+      </div>
+      <div>
+        <div class={controlLabelClasses}>
+          Country
+          <InfoIcon title={controlTooltips.country} tooltipClasses="max-w-80" />
         </div>
-        <div>
-          <div class="mb-1 flex items-center gap-2 text-sm font-extrabold text-[#596b64]">
-            War
-            <InfoIcon title={controlTooltips.war} tooltipClasses="max-w-80" />
-          </div>
-          <Select
-            items={selectItems.war}
-            value={selectValue.war}
-            groupBy="war_type"
-            labelConstruction={true}
-            secondaryLabelIdentifier="secondaryLabel"
-            placeholder="Select a war"
-            noItemsMessage="No wars match the selected filters."
-            on:valueChange={({ detail: e }) => (selectValue.war = e.d)}
-          />
+        <Select
+          items={selectItems.country}
+          value={selectValue.country}
+          labelConstruction={true}
+          secondaryLabelIdentifier="secondaryLabel"
+          placeholder="Filter by country"
+          noItemsMessage="No countries available."
+          on:valueChange={({ detail: e }) => (selectValue.country = e.d)}
+        />
+      </div>
+      <div>
+        <div class={controlLabelClasses}>
+          War
+          <InfoIcon title={controlTooltips.war} tooltipClasses="max-w-80" />
         </div>
-      </section>
-      <div class="relative w-full overflow-hidden border border-solid border-black">
-        <section class="min-h-[690px] bg-[#fbfcf9]" bind:clientWidth={width}>
-          <div class="flex flex-col gap-4 border-b border-[#d2d7d3] bg-white px-4 py-3">
-            {#if selectedWar}
-              <div class="grid gap-3 text-sm md:grid-cols-3 md:items-start">
-                <div class="grid gap-1 font-semibold">
-                  <div>
-                    <span class="font-bold text-[#60706a]">Type:</span>
-                    {selectedWar.war_type}
-                  </div>
-                  <div>
-                    <span class="font-bold text-[#60706a]">Subtype:</span>
-                    {selectedWar.war_subtype || "Unspecified"}
-                  </div>
-                </div>
-                <div class="self-center text-center">
-                  <div class="text-base font-extrabold">{selectedWar.war_name}</div>
-                  <div class="mt-1 font-semibold text-[#60706a]">
-                    {selectedWar.ongoing_war
-                      ? `${selectedWar.start_year}-Present`
-                      : selectedWar.start_year == selectedWar.end_year
-                        ? String(selectedWar.start_year)
-                        : `${selectedWar.start_year}-${selectedWar.end_year}`}
-                    ({Number(selectedWar.total_days_in_war || 0).toLocaleString()} days)
-                  </div>
-                </div>
-                <div aria-hidden="true"></div>
-              </div>
-            {/if}
-            {#if nodes.length}
-              <div class="grid gap-3 md:grid-cols-3">
+        <Select
+          items={selectItems.war}
+          value={selectValue.war}
+          groupBy="war_type"
+          labelConstruction={true}
+          secondaryLabelIdentifier="secondaryLabel"
+          placeholder="Select a war"
+          noItemsMessage="No wars match the selected filters."
+          on:valueChange={({ detail: e }) => (selectValue.war = e.d)}
+        />
+      </div>
+    </section>
+    <div class="relative w-full overflow-hidden border border-black">
+      <section class="min-h-[690px] bg-[#fbfcf9]" bind:clientWidth={width}>
+        <div class="flex flex-col gap-4 border-b border-[#d2d7d3] bg-white px-4 py-3">
+          {#if selectedWar}
+            <div class="grid gap-3 text-sm md:grid-cols-3 md:items-start">
+              <div class="grid gap-1 font-semibold">
                 <div>
-                  <div class="mb-1 flex items-center gap-2 text-sm font-extrabold text-[#596b64]">
-                    Timeframe
-                    <InfoIcon title={controlTooltips.timeframe} tooltipClasses="max-w-80" />
-                  </div>
-                  <Select
-                    items={selectItems.timeframe}
-                    value={selectValue.timeframe}
-                    placeholder={timeframePlaceholder}
-                    noItemsMessage={noTimeframeItemsMessage}
-                    clearable={false}
-                    disabled={selectItems.timeframe.length <= 1}
-                    on:valueChange={({ detail: e }) => (selectValue.timeframe = e.d)}
-                  />
+                  <span class={summaryLabelClasses}>Type:</span>
+                  {selectedWar.war_type}
                 </div>
                 <div>
-                  <div class="mb-1 flex items-center gap-2 text-sm font-extrabold text-[#596b64]">
-                    Node Size
-                    <InfoIcon title={nodeDescriptorTooltip} tooltipClasses="max-w-96" />
-                  </div>
-                  <Select
-                    items={selectItems.nodeDescriptor}
-                    value={selectValue.nodeDescriptor}
-                    placeholder={nodeDescriptorPlaceholder}
-                    noItemsMessage={noNodeSizeItemsMessage}
-                    clearable={true}
-                    disabled={!selectItems.nodeDescriptor.length && !selectValue.nodeDescriptor}
-                    on:valueChange={({ detail: e }) => (selectValue.nodeDescriptor = e.d)}
-                  />
-                </div>
-                <div>
-                  <div class="mb-1 flex items-center gap-2 text-sm font-extrabold text-[#596b64]">
-                    Link Dash
-                    <InfoIcon title={linkDescriptorTooltip} tooltipClasses="max-w-96" />
-                  </div>
-                  <Select
-                    items={selectItems.linkDescriptor}
-                    value={selectValue.linkDescriptor}
-                    placeholder={linkDescriptorPlaceholder}
-                    noItemsMessage={noLinkDashItemsMessage}
-                    clearable={true}
-                    disabled={!selectItems.linkDescriptor.length && !selectValue.linkDescriptor}
-                    on:valueChange={updateLinkDescriptorValue}
-                  />
+                  <span class={summaryLabelClasses}>Subtype:</span>
+                  {selectedWar.war_subtype || "Unspecified"}
                 </div>
               </div>
-            {/if}
-          </div>
-          {#if nodes.length}
-            <div class="relative">
-              <svg
-                class="block w-full touch-none"
-                {height}
-                viewBox="0 0 {width} {height}"
-                role="img"
-                bind:this={svg}
-                on:pointermove={moveTooltip}
-                on:pointerleave={clearTooltip}
-              >
-                <g>
-                  {#each links as link, i (i)}
-                    <line
-                      x1={linkX(link, "source")}
-                      y1={linkY(link, "source")}
-                      x2={linkX(link, "target")}
-                      y2={linkY(link, "target")}
-                      stroke="#8a948f"
-                      stroke-opacity={0.45}
-                      stroke-width={1}
-                    />
-                    <line
-                      x1={linkX(link, "source")}
-                      y1={linkY(link, "source")}
-                      x2={linkX(link, "target")}
-                      y2={linkY(link, "target")}
-                      stroke={linkHasDescriptor(link) ? "blue" : "transparent"}
-                      stroke-opacity={0.9}
-                      stroke-width={linkDashStrokeWidth}
-                      stroke-dasharray="2.5 15"
-                      stroke-dashoffset={-7.5}
-                      style="transition: stroke-width 1000ms ease 50ms, stroke 1000ms ease 50ms;"
-                    />
-                  {/each}
-                </g>
-                <g role="list">
-                  {#each nodes as node (node.id)}
-                    {@const label = labelPosition(node)}
-                    <g
-                      class="cursor-grab active:cursor-grabbing"
-                      role="listitem"
-                      transform="translate({getXAdjusted(node.id, node.x)}, {getYAdjusted(node.id, node.y)})"
-                      on:pointerdown={event => startDrag(node, event)}
-                      on:pointerenter={event => showTooltip(node, event)}
-                      on:pointermove={event => showTooltip(node, event)}
-                      on:pointerleave={clearTooltip}
-                    >
-                      <circle
-                        r={nodeRadius(node)}
-                        fill={sideColors[node.side]}
-                        stroke="black"
-                        stroke-width={hoverNode?.id == node.id ? nodeStrokeWidth + 0.75 : nodeStrokeWidth}
-                        style="transition: r 3000ms ease 500ms, stroke-width 150ms ease;"
-                      />
-                      <g
-                        style="transform: translate({label.x}px, {label.y}px); transition: transform 2000ms ease 1500ms;"
-                      >
-                        <text
-                          class="text-[12px] font-bold"
-                          text-anchor={label.anchor}
-                          fill={label.inside ? "white" : "#111827"}
-                          stroke={label.inside ? "none" : "white"}
-                          stroke-width={label.inside ? 0 : 3}
-                          paint-order="stroke"
-                          style="transition: fill 2000ms ease 1500ms, stroke 2000ms ease 1500ms;"
-                        >
-                          {node.participant}
-                        </text>
-                      </g>
-                      {#if showNodeSizeWarning(node)}
-                        {@const warningPosition = nodeSizeWarningPosition(node, label)}
-                        <g
-                          style="transform: translate({warningPosition.x}px, {warningPosition.y}px); transition: transform 2000ms ease 1500ms;"
-                        >
-                          <text
-                            class="text-[10px] font-extrabold"
-                            text-anchor="middle"
-                            dominant-baseline="central"
-                            fill="#111827"
-                            stroke="white"
-                            stroke-width={2.5}
-                            paint-order="stroke"
-                          >
-                            ?
-                          </text>
-                        </g>
-                      {/if}
-                    </g>
-                  {/each}
-                </g>
-              </svg>
-              {#if tooltip}
-                {@const metricRows = nodeMetricRows(tooltip.node)}
-                <div
-                  class="pointer-events-none absolute z-20 max-w-sm border border-[#c4cec8] bg-white px-3 py-2 text-xs shadow-sm"
-                  style="left: {tooltip.x}px; top: {tooltip.y}px;"
-                  bind:clientWidth={tooltipWidth}
-                  bind:clientHeight={tooltipHeight}
-                >
-                  <div class="text-sm font-extrabold">{tooltip.node.participant}</div>
-                  <div class="mt-1 space-y-0.5 text-[#50615b]">
-                    <div>
-                      <span class="font-bold text-[#33413c]">Start Date:</span>
-                      {displayDate(tooltip.node.start_date, tooltip.node.start_date_estimated)}
-                    </div>
-                    <div>
-                      <span class="font-bold text-[#33413c]">End Date:</span>
-                      {Number(tooltip.node.ongoing_war) == 1
-                        ? "Ongoing"
-                        : displayDate(tooltip.node.end_date, tooltip.node.end_date_estimated)}
-                    </div>
-                    <div class="mb-2">
-                      <span class="font-bold text-[#33413c]">Days At War:</span>
-                      {displayMetricNumber(tooltip.node.metrics?.all_years?.days_at_war, "days_at_war")}
-                    </div>
-                  </div>
-                  {#if metricRows.length}
-                    <div class="mt-2 border-t border-[#dfe5e1] pt-1.5">
-                      <div class="mb-1 font-extrabold text-[#33413c]">
-                        Timeframe: {selectValue.timeframe?.label || "All Years"}
-                      </div>
-                      <div class="space-y-0.5 text-[#50615b]">
-                        {#each metricRows as row (row.field)}
-                          <div>
-                            <span class="font-semibold text-[#33413c]">{row.label}:</span>
-                            {row.value}
-                          </div>
-                        {/each}
-                      </div>
-                    </div>
-                  {/if}
+              <div class="self-center text-center">
+                <div class="text-base font-extrabold">{selectedWar.war_name}</div>
+                <div class="mt-1 font-semibold text-[#60706a]">
+                  {selectedWar.ongoing_war
+                    ? `${selectedWar.start_year}-Present`
+                    : selectedWar.start_year == selectedWar.end_year
+                      ? String(selectedWar.start_year)
+                      : `${selectedWar.start_year}-${selectedWar.end_year}`}
+                  ({Number(selectedWar.total_days_in_war || 0).toLocaleString()} days)
                 </div>
-              {/if}
-            </div>
-          {:else}
-            <div class="flex h-[700px] items-center justify-center px-6 text-center text-[#60706a]">
-              No graph rows are available for the current selection.
+              </div>
             </div>
           {/if}
-        </section>
-      </div>
+          {#if nodes.length}
+            <div class="grid gap-3 md:grid-cols-3">
+              <div>
+                <div class={controlLabelClasses}>
+                  Timeframe
+                  <InfoIcon title={controlTooltips.timeframe} tooltipClasses="max-w-80" />
+                </div>
+                <Select
+                  items={selectItems.timeframe}
+                  value={selectValue.timeframe}
+                  placeholder={timeframePlaceholder}
+                  noItemsMessage={noTimeframeItemsMessage}
+                  clearable={false}
+                  disabled={selectItems.timeframe.length <= 1}
+                  on:valueChange={({ detail: e }) => (selectValue.timeframe = e.d)}
+                />
+              </div>
+              <div>
+                <div class={controlLabelClasses}>
+                  Node Size
+                  <InfoIcon title={nodeDescriptorTooltip} tooltipClasses="max-w-96" />
+                </div>
+                <Select
+                  items={selectItems.nodeDescriptor}
+                  value={selectValue.nodeDescriptor}
+                  placeholder={nodeDescriptorPlaceholder}
+                  noItemsMessage={noNodeSizeItemsMessage}
+                  clearable={true}
+                  disabled={!selectItems.nodeDescriptor.length && !selectValue.nodeDescriptor}
+                  on:valueChange={({ detail: e }) => (selectValue.nodeDescriptor = e.d)}
+                />
+              </div>
+              <div>
+                <div class={controlLabelClasses}>
+                  Link Dash
+                  <InfoIcon title={linkDescriptorTooltip} tooltipClasses="max-w-96" />
+                </div>
+                <Select
+                  items={selectItems.linkDescriptor}
+                  value={selectValue.linkDescriptor}
+                  placeholder={linkDescriptorPlaceholder}
+                  noItemsMessage={noLinkDashItemsMessage}
+                  clearable={true}
+                  disabled={!selectItems.linkDescriptor.length && !selectValue.linkDescriptor}
+                  on:valueChange={updateLinkDescriptorValue}
+                />
+              </div>
+            </div>
+          {/if}
+        </div>
+        {#if nodes.length}
+          <div class="relative">
+            <svg
+              class="block w-full touch-none"
+              {height}
+              viewBox="0 0 {width} {height}"
+              role="img"
+              bind:this={svg}
+              on:pointermove={moveTooltip}
+              on:pointerleave={clearTooltip}
+            >
+              <g>
+                {#each links as link, i (i)}
+                  <line
+                    x1={linkX(link, "source")}
+                    y1={linkY(link, "source")}
+                    x2={linkX(link, "target")}
+                    y2={linkY(link, "target")}
+                    stroke="#8a948f"
+                    stroke-opacity={0.45}
+                    stroke-width={1}
+                  />
+                  <line
+                    x1={linkX(link, "source")}
+                    y1={linkY(link, "source")}
+                    x2={linkX(link, "target")}
+                    y2={linkY(link, "target")}
+                    stroke={linkHasDescriptor(link) ? "blue" : "transparent"}
+                    stroke-opacity={0.9}
+                    stroke-width={linkDashStrokeWidth}
+                    stroke-dasharray="2.5 15"
+                    stroke-dashoffset={-7.5}
+                    style="transition: stroke-width 1000ms ease 50ms, stroke 1000ms ease 50ms;"
+                  />
+                {/each}
+              </g>
+              <g role="list">
+                {#each nodes as node (node.id)}
+                  {@const label = labelPosition(node)}
+                  <g
+                    class="cursor-grab active:cursor-grabbing"
+                    role="listitem"
+                    transform="translate({getXAdjusted(node.id, node.x)}, {getYAdjusted(node.id, node.y)})"
+                    on:pointerdown={event => startDrag(node, event)}
+                    on:pointerenter={event => showTooltip(node, event)}
+                    on:pointermove={event => showTooltip(node, event)}
+                    on:pointerleave={clearTooltip}
+                  >
+                    <circle
+                      r={nodeRadius(node)}
+                      fill={sideColors[node.side]}
+                      stroke="black"
+                      stroke-width={hoverNode?.id == node.id ? nodeStrokeWidth + 0.75 : nodeStrokeWidth}
+                      style="transition: r 3000ms ease 500ms, stroke-width 150ms ease;"
+                    />
+                    <g
+                      style="transform: translate({label.x}px, {label.y}px); transition: transform 2000ms ease 1500ms;"
+                    >
+                      <text
+                        class="text-[12px] font-bold"
+                        text-anchor={label.anchor}
+                        fill={label.inside ? "white" : "#111827"}
+                        stroke={label.inside ? "none" : "white"}
+                        stroke-width={label.inside ? 0 : 3}
+                        paint-order="stroke"
+                        style="transition: fill 2000ms ease 1500ms, stroke 2000ms ease 1500ms;"
+                      >
+                        {node.participant}
+                      </text>
+                    </g>
+                    {#if showNodeSizeWarning(node)}
+                      {@const warningPosition = nodeSizeWarningPosition(node, label)}
+                      <g
+                        style="transform: translate({warningPosition.x}px, {warningPosition.y}px); transition: transform 2000ms ease 1500ms;"
+                      >
+                        <text
+                          class="text-[10px] font-extrabold"
+                          text-anchor="middle"
+                          dominant-baseline="central"
+                          fill="#111827"
+                          stroke="white"
+                          stroke-width={2.5}
+                          paint-order="stroke"
+                        >
+                          ?
+                        </text>
+                      </g>
+                    {/if}
+                  </g>
+                {/each}
+              </g>
+            </svg>
+            {#if tooltip}
+              {@const metricRows = nodeMetricRows(tooltip.node)}
+              <div
+                class="pointer-events-none absolute z-20 max-w-sm border border-[#c4cec8] bg-white px-3 py-2 text-xs shadow-sm"
+                style="left: {tooltip.x}px; top: {tooltip.y}px;"
+                bind:clientWidth={tooltipWidth}
+                bind:clientHeight={tooltipHeight}
+              >
+                <div class="text-sm font-extrabold">{tooltip.node.participant}</div>
+                <div class="mt-1 space-y-0.5 text-[#50615b]">
+                  <div>
+                    <span class={tooltipLabelClasses}>Start Date:</span>
+                    {displayDate(tooltip.node.start_date, tooltip.node.start_date_estimated)}
+                  </div>
+                  <div>
+                    <span class={tooltipLabelClasses}>End Date:</span>
+                    {Number(tooltip.node.ongoing_war) == 1
+                      ? "Ongoing"
+                      : displayDate(tooltip.node.end_date, tooltip.node.end_date_estimated)}
+                  </div>
+                  <div class="mb-2">
+                    <span class={tooltipLabelClasses}>Days At War:</span>
+                    {displayMetricNumber(tooltip.node.metrics?.all_years?.days_at_war, "days_at_war")}
+                  </div>
+                </div>
+                {#if metricRows.length}
+                  <div class="mt-2 border-t border-[#dfe5e1] pt-1.5">
+                    <div class="mb-1 font-extrabold text-[#33413c]">
+                      Timeframe: {selectValue.timeframe?.label || "All Years"}
+                    </div>
+                    <div class="space-y-0.5 text-[#50615b]">
+                      {#each metricRows as row (row.field)}
+                        <div>
+                          <span class={tooltipMetricLabelClasses}>{row.label}:</span>
+                          {row.value}
+                        </div>
+                      {/each}
+                    </div>
+                  </div>
+                {/if}
+              </div>
+            {/if}
+          </div>
+        {:else}
+          <div class="flex h-[700px] items-center justify-center px-6 text-center text-[#60706a]">
+            No graph rows are available for the current selection.
+          </div>
+        {/if}
+      </section>
     </div>
   </div>
 </main>
