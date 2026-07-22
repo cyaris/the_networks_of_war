@@ -16,9 +16,18 @@
     { value: "last_year", label: "Last Year" },
     { value: "all_years", label: "All Years" }
   ]
-  const noTimeframeItemsMessage = "No timeframe data available."
-  const noNodeSizeItemsMessage = "No node size data available."
-  const noLinkDashItemsMessage = "No link dash data available."
+  const selectNoItemsMessage = {
+    country: "No countries available.",
+    war: "No wars match the selected filters.",
+    timeframe: "No timeframe data available.",
+    nodeDescriptor: "No node size data available.",
+    linkDescriptor: "No link dash data available."
+  }
+  const selectFallbackPlaceholder = {
+    timeframe: "",
+    nodeDescriptor: "Choose a node size.",
+    linkDescriptor: "Choose a link dash."
+  }
   const metricDictionary = dataDictionary.metrics || {}
   const controlTooltips = dataDictionary.controls || {}
 
@@ -108,10 +117,7 @@
   let linkDashFieldCountsByWarId = Object.fromEntries(wars.map(war => [String(war.war_id), linkDashFieldCount(war)]))
   let warTypeItems = Array.from(new Set(wars.map(war => war.war_type)))
     .sort()
-    .map(warType => ({
-      value: warType,
-      label: warType
-    }))
+    .map(warType => ({ value: warType, label: warType }))
   let selectItems = {
     country: Object.values(countryFiltersByCCode)
       .map(country => {
@@ -143,7 +149,6 @@
   let deselectedWarTypes = []
   let graph = { nodes: [], links: [] }
   let selectedWar = null
-  let pageWidth
 
   let width = 900
   let simulation
@@ -497,10 +502,7 @@
 
       return {
         ...node,
-        metrics: {
-          ...(node.metrics || {}),
-          all_years: allYearMetrics
-        },
+        metrics: { ...(node.metrics || {}), all_years: allYearMetrics },
         all_years: {
           ...(node.all_years || {}),
           battle_deaths: battleDeaths,
@@ -664,10 +666,7 @@
     let labelDirection = label.x < 0 ? -1 : 1
     let labelWidth = nodeMargins.name_lengths[node.id] ?? textWidth(node.participant)
 
-    return {
-      x: label.x + labelDirection * (labelWidth / 2 + nodeSizeWarningLabelGap),
-      y: label.y
-    }
+    return { x: label.x + labelDirection * (labelWidth / 2 + nodeSizeWarningLabelGap), y: label.y }
   }
 
   function showNodeSizeWarning(node) {
@@ -700,11 +699,7 @@
         return field == selectValue.nodeDescriptor?.value
       })
       .sort((a, b) => fieldLabel(a).localeCompare(fieldLabel(b)))
-      .map(field => ({
-        field,
-        label: fieldLabel(field),
-        value: nodeMetricValue(node, metrics, field)
-      }))
+      .map(field => ({ field, label: fieldLabel(field), value: nodeMetricValue(node, metrics, field) }))
   }
 
   function linkHasDescriptor(link) {
@@ -818,10 +813,7 @@
   function tooltipBounds() {
     let rect = svg.parentElement.getBoundingClientRect()
 
-    return {
-      width: rect.width || width,
-      height: rect.height || height
-    }
+    return { width: rect.width || width, height: rect.height || height }
   }
 
   function clampTooltipCoordinates(x, y, bounds) {
@@ -978,17 +970,28 @@
     syncSelectValue("nodeDescriptor", nextNodeDescriptorItems)
     syncSelectValue("linkDescriptor", nextLinkDescriptorItems)
   }
-  $: timeframePlaceholder = !selectItems.timeframe.length && !selectValue.timeframe ? noTimeframeItemsMessage : ""
-  $: nodeDescriptorPlaceholder =
-    !selectItems.nodeDescriptor.length && !selectValue.nodeDescriptor ? noNodeSizeItemsMessage : "Choose a node size."
-  $: linkDescriptorPlaceholder =
-    !selectItems.linkDescriptor.length && !selectValue.linkDescriptor ? noLinkDashItemsMessage : "Choose a link dash."
-  $: nodeDescriptorTooltip = selectValue.nodeDescriptor?.value
-    ? metricTooltip(selectValue.nodeDescriptor.value, controlTooltips.node_size)
-    : controlTooltips.node_size
-  $: linkDescriptorTooltip = selectValue.linkDescriptor?.value
-    ? metricTooltip(selectValue.linkDescriptor.value, controlTooltips.link_dash)
-    : controlTooltips.link_dash
+  $: selectPlaceholder = {
+    timeframe:
+      !selectItems.timeframe.length && !selectValue.timeframe
+        ? selectNoItemsMessage.timeframe
+        : selectFallbackPlaceholder.timeframe,
+    nodeDescriptor:
+      !selectItems.nodeDescriptor.length && !selectValue.nodeDescriptor
+        ? selectNoItemsMessage.nodeDescriptor
+        : selectFallbackPlaceholder.nodeDescriptor,
+    linkDescriptor:
+      !selectItems.linkDescriptor.length && !selectValue.linkDescriptor
+        ? selectNoItemsMessage.linkDescriptor
+        : selectFallbackPlaceholder.linkDescriptor
+  }
+  $: selectTooltip = {
+    nodeDescriptor: selectValue.nodeDescriptor?.value
+      ? metricTooltip(selectValue.nodeDescriptor.value, controlTooltips.node_size)
+      : controlTooltips.node_size,
+    linkDescriptor: selectValue.linkDescriptor?.value
+      ? metricTooltip(selectValue.linkDescriptor.value, controlTooltips.link_dash)
+      : controlTooltips.link_dash
+  }
   $: sizingSignature = `${selectValue.timeframe?.value || "all_years"}|${selectValue.nodeDescriptor?.value || "none"}|${width}|${height}|${nodes.length}|${links.length}`
   $: if (nodes.length && sizingSignature != currentSizingSignature) {
     currentSizingSignature = sizingSignature
@@ -1023,19 +1026,14 @@
 </script>
 
 <svelte:window on:pointermove={drag} on:pointerup={endDrag} />
-<main
-  class="relative flex h-full w-full flex-col items-center justify-center"
-  bind:clientWidth={pageWidth}
-  data-svelte-lib-tooltip-root
->
-  <div class="px-8 py-12 text-center text-lg min-[1300px]:hidden">
-    This visualization is best viewed on a larger screen. So, grab a computer and come back soon!
-  </div>
-  <div class="hidden flex-col gap-4 py-5 min-[1300px]:flex" style="width:{pageWidth ? pageWidth * 0.7 : 0}px">
-    <section class="grid gap-3 border border-[#d8d3c4] bg-white p-4">
+<main class="relative flex h-full w-full flex-col items-center justify-center" data-svelte-lib-tooltip-root>
+  <div
+    class="box-border flex w-full max-w-full flex-col gap-4 px-3 py-4 min-[1300px]:w-[70%] min-[1300px]:px-0 min-[1300px]:py-5"
+  >
+    <section class="network-filter-panel grid min-w-0 gap-3 border border-[#d8d3c4] bg-white p-3 min-[1300px]:p-4">
       <div>
         <div class="mb-2 text-sm font-extrabold text-[#596b64]">War Types</div>
-        <div class="flex flex-wrap gap-x-5 gap-y-2 text-sm">
+        <div class="grid gap-2 text-sm sm:flex sm:flex-wrap sm:gap-x-5 sm:gap-y-2">
           {#each warTypeItems as warTypeItem (warTypeItem.value)}
             <CheckboxFilter
               labelClasses="mb-0 font-medium"
@@ -1062,7 +1060,7 @@
           labelConstruction={true}
           secondaryLabelIdentifier="secondaryLabel"
           placeholder="Filter by country"
-          noItemsMessage="No countries available."
+          noItemsMessage={selectNoItemsMessage.country}
           on:valueChange={({ detail: e }) => (selectValue.country = e.d)}
         />
       </div>
@@ -1078,17 +1076,19 @@
           labelConstruction={true}
           secondaryLabelIdentifier="secondaryLabel"
           placeholder="Select a war"
-          noItemsMessage="No wars match the selected filters."
+          noItemsMessage={selectNoItemsMessage.war}
           on:valueChange={({ detail: e }) => (selectValue.war = e.d)}
         />
       </div>
     </section>
     <div class="relative w-full overflow-hidden border border-black">
-      <section class="min-h-[690px] bg-[#fbfcf9]" bind:clientWidth={width}>
+      <section class="min-h-[690px] bg-[#fbfcf9]">
         <div class="flex flex-col gap-4 border-b border-[#d2d7d3] bg-white px-4 py-3">
           {#if selectedWar}
-            <div class="grid gap-3 text-sm md:grid-cols-3 md:items-start">
-              <div class="grid gap-1 font-semibold">
+            <div class="grid min-w-0 gap-3 text-sm min-[1300px]:grid-cols-3 min-[1300px]:items-start">
+              <div
+                class="order-2 mt-1 grid min-w-0 gap-1 text-center font-semibold min-[1300px]:order-1 min-[1300px]:mt-0 min-[1300px]:text-left"
+              >
                 <div>
                   <span class={summaryLabelClasses}>Type:</span>
                   {selectedWar.war_type}
@@ -1098,8 +1098,12 @@
                   {selectedWar.war_subtype || "Unspecified"}
                 </div>
               </div>
-              <div class="self-center text-center">
-                <div class="text-base font-extrabold">{selectedWar.war_name}</div>
+              <div class="order-1 min-w-0 self-center text-center min-[1300px]:order-2">
+                <div
+                  class="mx-auto max-w-full break-words px-2 text-sm font-extrabold leading-snug min-[1300px]:px-0 min-[1300px]:text-base min-[1300px]:leading-normal"
+                >
+                  {selectedWar.war_name}
+                </div>
                 <div class="mt-1 font-semibold text-[#60706a]">
                   {selectedWar.ongoing_war
                     ? `${selectedWar.start_year}-Present`
@@ -1121,8 +1125,8 @@
                 <Select
                   items={selectItems.timeframe}
                   value={selectValue.timeframe}
-                  placeholder={timeframePlaceholder}
-                  noItemsMessage={noTimeframeItemsMessage}
+                  placeholder={selectPlaceholder.timeframe}
+                  noItemsMessage={selectNoItemsMessage.timeframe}
                   clearable={false}
                   disabled={selectItems.timeframe.length <= 1}
                   on:valueChange={({ detail: e }) => (selectValue.timeframe = e.d)}
@@ -1131,13 +1135,13 @@
               <div>
                 <div class={controlLabelClasses}>
                   Node Size
-                  <InfoIcon title={nodeDescriptorTooltip} tooltipClasses="max-w-96" />
+                  <InfoIcon title={selectTooltip.nodeDescriptor} tooltipClasses="max-w-96" />
                 </div>
                 <Select
                   items={selectItems.nodeDescriptor}
                   value={selectValue.nodeDescriptor}
-                  placeholder={nodeDescriptorPlaceholder}
-                  noItemsMessage={noNodeSizeItemsMessage}
+                  placeholder={selectPlaceholder.nodeDescriptor}
+                  noItemsMessage={selectNoItemsMessage.nodeDescriptor}
                   clearable={true}
                   disabled={!selectItems.nodeDescriptor.length && !selectValue.nodeDescriptor}
                   on:valueChange={({ detail: e }) => (selectValue.nodeDescriptor = e.d)}
@@ -1146,13 +1150,13 @@
               <div>
                 <div class={controlLabelClasses}>
                   Link Dash
-                  <InfoIcon title={linkDescriptorTooltip} tooltipClasses="max-w-96" />
+                  <InfoIcon title={selectTooltip.linkDescriptor} tooltipClasses="max-w-96" />
                 </div>
                 <Select
                   items={selectItems.linkDescriptor}
                   value={selectValue.linkDescriptor}
-                  placeholder={linkDescriptorPlaceholder}
-                  noItemsMessage={noLinkDashItemsMessage}
+                  placeholder={selectPlaceholder.linkDescriptor}
+                  noItemsMessage={selectNoItemsMessage.linkDescriptor}
                   clearable={true}
                   disabled={!selectItems.linkDescriptor.length && !selectValue.linkDescriptor}
                   on:valueChange={updateLinkDescriptorValue}
@@ -1161,147 +1165,161 @@
             </div>
           {/if}
         </div>
-        {#if nodes.length}
-          <div class="relative">
-            <svg
-              class="block w-full touch-none"
-              {height}
-              viewBox="0 0 {width} {height}"
-              role="img"
-              bind:this={svg}
-              on:pointermove={moveTooltip}
-              on:pointerleave={clearTooltip}
-            >
-              <g>
-                {#each links as link, i (i)}
-                  <line
-                    x1={linkX(link, "source")}
-                    y1={linkY(link, "source")}
-                    x2={linkX(link, "target")}
-                    y2={linkY(link, "target")}
-                    stroke="#8a948f"
-                    stroke-opacity={0.45}
-                    stroke-width={1}
-                  />
-                  <line
-                    x1={linkX(link, "source")}
-                    y1={linkY(link, "source")}
-                    x2={linkX(link, "target")}
-                    y2={linkY(link, "target")}
-                    stroke={linkHasDescriptor(link) ? "blue" : "transparent"}
-                    stroke-opacity={0.9}
-                    stroke-width={linkDashStrokeWidth}
-                    stroke-dasharray="2.5 15"
-                    stroke-dashoffset={-7.5}
-                    style="transition: stroke-width 1000ms ease 50ms, stroke 1000ms ease 50ms;"
-                  />
-                {/each}
-              </g>
-              <g role="list">
-                {#each nodes as node (node.id)}
-                  {@const label = labelPosition(node)}
-                  <g
-                    class="cursor-grab active:cursor-grabbing"
-                    role="listitem"
-                    transform="translate({getXAdjusted(node.id, node.x)}, {getYAdjusted(node.id, node.y)})"
-                    on:pointerdown={event => startDrag(node, event)}
-                    on:pointerenter={event => showTooltip(node, event)}
-                    on:pointermove={event => showTooltip(node, event)}
-                    on:pointerleave={clearTooltip}
-                  >
-                    <circle
-                      r={nodeRadius(node)}
-                      fill={sideColors[node.side]}
-                      stroke="black"
-                      stroke-width={hoverNode?.id == node.id ? nodeStrokeWidth + 0.75 : nodeStrokeWidth}
-                      style="transition: r 3000ms ease 500ms, stroke-width 150ms ease;"
+        <div class="min-w-0">
+          <div class="relative w-full min-w-0" bind:clientWidth={width}>
+            {#if nodes.length}
+              <svg
+                class="block w-full touch-none"
+                {height}
+                viewBox="0 0 {width} {height}"
+                role="img"
+                bind:this={svg}
+                on:pointermove={moveTooltip}
+                on:pointerleave={clearTooltip}
+              >
+                <g>
+                  {#each links as link, i (i)}
+                    <line
+                      x1={linkX(link, "source")}
+                      y1={linkY(link, "source")}
+                      x2={linkX(link, "target")}
+                      y2={linkY(link, "target")}
+                      stroke="#8a948f"
+                      stroke-opacity={0.45}
+                      stroke-width={1}
                     />
+                    <line
+                      x1={linkX(link, "source")}
+                      y1={linkY(link, "source")}
+                      x2={linkX(link, "target")}
+                      y2={linkY(link, "target")}
+                      stroke={linkHasDescriptor(link) ? "blue" : "transparent"}
+                      stroke-opacity={0.9}
+                      stroke-width={linkDashStrokeWidth}
+                      stroke-dasharray="2.5 15"
+                      stroke-dashoffset={-7.5}
+                      style="transition: stroke-width 1000ms ease 50ms, stroke 1000ms ease 50ms;"
+                    />
+                  {/each}
+                </g>
+                <g role="list">
+                  {#each nodes as node (node.id)}
+                    {@const label = labelPosition(node)}
                     <g
-                      style="transform: translate({label.x}px, {label.y}px); transition: transform 2000ms ease 1500ms;"
+                      class="cursor-grab active:cursor-grabbing"
+                      role="listitem"
+                      transform="translate({getXAdjusted(node.id, node.x)}, {getYAdjusted(node.id, node.y)})"
+                      on:pointerdown={event => startDrag(node, event)}
+                      on:pointerenter={event => showTooltip(node, event)}
+                      on:pointermove={event => showTooltip(node, event)}
+                      on:pointerleave={clearTooltip}
                     >
-                      <text
-                        class="text-[12px] font-bold"
-                        text-anchor={label.anchor}
-                        fill={label.inside ? "white" : "#111827"}
-                        stroke={label.inside ? "none" : "white"}
-                        stroke-width={label.inside ? 0 : 3}
-                        paint-order="stroke"
-                        style="transition: fill 2000ms ease 1500ms, stroke 2000ms ease 1500ms;"
-                      >
-                        {node.participant}
-                      </text>
-                    </g>
-                    {#if showNodeSizeWarning(node)}
-                      {@const warningPosition = nodeSizeWarningPosition(node, label)}
+                      <circle
+                        r={nodeRadius(node)}
+                        fill={sideColors[node.side]}
+                        stroke="black"
+                        stroke-width={hoverNode?.id == node.id ? nodeStrokeWidth + 0.75 : nodeStrokeWidth}
+                        style="transition: r 3000ms ease 500ms, stroke-width 150ms ease;"
+                      />
                       <g
-                        style="transform: translate({warningPosition.x}px, {warningPosition.y}px); transition: transform 2000ms ease 1500ms;"
+                        style="transform: translate({label.x}px, {label.y}px); transition: transform 2000ms ease 1500ms;"
                       >
                         <text
-                          class="text-[10px] font-extrabold"
-                          text-anchor="middle"
-                          dominant-baseline="central"
-                          fill="#111827"
-                          stroke="white"
-                          stroke-width={2.5}
+                          class="text-[12px] font-bold"
+                          text-anchor={label.anchor}
+                          fill={label.inside ? "white" : "#111827"}
+                          stroke={label.inside ? "none" : "white"}
+                          stroke-width={label.inside ? 0 : 3}
                           paint-order="stroke"
+                          style="transition: fill 2000ms ease 1500ms, stroke 2000ms ease 1500ms;"
                         >
-                          ?
+                          {node.participant}
                         </text>
                       </g>
-                    {/if}
-                  </g>
-                {/each}
-              </g>
-            </svg>
-            {#if tooltip}
-              {@const metricRows = nodeMetricRows(tooltip.node)}
-              <div
-                class="pointer-events-none absolute z-20 max-w-sm border border-[#c4cec8] bg-white px-3 py-2 text-xs shadow-sm"
-                style="left: {tooltip.x}px; top: {tooltip.y}px;"
-                bind:clientWidth={tooltipWidth}
-                bind:clientHeight={tooltipHeight}
-              >
-                <div class="text-sm font-extrabold">{tooltip.node.participant}</div>
-                <div class="mt-1 space-y-0.5 text-[#50615b]">
-                  <div>
-                    <span class={tooltipLabelClasses}>Start Date:</span>
-                    {displayDate(tooltip.node.start_date, tooltip.node.start_date_estimated)}
+                      {#if showNodeSizeWarning(node)}
+                        {@const warningPosition = nodeSizeWarningPosition(node, label)}
+                        <g
+                          style="transform: translate({warningPosition.x}px, {warningPosition.y}px); transition: transform 2000ms ease 1500ms;"
+                        >
+                          <text
+                            class="text-[10px] font-extrabold"
+                            text-anchor="middle"
+                            dominant-baseline="central"
+                            fill="#111827"
+                            stroke="white"
+                            stroke-width={2.5}
+                            paint-order="stroke"
+                          >
+                            ?
+                          </text>
+                        </g>
+                      {/if}
+                    </g>
+                  {/each}
+                </g>
+              </svg>
+              {#if tooltip}
+                {@const metricRows = nodeMetricRows(tooltip.node)}
+                <div
+                  class="pointer-events-none absolute z-20 max-w-sm border border-[#c4cec8] bg-white px-3 py-2 text-xs shadow-sm"
+                  style="left: {tooltip.x}px; top: {tooltip.y}px;"
+                  bind:clientWidth={tooltipWidth}
+                  bind:clientHeight={tooltipHeight}
+                >
+                  <div class="text-sm font-extrabold">{tooltip.node.participant}</div>
+                  <div class="mt-1 space-y-0.5 text-[#50615b]">
+                    <div>
+                      <span class={tooltipLabelClasses}>Start Date:</span>
+                      {displayDate(tooltip.node.start_date, tooltip.node.start_date_estimated)}
+                    </div>
+                    <div>
+                      <span class={tooltipLabelClasses}>End Date:</span>
+                      {Number(tooltip.node.ongoing_war) == 1
+                        ? "Ongoing"
+                        : displayDate(tooltip.node.end_date, tooltip.node.end_date_estimated)}
+                    </div>
+                    <div class="mb-2">
+                      <span class={tooltipLabelClasses}>Days At War:</span>
+                      {displayMetricNumber(tooltip.node.metrics?.all_years?.days_at_war, "days_at_war")}
+                    </div>
                   </div>
-                  <div>
-                    <span class={tooltipLabelClasses}>End Date:</span>
-                    {Number(tooltip.node.ongoing_war) == 1
-                      ? "Ongoing"
-                      : displayDate(tooltip.node.end_date, tooltip.node.end_date_estimated)}
-                  </div>
-                  <div class="mb-2">
-                    <span class={tooltipLabelClasses}>Days At War:</span>
-                    {displayMetricNumber(tooltip.node.metrics?.all_years?.days_at_war, "days_at_war")}
-                  </div>
+                  {#if metricRows.length}
+                    <div class="mt-2 border-t border-[#dfe5e1] pt-1.5">
+                      <div class="mb-1 font-extrabold text-[#33413c]">
+                        Timeframe: {selectValue.timeframe?.label || "All Years"}
+                      </div>
+                      <div class="space-y-0.5 text-[#50615b]">
+                        {#each metricRows as row (row.field)}
+                          <div>
+                            <span class={tooltipMetricLabelClasses}>{row.label}:</span>
+                            {row.value}
+                          </div>
+                        {/each}
+                      </div>
+                    </div>
+                  {/if}
                 </div>
-                {#if metricRows.length}
-                  <div class="mt-2 border-t border-[#dfe5e1] pt-1.5">
-                    <div class="mb-1 font-extrabold text-[#33413c]">
-                      Timeframe: {selectValue.timeframe?.label || "All Years"}
-                    </div>
-                    <div class="space-y-0.5 text-[#50615b]">
-                      {#each metricRows as row (row.field)}
-                        <div>
-                          <span class={tooltipMetricLabelClasses}>{row.label}:</span>
-                          {row.value}
-                        </div>
-                      {/each}
-                    </div>
-                  </div>
-                {/if}
+              {/if}
+            {:else}
+              <div class="flex h-[700px] items-center justify-center px-6 text-center text-[#60706a]">
+                No graph rows are available for the current selection.
               </div>
             {/if}
           </div>
-        {:else}
-          <div class="flex h-[700px] items-center justify-center px-6 text-center text-[#60706a]">
-            No graph rows are available for the current selection.
-          </div>
-        {/if}
+        </div>
       </section>
     </div>
   </div>
 </main>
+
+<style>
+  @media (max-width: 767px) {
+    .network-filter-panel :global(table td:last-child) {
+      display: none;
+    }
+
+    .network-filter-panel :global(table td:nth-child(2)) {
+      width: 100%;
+    }
+  }
+</style>
