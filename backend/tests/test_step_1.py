@@ -79,7 +79,8 @@ SOURCE_COW_CODE_COLUMNS = [
     ("source_intrastate_wars", ["c_code_a", "c_code_b"]),
 ]
 
-SQL_ROOT = Path(__file__).resolve().parents[1] / "sql"
+COW_CODE_COLUMN_NAMES = ("c_code", "c_code_a", "c_code_b")
+SQL_ROOT = Path(__file__).resolve().parents[1] / "src" / "sql"
 
 RAW_SOURCE_DATE_COMPONENTS = [
     (
@@ -323,17 +324,18 @@ def test_shared_participant_replacement_targets_do_not_cross_country_codes(conn)
 
 
 def test_expected_cow_code_fields_are_not_null(conn):
-    checks = [
-        ("source_interstate_wars", ["c_code"]),
-        ("source_interstate_war_dyads", ["c_code_a", "c_code_b"]),
-        ("source_interstate_mid_dyads", ["c_code_a", "c_code_b"]),
-        ("source_extrastate_wars", ["c_code_a", "c_code_b"]),
-        ("source_intrastate_wars", ["c_code_a", "c_code_b"]),
-        ("war_dyads", ["c_code_a", "c_code_b"]),
-        ("war_participants", ["c_code"]),
-        ("participants", ["c_code"]),
-        ("dyads", ["c_code_a", "c_code_b"]),
-    ]
+    checks_sql = f"""
+    select
+        table_name,
+        list(column_name order by ordinal_position) column_names
+    from information_schema.columns
+    where
+        table_schema = current_schema()
+        and column_name in ({", ".join(repr(column_name) for column_name in COW_CODE_COLUMN_NAMES)})
+    group by 1
+    order by 1
+    """
+    checks = query_result(conn, checks_sql).rows
     failures = []
 
     for table_name, columns in checks:

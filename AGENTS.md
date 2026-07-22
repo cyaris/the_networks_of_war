@@ -8,6 +8,38 @@
   `frontend/src/lib/static/metricDataDictionary.json` in the same change. Keep README references and any README metric
   summaries aligned with that JSON so users never see conflicting source, calculation, or unit descriptions.
 - Split long README assumption sections into small, scannable subsections rather than maintaining one long bullet list.
+- Prefer bullets and subbullets over inline listed-out prose in README and Markdown documentation when they make
+  concrete technical lists easier to scan, especially files, paths, source values/codes, table names, column names,
+  commands, and metrics. Keep short phrase lists in prose when bullets would make the text feel fragmented, and keep
+  tables when they make dense reference data easier to compare.
+- Do not use bullets solely to separate README command examples or other code-block sections. Introduce each code block
+  with a short prose sentence instead.
+- Do not place separate bullet groups directly next to each other when they document different concepts, because
+  Markdown can render them as one list. Use prose, a table, or an explicit subsection label to separate the concepts.
+- Keep each README bullet list focused on one kind of item. If a bullet stands out as metadata, a source note, an
+  example, a row identifier, or a downstream behavior note rather than a peer of the surrounding bullets, move it into
+  prose, a table, a new subsection, or a clearly labeled subbullet group.
+- When README bullet items are sentence fragments, omit trailing periods. Keep periods for bullets that are complete
+  sentences or contain multiple sentences.
+- Avoid starting README bullets with ambiguous pronouns such as `it`, `this`, or `these` unless the noun is explicit in
+  the same bullet. Repeat the noun when that makes the bullet clearer.
+- Avoid vague README verbs such as `use`, `provide`, `support`, or `available` when the relationship can be named more
+  directly. Prefer concrete wording that identifies the field, flag, table, file path, source, destination, or UI
+  behavior.
+- When documenting multiple README tables, files, or generated outputs, describe each item separately when a shared
+  description would become vague or hide meaningful differences.
+- Use prose instead of a bullet list when a section would contain only one bullet. Prefer prose over subbullets when a
+  nested list would have only two items, unless the pair needs extra visual separation to avoid ambiguity.
+- When an example supports an existing README bullet, make the example a subbullet under that point even when there is
+  only one example. Use `Example:` for one example and `Examples:` for multiple examples.
+- Let table-of-contents nesting reflect the document structure even when a section has only two children.
+- Keep documentation style guidance in AGENTS.md instead of the README.
+- Keep future maintainer instructions in AGENTS.md instead of the README. The README should describe project behavior,
+  data assumptions, commands, and outputs rather than telling future editors what they should do.
+- When documenting normalization or replacement rules, show the direction of the change with `source -> replacement`
+  example subbullets instead of listing only the affected source values or categories.
+- Keep frontend-specific build artifact notes near frontend setup or frontend commands instead of standalone top-level
+  README sections.
 - In Markdown files, always format the literal as `null`.
 - For data-related questions, consult the relevant source documentation in `backend/data/` before concluding whether a
   source value, adjustment, or transformation is correct.
@@ -25,6 +57,10 @@
   corresponding raw source data and PDF or JSON source documentation live inside each folder.
 - Keep source adjustments minimal and only add values that downstream joins, corrections, or transformations actually
   need.
+- For participant names, prefer `country_codes.state_name` for rows with COW codes. Use
+  `backend/manual/participant_name_replacements.json` only when the source name cannot resolve through a COW code, such
+  as non-state participants, uncoded manual rows, or source tables that do not carry `c_code` values. Replacement targets
+  may match `country_codes.state_name` only for no-code source inputs.
 - Do not include source columns documented as calculated in `source_` tables; derive those values in downstream
   transformation SQL when the project still needs them.
 - Do not preserve backward compatibility for removed or renamed project interfaces unless the user explicitly asks for a
@@ -32,4 +68,4 @@
 
 ## Notebooks
 
-- Do not update `.ipynb` files while working on the backend replacement unless explicitly requested.
+Do not update `.ipynb` files while working on the backend replacement unless explicitly requested.

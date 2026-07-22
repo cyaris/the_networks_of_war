@@ -51,6 +51,26 @@
     return items.find(item => item.linkDashFieldCount > 0) || items[0]
   }
 
+  function syncSelectValue(key, items, fallbackItem = null) {
+    let currentValue = selectValue[key]
+
+    if (!items.length) {
+      if (currentValue) selectValue[key] = null
+      return
+    }
+
+    let matchingItem = items.find(item => item.value == currentValue?.value)
+    let nextValue = matchingItem || fallbackItem
+
+    if (currentValue !== nextValue) {
+      selectValue[key] = nextValue
+    }
+  }
+
+  function syncWarSelectValue(items) {
+    syncSelectValue("war", items, preferredWarItem(items))
+  }
+
   function emptyNodeMargins() {
     return {
       name: {},
@@ -92,24 +112,35 @@
       value: warType,
       label: warType
     }))
-  let countryCodeItems = Object.values(countryFiltersByCCode)
-    .map(country => {
-      let label = Array.from(country.names).sort((a, b) => a.localeCompare(b))[0]
+  let selectItems = {
+    country: Object.values(countryFiltersByCCode)
+      .map(country => {
+        let label = Array.from(country.names).sort((a, b) => a.localeCompare(b))[0]
 
-      return {
-        value: String(country.c_code),
-        label,
-        selectedLabel: label,
-        secondaryLabel: plural(country.warIds.size, "war"),
-        c_code: country.c_code,
-        warIds: country.warIds
-      }
-    })
-    .sort((a, b) => a.label.localeCompare(b.label))
+        return {
+          value: String(country.c_code),
+          label,
+          selectedLabel: label,
+          secondaryLabel: plural(country.warIds.size, "war"),
+          c_code: country.c_code,
+          warIds: country.warIds
+        }
+      })
+      .sort((a, b) => a.label.localeCompare(b.label)),
+    war: [],
+    timeframe: timeframeItems,
+    nodeDescriptor: [],
+    linkDescriptor: []
+  }
+  let selectValue = {
+    country: null,
+    war: null,
+    timeframe: timeframeItems[2],
+    nodeDescriptor: null,
+    linkDescriptor: null
+  }
   let selectedWarTypes = warTypeItems.map(item => item.value)
   let deselectedWarTypes = []
-  let selectedCountryCodeItem = null
-  let selectedWarItem = null
   let graph = { nodes: [], links: [] }
   let selectedWar = null
   let pageWidth
@@ -162,6 +193,7 @@
   ]
   const compactNumberMinimum = 1_000_000
   const tooltipFractionDigits = 2
+  const fixedFractionDigitMetricFields = new Set(["cinc_score"])
   const alwaysShowZeroMetricFields = new Set(["battle_deaths", "battle_deaths_per_day"])
   const metricSuffixOmittedByField = new Set([
     "allied_countries",
@@ -187,36 +219,31 @@
     "tons",
     "wars"
   ])
-
-  let timeframeValue = timeframeItems[2]
-  let nodeDescriptorValue = null
-  let linkDescriptorValue = null
-
   const sideColors = { 1: "#2f7f66", 2: "#b54f72", 3: "#5f70b8", null: "#71717a", undefined: "#71717a" }
 
   $: graphCenterX = width * 0.5
   $: selectedWarTypeValues = selectedWarTypes?.length ? selectedWarTypes : []
-  $: selectedCountryWarIds = selectedCountryCodeItem?.warIds
+  $: selectedCountryWarIds = selectValue.country?.warIds
   $: filteredWars = wars.filter(
     war =>
       selectedWarTypeValues.includes(war.war_type) &&
       (!selectedCountryWarIds || selectedCountryWarIds.has(String(war.war_id)))
   )
-  $: warItems = filteredWars.map(war => ({
-    value: String(war.war_id),
-    label: war.war_name,
-    selectedLabel: war.war_name,
-    secondaryLabel: warSecondaryLabel(war),
-    war_type: war.war_type,
-    linkDashFieldCount: linkDashFieldCountsByWarId[String(war.war_id)] || 0,
-    war
-  }))
-  $: if (!warItems.length && selectedWarItem) {
-    selectedWarItem = null
-  } else if (warItems.length && !warItems.some(item => item.value == selectedWarItem?.value)) {
-    selectedWarItem = preferredWarItem(warItems)
+  $: {
+    let nextWarItems = filteredWars.map(war => ({
+      value: String(war.war_id),
+      label: war.war_name,
+      selectedLabel: war.war_name,
+      secondaryLabel: warSecondaryLabel(war),
+      war_type: war.war_type,
+      linkDashFieldCount: linkDashFieldCountsByWarId[String(war.war_id)] || 0,
+      war
+    }))
+
+    selectItems.war = nextWarItems
+    syncWarSelectValue(nextWarItems)
   }
-  $: selectedWar = selectedWarItem?.war
+  $: selectedWar = selectValue.war?.war
   $: graph = selectedWar ? graphForWar(selectedWar) : { nodes: [], links: [] }
 
   function numberValue(value) {
@@ -227,14 +254,14 @@
     return Number.isFinite(parsed) ? parsed : null
   }
 
-  function displayExactNumber(value) {
-    return value.toLocaleString("en-US", { maximumFractionDigits: tooltipFractionDigits })
+  function displayExactNumber(value, minimumFractionDigits = 0) {
+    return value.toLocaleString("en-US", { minimumFractionDigits, maximumFractionDigits: tooltipFractionDigits })
   }
 
-  function displayCompactNumber(value) {
+  function displayCompactNumber(value, minimumFractionDigits = 0) {
     let absoluteValue = Math.abs(value)
 
-    if (absoluteValue < compactNumberMinimum) return displayExactNumber(value)
+    if (absoluteValue < compactNumberMinimum) return displayExactNumber(value, minimumFractionDigits)
 
     let unit = compactNumberUnits.find(({ value: unitValue }) => absoluteValue >= unitValue)
 
@@ -265,8 +292,9 @@
     let prefix = metric.valuePrefix || ""
     let suffix = displayMetricSuffix(parsed, field, metric.valueSuffix || "")
     let suffixSeparator = suffix && !suffix.startsWith("%") ? " " : ""
+    let minimumFractionDigits = fixedFractionDigitMetricFields.has(field) ? tooltipFractionDigits : 0
 
-    return `${prefix}${displayCompactNumber(parsed)}${suffix ? `${suffixSeparator}${suffix}` : ""}`
+    return `${prefix}${displayCompactNumber(parsed, minimumFractionDigits)}${suffix ? `${suffixSeparator}${suffix}` : ""}`
   }
 
   function displayDate(value, estimated = false) {
@@ -329,7 +357,7 @@
       }))
   }
 
-  function descriptorValue(row, field, timeframe = timeframeValue?.value || "all_years") {
+  function descriptorValue(row, field, timeframe = selectValue.timeframe?.value || "all_years") {
     return row?.[timeframe]?.[field]
   }
 
@@ -495,7 +523,7 @@
     nodes.forEach(node => {
       let nodeSizing = nodeSizingById[node.id]
       let nodeIsUnknown = !nodeSizing || nodeSizing.isUnknown
-      let nodeHasSelectedDescriptor = Boolean(nodeDescriptorValue?.value)
+      let nodeHasSelectedDescriptor = Boolean(selectValue.nodeDescriptor?.value)
       let currentRadiusSize = nodeIsUnknown
         ? nodeHasSelectedDescriptor
           ? minRadiusSize
@@ -639,7 +667,7 @@
   }
 
   function showNodeSizeWarning(node) {
-    if (!showNodeSizeWarnings || !nodeDescriptorValue?.value || !hasNodeSizeSignal) return false
+    if (!showNodeSizeWarnings || !selectValue.nodeDescriptor?.value || !hasNodeSizeSignal) return false
 
     let nodeSizing = nodeSizingById[node.id]
 
@@ -656,7 +684,7 @@
   }
 
   function nodeMetricRows(node) {
-    let metrics = node.metrics?.[timeframeValue?.value || "all_years"] || {}
+    let metrics = node.metrics?.[selectValue.timeframe?.value || "all_years"] || {}
 
     return Object.keys(metrics)
       .filter(field => {
@@ -665,7 +693,7 @@
         if (field == "days_at_war" || value == null) return false
         if (value != 0 || alwaysShowZeroMetricFields.has(field)) return true
 
-        return field == nodeDescriptorValue?.value
+        return field == selectValue.nodeDescriptor?.value
       })
       .sort((a, b) => fieldLabel(a).localeCompare(fieldLabel(b)))
       .map(field => ({
@@ -676,7 +704,10 @@
   }
 
   function linkHasDescriptor(link) {
-    return linkDescriptorValue?.value && (numberValue(descriptorValue(link, linkDescriptorValue.value)) ?? 0) > 0
+    return (
+      selectValue.linkDescriptor?.value &&
+      (numberValue(descriptorValue(link, selectValue.linkDescriptor.value)) ?? 0) > 0
+    )
   }
 
   function refreshGraph() {
@@ -691,7 +722,7 @@
   }
 
   function applyLegacySizing() {
-    let sizing = getNodeDescriptiveValues(nodeDescriptorValue?.value || null)
+    let sizing = getNodeDescriptiveValues(selectValue.nodeDescriptor?.value || null)
     nodeSizingValues = sizing.values
     nodeSizingById = sizing.byId
     maxDomain = sizing.maxDomain
@@ -879,7 +910,7 @@
     tooltip = null
     hoverNode = null
     dragNode = null
-    timeframeValue = timeframeItems[2]
+    selectValue.timeframe = timeframeItems[2]
     currentSizingSignature = null
     currentLinkDescriptorSignature = null
   }
@@ -895,7 +926,7 @@
   }
 
   function updateLinkDescriptorValue(event) {
-    linkDescriptorValue = event.detail.d
+    selectValue.linkDescriptor = event.detail.d
     triggerLinkDashPulse()
     refreshGraph()
   }
@@ -917,44 +948,50 @@
     resetSimulation()
   }
 
-  $: availableTimeframeItems = timeframeItems.filter(
-    item =>
-      descriptorNodes.some(node => hasNodeTimeframeData(node, item.value)) ||
-      descriptorLinks.some(link => hasTimeframeDescriptor(link, item.value))
-  )
-  $: if (!availableTimeframeItems.length) {
-    timeframeValue = null
-  } else if (availableTimeframeItems.length == 1 && timeframeValue?.value != availableTimeframeItems[0].value) {
-    timeframeValue = availableTimeframeItems[0]
-  } else if (!availableTimeframeItems.some(item => item.value == timeframeValue?.value)) {
-    timeframeValue = availableTimeframeItems[availableTimeframeItems.length - 1]
+  $: {
+    let nextTimeframeItems = timeframeItems.filter(
+      item =>
+        descriptorNodes.some(node => hasNodeTimeframeData(node, item.value)) ||
+        descriptorLinks.some(link => hasTimeframeDescriptor(link, item.value))
+    )
+
+    selectItems.timeframe = nextTimeframeItems
+
+    if (!nextTimeframeItems.length) {
+      selectValue.timeframe = null
+    } else if (nextTimeframeItems.length == 1 && selectValue.timeframe?.value != nextTimeframeItems[0].value) {
+      selectValue.timeframe = nextTimeframeItems[0]
+    } else if (!nextTimeframeItems.some(item => item.value == selectValue.timeframe?.value)) {
+      selectValue.timeframe = nextTimeframeItems[nextTimeframeItems.length - 1]
+    }
   }
-  $: nodeDescriptorItems = nodeFieldItems(descriptorNodes, timeframeValue?.value || "all_years")
-  $: linkDescriptorItems = linkFieldItems(descriptorLinks, timeframeValue?.value || "all_years")
-  $: if (nodeDescriptorValue && !nodeDescriptorItems.some(item => item.value == nodeDescriptorValue.value)) {
-    nodeDescriptorValue = null
+  $: {
+    let nextNodeDescriptorItems = nodeFieldItems(descriptorNodes, selectValue.timeframe?.value || "all_years")
+    let nextLinkDescriptorItems = linkFieldItems(descriptorLinks, selectValue.timeframe?.value || "all_years")
+
+    selectItems.nodeDescriptor = nextNodeDescriptorItems
+    selectItems.linkDescriptor = nextLinkDescriptorItems
+    syncSelectValue("nodeDescriptor", nextNodeDescriptorItems)
+    syncSelectValue("linkDescriptor", nextLinkDescriptorItems)
   }
-  $: if (linkDescriptorValue && !linkDescriptorItems.some(item => item.value == linkDescriptorValue.value)) {
-    linkDescriptorValue = null
-  }
-  $: timeframePlaceholder = !availableTimeframeItems.length && !timeframeValue ? noTimeframeItemsMessage : ""
+  $: timeframePlaceholder = !selectItems.timeframe.length && !selectValue.timeframe ? noTimeframeItemsMessage : ""
   $: nodeDescriptorPlaceholder =
-    !nodeDescriptorItems.length && !nodeDescriptorValue ? noNodeSizeItemsMessage : "Choose a node size."
+    !selectItems.nodeDescriptor.length && !selectValue.nodeDescriptor ? noNodeSizeItemsMessage : "Choose a node size."
   $: linkDescriptorPlaceholder =
-    !linkDescriptorItems.length && !linkDescriptorValue ? noLinkDashItemsMessage : "Choose a link dash."
-  $: nodeDescriptorTooltip = nodeDescriptorValue?.value
-    ? metricTooltip(nodeDescriptorValue.value, controlTooltips.node_size)
+    !selectItems.linkDescriptor.length && !selectValue.linkDescriptor ? noLinkDashItemsMessage : "Choose a link dash."
+  $: nodeDescriptorTooltip = selectValue.nodeDescriptor?.value
+    ? metricTooltip(selectValue.nodeDescriptor.value, controlTooltips.node_size)
     : controlTooltips.node_size
-  $: linkDescriptorTooltip = linkDescriptorValue?.value
-    ? metricTooltip(linkDescriptorValue.value, controlTooltips.link_dash)
+  $: linkDescriptorTooltip = selectValue.linkDescriptor?.value
+    ? metricTooltip(selectValue.linkDescriptor.value, controlTooltips.link_dash)
     : controlTooltips.link_dash
-  $: sizingSignature = `${timeframeValue?.value || "all_years"}|${nodeDescriptorValue?.value || "none"}|${width}|${height}|${nodes.length}|${links.length}`
+  $: sizingSignature = `${selectValue.timeframe?.value || "all_years"}|${selectValue.nodeDescriptor?.value || "none"}|${width}|${height}|${nodes.length}|${links.length}`
   $: if (nodes.length && sizingSignature != currentSizingSignature) {
     currentSizingSignature = sizingSignature
     applyLegacySizing()
     createLegacySimulation()
   }
-  $: linkDescriptorSignature = `${timeframeValue?.value || "all_years"}|${linkDescriptorValue?.value || "none"}`
+  $: linkDescriptorSignature = `${selectValue.timeframe?.value || "all_years"}|${selectValue.linkDescriptor?.value || "none"}`
   $: if (linkDescriptorSignature != currentLinkDescriptorSignature) {
     currentLinkDescriptorSignature = linkDescriptorSignature
     triggerLinkDashPulse()
@@ -962,7 +999,7 @@
   $: hasNodeSizeSignal = hasPositiveFiniteValue(nodeSizingValues)
   $: unknownNodeSizeCount = Object.values(nodeSizingById).filter(sizing => sizing?.isUnknown).length
   $: showNodeSizeWarnings = Boolean(
-    nodeDescriptorValue?.value &&
+    selectValue.nodeDescriptor?.value &&
     hasNodeSizeSignal &&
     unknownNodeSizeCount > 0 &&
     unknownNodeSizeCount <= maxVisibleNodeSizeWarnings
@@ -1017,13 +1054,13 @@
             <InfoIcon title={controlTooltips.country} tooltipClasses="max-w-80" />
           </div>
           <Select
-            items={countryCodeItems}
-            bind:value={selectedCountryCodeItem}
+            items={selectItems.country}
+            value={selectValue.country}
             labelConstruction={true}
             secondaryLabelIdentifier="secondaryLabel"
             placeholder="Filter by country"
             noItemsMessage="No countries available."
-            on:valueChange={({ detail }) => (selectedCountryCodeItem = detail.d)}
+            on:valueChange={({ detail: e }) => (selectValue.country = e.d)}
           />
         </div>
         <div>
@@ -1032,14 +1069,14 @@
             <InfoIcon title={controlTooltips.war} tooltipClasses="max-w-80" />
           </div>
           <Select
-            items={warItems}
-            bind:value={selectedWarItem}
+            items={selectItems.war}
+            value={selectValue.war}
             groupBy="war_type"
             labelConstruction={true}
             secondaryLabelIdentifier="secondaryLabel"
             placeholder="Select a war"
             noItemsMessage="No wars match the selected filters."
-            on:valueChange={({ detail }) => (selectedWarItem = detail.d)}
+            on:valueChange={({ detail: e }) => (selectValue.war = e.d)}
           />
         </div>
       </section>
@@ -1080,12 +1117,13 @@
                     <InfoIcon title={controlTooltips.timeframe} tooltipClasses="max-w-80" />
                   </div>
                   <Select
-                    items={availableTimeframeItems}
-                    bind:value={timeframeValue}
+                    items={selectItems.timeframe}
+                    value={selectValue.timeframe}
                     placeholder={timeframePlaceholder}
                     noItemsMessage={noTimeframeItemsMessage}
                     clearable={false}
-                    disabled={availableTimeframeItems.length <= 1}
+                    disabled={selectItems.timeframe.length <= 1}
+                    on:valueChange={({ detail: e }) => (selectValue.timeframe = e.d)}
                   />
                 </div>
                 <div>
@@ -1094,12 +1132,13 @@
                     <InfoIcon title={nodeDescriptorTooltip} tooltipClasses="max-w-96" />
                   </div>
                   <Select
-                    items={nodeDescriptorItems}
-                    bind:value={nodeDescriptorValue}
+                    items={selectItems.nodeDescriptor}
+                    value={selectValue.nodeDescriptor}
                     placeholder={nodeDescriptorPlaceholder}
                     noItemsMessage={noNodeSizeItemsMessage}
                     clearable={true}
-                    disabled={!nodeDescriptorItems.length && !nodeDescriptorValue}
+                    disabled={!selectItems.nodeDescriptor.length && !selectValue.nodeDescriptor}
+                    on:valueChange={({ detail: e }) => (selectValue.nodeDescriptor = e.d)}
                   />
                 </div>
                 <div>
@@ -1108,12 +1147,12 @@
                     <InfoIcon title={linkDescriptorTooltip} tooltipClasses="max-w-96" />
                   </div>
                   <Select
-                    items={linkDescriptorItems}
-                    bind:value={linkDescriptorValue}
+                    items={selectItems.linkDescriptor}
+                    value={selectValue.linkDescriptor}
                     placeholder={linkDescriptorPlaceholder}
                     noItemsMessage={noLinkDashItemsMessage}
                     clearable={true}
-                    disabled={!linkDescriptorItems.length && !linkDescriptorValue}
+                    disabled={!selectItems.linkDescriptor.length && !selectValue.linkDescriptor}
                     on:valueChange={updateLinkDescriptorValue}
                   />
                 </div>
@@ -1240,7 +1279,7 @@
                   {#if metricRows.length}
                     <div class="mt-2 border-t border-[#dfe5e1] pt-1.5">
                       <div class="mb-1 font-extrabold text-[#33413c]">
-                        Timeframe: {timeframeValue?.label || "All Years"}
+                        Timeframe: {selectValue.timeframe?.label || "All Years"}
                       </div>
                       <div class="space-y-0.5 text-[#50615b]">
                         {#each metricRows as row (row.field)}

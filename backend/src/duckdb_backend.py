@@ -14,7 +14,7 @@ from utils import initialize_logger
 
 logger = initialize_logger(__name__)
 
-SQL_ROOT = BACKEND_ROOT / "sql"
+SQL_ROOT = BACKEND_ROOT / "src" / "sql"
 
 DEFAULT_DB_PATH = BACKEND_ROOT / "the_networks_of_war.duckdb"
 INSPECT_SQL = SQL_ROOT / "inspect_tables.sql"
