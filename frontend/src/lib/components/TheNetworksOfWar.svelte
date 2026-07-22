@@ -77,7 +77,56 @@
   }
 
   function syncWarSelectValue(items) {
-    syncSelectValue("war", items, preferredWarItem(items))
+    syncSelectValue("war", items)
+  }
+
+  function warItem(war) {
+    return {
+      value: String(war.war_id),
+      label: war.war_name,
+      selectedLabel: war.war_name,
+      secondaryLabel: warSecondaryLabel(war),
+      war_type: war.war_type,
+      linkDashFieldCount: linkDashFieldCountsByWarId[String(war.war_id)] || 0,
+      war
+    }
+  }
+
+  function selectedWarTypesIncludes(war) {
+    return selectedWarTypeValues.includes(war.war_type)
+  }
+
+  function countryItemsForWars(warList) {
+    let availableWarIds = new Set(warList.map(war => String(war.war_id)))
+
+    return allCountryItems
+      .map(country => {
+        let availableWarCount = Array.from(country.warIds).filter(warId => availableWarIds.has(warId)).length
+
+        return availableWarCount ? { ...country, secondaryLabel: plural(availableWarCount, "war") } : null
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.label.localeCompare(b.label))
+  }
+
+  function updateCountryValue(event) {
+    let nextCountry = event.detail.d
+
+    selectValue.country = nextCountry
+
+    if (nextCountry && selectValue.war && !nextCountry.warIds.has(selectValue.war.value)) {
+      selectValue.war = null
+    }
+  }
+
+  function updateWarValue(event) {
+    let nextWar = event.detail.d
+
+    selectValue.war = nextWar
+
+    if (nextWar && selectValue.country && !selectValue.country.warIds.has(nextWar.value)) {
+      selectValue.country = null
+    }
   }
 
   function emptyNodeMargins() {
@@ -118,29 +167,31 @@
   let warTypeItems = Array.from(new Set(wars.map(war => war.war_type)))
     .sort()
     .map(warType => ({ value: warType, label: warType }))
-  let selectItems = {
-    country: Object.values(countryFiltersByCCode)
-      .map(country => {
-        let label = Array.from(country.names).sort((a, b) => a.localeCompare(b))[0]
+  let allCountryItems = Object.values(countryFiltersByCCode)
+    .map(country => {
+      let label = Array.from(country.names).sort((a, b) => a.localeCompare(b))[0]
 
-        return {
-          value: String(country.c_code),
-          label,
-          selectedLabel: label,
-          secondaryLabel: plural(country.warIds.size, "war"),
-          c_code: country.c_code,
-          warIds: country.warIds
-        }
-      })
-      .sort((a, b) => a.label.localeCompare(b.label)),
-    war: [],
+      return {
+        value: String(country.c_code),
+        label,
+        selectedLabel: label,
+        secondaryLabel: plural(country.warIds.size, "war"),
+        c_code: country.c_code,
+        warIds: country.warIds
+      }
+    })
+    .sort((a, b) => a.label.localeCompare(b.label))
+  let initialWarItems = wars.map(warItem)
+  let selectItems = {
+    country: [],
+    war: initialWarItems,
     timeframe: timeframeItems,
     nodeDescriptor: [],
     linkDescriptor: []
   }
   let selectValue = {
     country: null,
-    war: null,
+    war: preferredWarItem(initialWarItems),
     timeframe: timeframeItems[2],
     nodeDescriptor: null,
     linkDescriptor: null
@@ -257,21 +308,22 @@
   }
   $: selectedWarTypeValues = selectedWarTypes?.length ? selectedWarTypes : []
   $: selectedCountryWarIds = selectValue.country?.warIds
-  $: filteredWars = wars.filter(
-    war =>
-      selectedWarTypeValues.includes(war.war_type) &&
-      (!selectedCountryWarIds || selectedCountryWarIds.has(String(war.war_id)))
+  $: filteredWarsByType = wars.filter(selectedWarTypesIncludes)
+  $: filteredWars = filteredWarsByType.filter(
+    war => !selectedCountryWarIds || selectedCountryWarIds.has(String(war.war_id))
   )
   $: {
-    let nextWarItems = filteredWars.map(war => ({
-      value: String(war.war_id),
-      label: war.war_name,
-      selectedLabel: war.war_name,
-      secondaryLabel: warSecondaryLabel(war),
-      war_type: war.war_type,
-      linkDashFieldCount: linkDashFieldCountsByWarId[String(war.war_id)] || 0,
-      war
-    }))
+    let nextCountryItems = countryItemsForWars(
+      selectValue.war
+        ? filteredWarsByType.filter(war => String(war.war_id) == selectValue.war.value)
+        : filteredWarsByType
+    )
+
+    selectItems.country = nextCountryItems
+    syncSelectValue("country", nextCountryItems)
+  }
+  $: {
+    let nextWarItems = filteredWars.map(warItem)
 
     selectItems.war = nextWarItems
     syncWarSelectValue(nextWarItems)
@@ -1090,7 +1142,7 @@
           secondaryLabelIdentifier="secondaryLabel"
           placeholder="Filter by country"
           noItemsMessage={selectNoItemsMessage.country}
-          on:valueChange={({ detail: e }) => (selectValue.country = e.d)}
+          on:valueChange={updateCountryValue}
         />
       </div>
       <div>
@@ -1106,7 +1158,7 @@
           secondaryLabelIdentifier="secondaryLabel"
           placeholder="Select a war"
           noItemsMessage={selectNoItemsMessage.war}
-          on:valueChange={({ detail: e }) => (selectValue.war = e.d)}
+          on:valueChange={updateWarValue}
         />
       </div>
     </section>
