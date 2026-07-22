@@ -176,9 +176,17 @@
   let nodeMargins = emptyNodeMargins()
   let radiusScale = scaleLinear([0, maxDomain], [1, 125])
   let primaryNode = null
+  let graphLayout = {
+    height: 700,
+    centerX: 450,
+    centerY: 350,
+    pressure: 0,
+    spacingScale: 1,
+    maxRadiusSize: 125,
+    marginSize: 10
+  }
 
   const graphTextSize = 12
-  const height = 700
   const minRadiusSize = 1
   const maxRadiusSize = 125
   const dyadMinLinkDistance = 380
@@ -187,7 +195,7 @@
   const nodeSizeWarningOffset = 10
   const nodeSizeWarningLabelGap = 14
   const maxVisibleNodeSizeWarnings = 6
-  const graphCenterY = height * 0.5
+  const denseGraphReferenceSize = 40
   const controlLabelClasses = "mb-1 flex items-center gap-2 text-sm font-extrabold text-[#596b64]"
   const summaryLabelClasses = "font-bold text-[#60706a]"
   const tooltipLabelClasses = "font-bold text-[#33413c]"
@@ -230,7 +238,23 @@
   ])
   const sideColors = { 1: "#2f7f66", 2: "#b54f72", 3: "#5f70b8", null: "#71717a", undefined: "#71717a" }
 
-  $: graphCenterX = width * 0.5
+  $: {
+    let height = width < 640 ? 480 : width < 900 ? 600 : 700
+    let widthPressure = width < 900 ? Math.min(1, (900 - width) / 520) : 0
+    let densityPressure = Math.min(1, (nodes.length + links.length * 0.35) / denseGraphReferenceSize)
+    let pressure = widthPressure * densityPressure
+    let spacingScale = 1 - pressure * 0.25
+
+    graphLayout = {
+      height,
+      centerX: width * 0.5,
+      centerY: height * 0.5,
+      pressure,
+      spacingScale,
+      maxRadiusSize: maxRadiusSize * (1 - pressure * 0.36),
+      marginSize: Math.max(linkNodeSize, addedMarginSize * spacingScale)
+    }
+  }
   $: selectedWarTypeValues = selectedWarTypes?.length ? selectedWarTypes : []
   $: selectedCountryWarIds = selectValue.country?.warIds
   $: filteredWars = wars.filter(
@@ -524,7 +548,7 @@
   function getNodeMargins() {
     let margins = emptyNodeMargins()
 
-    radiusScale = scaleLinear([0, maxDomain], [minRadiusSize, maxRadiusSize])
+    radiusScale = scaleLinear([0, maxDomain], [minRadiusSize, graphLayout.maxRadiusSize])
 
     nodes.forEach(node => {
       let nodeSizing = nodeSizingById[node.id]
@@ -539,7 +563,7 @@
       let currentNameLength = textWidth(node.participant)
       let currentNameLengthHalf = currentNameLength / 2
       let currentVerticalShift = nameFits ? 5 : currentRadiusSize + 22.5
-      let currentHorizontalShift = nameFits ? 0 : 30
+      let currentHorizontalShift = nameFits ? 0 : 30 * graphLayout.spacingScale
 
       margins.radius_size[node.id] = currentRadiusSize
       margins.name[node.id] = node.participant
@@ -549,12 +573,12 @@
       margins.name_fits_in_node[node.id] = nameFits
 
       if (!nameFits) {
-        margins.added_top_margin[node.id] = currentVerticalShift + addedMarginSize
-        margins.added_bottom_margin[node.id] = currentVerticalShift + addedMarginSize
-        margins.added_left_margin[node.id] = currentNameLengthHalf + currentHorizontalShift + addedMarginSize
-        margins.added_right_margin[node.id] = currentNameLengthHalf + currentHorizontalShift + addedMarginSize
+        margins.added_top_margin[node.id] = currentVerticalShift + graphLayout.marginSize
+        margins.added_bottom_margin[node.id] = currentVerticalShift + graphLayout.marginSize
+        margins.added_left_margin[node.id] = currentNameLengthHalf + currentHorizontalShift + graphLayout.marginSize
+        margins.added_right_margin[node.id] = currentNameLengthHalf + currentHorizontalShift + graphLayout.marginSize
       } else {
-        let nodeMargin = Math.max(currentRadiusSize, linkNodeSize) + addedMarginSize
+        let nodeMargin = Math.max(currentRadiusSize, linkNodeSize) + graphLayout.marginSize
 
         margins.added_top_margin[node.id] = nodeMargin
         margins.added_bottom_margin[node.id] = nodeMargin
@@ -571,20 +595,23 @@
   }
 
   function getXAdjusted(id, xLoc) {
-    if (id == primaryNode && nodes.length > 2) return graphCenterX
+    if (id == primaryNode && nodes.length > 2) return graphLayout.centerX
 
     return Math.max(
-      nodeMargins.added_left_margin[id] ?? addedMarginSize,
-      Math.min(width - (nodeMargins.added_right_margin[id] ?? addedMarginSize), xLoc ?? graphCenterX)
+      nodeMargins.added_left_margin[id] ?? graphLayout.marginSize,
+      Math.min(width - (nodeMargins.added_right_margin[id] ?? graphLayout.marginSize), xLoc ?? graphLayout.centerX)
     )
   }
 
   function getYAdjusted(id, yLoc) {
-    if (id == primaryNode && nodes.length > 2) return graphCenterY
+    if (id == primaryNode && nodes.length > 2) return graphLayout.centerY
 
     return Math.max(
-      nodeMargins.added_top_margin[id] ?? addedMarginSize,
-      Math.min(height - (nodeMargins.added_bottom_margin[id] ?? addedMarginSize), yLoc ?? graphCenterY)
+      nodeMargins.added_top_margin[id] ?? graphLayout.marginSize,
+      Math.min(
+        graphLayout.height - (nodeMargins.added_bottom_margin[id] ?? graphLayout.marginSize),
+        yLoc ?? graphLayout.centerY
+      )
     )
   }
 
@@ -626,14 +653,14 @@
     let yOperator = 1
     let yAdjustment = 0
 
-    if (x <= graphCenterX && y >= graphCenterY) {
+    if (x <= graphLayout.centerX && y >= graphLayout.centerY) {
       xOperator = -1
       yOperator = 1
-    } else if (x >= graphCenterX && y <= graphCenterY) {
+    } else if (x >= graphLayout.centerX && y <= graphLayout.centerY) {
       xOperator = 1
       yOperator = -1
       yAdjustment = graphTextSize
-    } else if (x < graphCenterX && y < graphCenterY) {
+    } else if (x < graphLayout.centerX && y < graphLayout.centerY) {
       xOperator = -1
       yOperator = -1
       yAdjustment = graphTextSize
@@ -733,15 +760,17 @@
     let baseDistance =
       (nodeMargins.radius_size[link.source.id] ?? linkNodeSize) +
       (nodeMargins.radius_size[link.target.id] ?? linkNodeSize) +
-      Math.max(maxRadiusSize, addedMarginSize, 15)
+      Math.max(graphLayout.maxRadiusSize, graphLayout.marginSize, 15)
 
-    return nodes.length == 2 ? Math.max(baseDistance, dyadMinLinkDistance) : baseDistance
+    return nodes.length == 2
+      ? Math.max(baseDistance, dyadMinLinkDistance * graphLayout.spacingScale)
+      : baseDistance * graphLayout.spacingScale
   }
 
   function createLegacySimulation() {
     stopSimulation()
 
-    if (!nodes.length || !width || !height) return
+    if (!nodes.length || !width || !graphLayout.height) return
 
     let nodeById = new Map(nodes.map(node => [node.id, node]))
     primaryNode = identifyPrimaryNode()
@@ -756,25 +785,29 @@
 
     let averageNodeRadius = averageValue(Object.values(nodeMargins.radius_size))
     let averageHorizontalNameShift = averageValue(Object.values(nodeMargins.horizontal_name_shift))
+    let chargeScale = 1 - graphLayout.pressure * 0.3
+    let yTarget =
+      graphLayout.centerY * graphLayout.pressure +
+      (graphLayout.height - graphLayout.marginSize * 2) * (1 - graphLayout.pressure)
 
     simulation = forceSimulation(nodes.concat(linkNodes))
-      .force("charge", forceManyBody().strength(hasPrimaryNode ? -7500 : -1000))
-      .force("center", forceCenter(graphCenterX, graphCenterY))
-      .force("x", forceX(graphCenterX).strength(hasPrimaryNode ? 0.75 : 0.15))
-      .force("y", forceY(height - addedMarginSize * 2).strength(hasPrimaryNode ? 0.75 : 0.5))
+      .force("charge", forceManyBody().strength((hasPrimaryNode ? -7500 : -1000) * chargeScale))
+      .force("center", forceCenter(graphLayout.centerX, graphLayout.centerY))
+      .force("x", forceX(graphLayout.centerX).strength(hasPrimaryNode ? 0.75 : 0.15))
+      .force("y", forceY(yTarget).strength(hasPrimaryNode ? 0.75 : 0.5))
       .force(
         "collision",
         forceCollide()
           .radius(d => {
-            if (d.source !== undefined) return Math.max(linkNodeSize, addedMarginSize)
+            if (d.source !== undefined) return Math.max(linkNodeSize, graphLayout.marginSize)
 
             return Math.max(
               (nodeMargins.radius_size[d.id] ?? 0) +
                 Math.abs(nodeMargins.horizontal_name_shift[d.id] ?? 0) +
                 Math.abs(nodeMargins.vertical_name_shift[d.id] ?? 0) +
-                addedMarginSize,
-              averageNodeRadius + averageHorizontalNameShift + addedMarginSize,
-              addedMarginSize
+                graphLayout.marginSize,
+              averageNodeRadius + averageHorizontalNameShift + graphLayout.marginSize,
+              graphLayout.marginSize
             )
           })
           .strength(1)
@@ -806,7 +839,7 @@
 
     return {
       x: ((event.clientX - rect.left) / rect.width) * width,
-      y: ((event.clientY - rect.top) / rect.height) * height
+      y: ((event.clientY - rect.top) / rect.height) * graphLayout.height
     }
   }
 
@@ -992,7 +1025,7 @@
       ? metricTooltip(selectValue.linkDescriptor.value, controlTooltips.link_dash)
       : controlTooltips.link_dash
   }
-  $: sizingSignature = `${selectValue.timeframe?.value || "all_years"}|${selectValue.nodeDescriptor?.value || "none"}|${width}|${height}|${nodes.length}|${links.length}`
+  $: sizingSignature = `${selectValue.timeframe?.value || "all_years"}|${selectValue.nodeDescriptor?.value || "none"}|${width}|${graphLayout.height}|${graphLayout.pressure}|${nodes.length}|${links.length}`
   $: if (nodes.length && sizingSignature != currentSizingSignature) {
     currentSizingSignature = sizingSignature
     applyLegacySizing()
@@ -1027,9 +1060,7 @@
 
 <svelte:window on:pointermove={drag} on:pointerup={endDrag} />
 <main class="relative flex h-full w-full flex-col items-center justify-center" data-svelte-lib-tooltip-root>
-  <div
-    class="box-border flex w-full max-w-full flex-col gap-4 px-3 py-4 min-[1300px]:w-[70%] min-[1300px]:px-0 min-[1300px]:py-5"
-  >
+  <div class="box-border flex w-full flex-col gap-4 px-3 py-4 min-[1300px]:w-[70%] min-[1300px]:px-0 min-[1300px]:py-5">
     <section class="network-filter-panel grid min-w-0 gap-3 border border-[#d8d3c4] bg-white p-3 min-[1300px]:p-4">
       <div>
         <div class="mb-2 text-sm font-extrabold text-[#596b64]">War Types</div>
@@ -1082,7 +1113,7 @@
       </div>
     </section>
     <div class="relative w-full overflow-hidden border border-black">
-      <section class="min-h-[690px] bg-[#fbfcf9]">
+      <section class="bg-[#fbfcf9]">
         <div class="flex flex-col gap-4 border-b border-[#d2d7d3] bg-white px-4 py-3">
           {#if selectedWar}
             <div class="grid min-w-0 gap-3 text-sm min-[1300px]:grid-cols-3 min-[1300px]:items-start">
@@ -1165,147 +1196,148 @@
             </div>
           {/if}
         </div>
-        <div class="min-w-0">
-          <div class="relative w-full min-w-0" bind:clientWidth={width}>
-            {#if nodes.length}
-              <svg
-                class="block w-full touch-none"
-                {height}
-                viewBox="0 0 {width} {height}"
-                role="img"
-                bind:this={svg}
-                on:pointermove={moveTooltip}
-                on:pointerleave={clearTooltip}
-              >
-                <g>
-                  {#each links as link, i (i)}
-                    <line
-                      x1={linkX(link, "source")}
-                      y1={linkY(link, "source")}
-                      x2={linkX(link, "target")}
-                      y2={linkY(link, "target")}
-                      stroke="#8a948f"
-                      stroke-opacity={0.45}
-                      stroke-width={1}
+        <div class="relative min-w-0" bind:clientWidth={width}>
+          {#if nodes.length}
+            <svg
+              class="block w-full touch-none"
+              height={graphLayout.height}
+              viewBox="0 0 {width} {graphLayout.height}"
+              role="img"
+              bind:this={svg}
+              on:pointermove={moveTooltip}
+              on:pointerleave={clearTooltip}
+            >
+              <g>
+                {#each links as link, i (i)}
+                  <line
+                    x1={linkX(link, "source")}
+                    y1={linkY(link, "source")}
+                    x2={linkX(link, "target")}
+                    y2={linkY(link, "target")}
+                    stroke="#8a948f"
+                    stroke-opacity={0.45}
+                    stroke-width={1}
+                  />
+                  <line
+                    x1={linkX(link, "source")}
+                    y1={linkY(link, "source")}
+                    x2={linkX(link, "target")}
+                    y2={linkY(link, "target")}
+                    stroke={linkHasDescriptor(link) ? "blue" : "transparent"}
+                    stroke-opacity={0.9}
+                    stroke-width={linkDashStrokeWidth}
+                    stroke-dasharray="2.5 15"
+                    stroke-dashoffset={-7.5}
+                    style="transition: stroke-width 1000ms ease 50ms, stroke 1000ms ease 50ms;"
+                  />
+                {/each}
+              </g>
+              <g role="list">
+                {#each nodes as node (node.id)}
+                  {@const label = labelPosition(node)}
+                  <g
+                    class="cursor-grab active:cursor-grabbing"
+                    role="listitem"
+                    transform="translate({getXAdjusted(node.id, node.x)}, {getYAdjusted(node.id, node.y)})"
+                    on:pointerdown={event => startDrag(node, event)}
+                    on:pointerenter={event => showTooltip(node, event)}
+                    on:pointermove={event => showTooltip(node, event)}
+                    on:pointerleave={clearTooltip}
+                  >
+                    <circle
+                      r={nodeRadius(node)}
+                      fill={sideColors[node.side]}
+                      stroke="black"
+                      stroke-width={hoverNode?.id == node.id ? nodeStrokeWidth + 0.75 : nodeStrokeWidth}
+                      style="transition: r 3000ms ease 500ms, stroke-width 150ms ease;"
                     />
-                    <line
-                      x1={linkX(link, "source")}
-                      y1={linkY(link, "source")}
-                      x2={linkX(link, "target")}
-                      y2={linkY(link, "target")}
-                      stroke={linkHasDescriptor(link) ? "blue" : "transparent"}
-                      stroke-opacity={0.9}
-                      stroke-width={linkDashStrokeWidth}
-                      stroke-dasharray="2.5 15"
-                      stroke-dashoffset={-7.5}
-                      style="transition: stroke-width 1000ms ease 50ms, stroke 1000ms ease 50ms;"
-                    />
-                  {/each}
-                </g>
-                <g role="list">
-                  {#each nodes as node (node.id)}
-                    {@const label = labelPosition(node)}
                     <g
-                      class="cursor-grab active:cursor-grabbing"
-                      role="listitem"
-                      transform="translate({getXAdjusted(node.id, node.x)}, {getYAdjusted(node.id, node.y)})"
-                      on:pointerdown={event => startDrag(node, event)}
-                      on:pointerenter={event => showTooltip(node, event)}
-                      on:pointermove={event => showTooltip(node, event)}
-                      on:pointerleave={clearTooltip}
+                      style="transform: translate({label.x}px, {label.y}px); transition: transform 2000ms ease 1500ms;"
                     >
-                      <circle
-                        r={nodeRadius(node)}
-                        fill={sideColors[node.side]}
-                        stroke="black"
-                        stroke-width={hoverNode?.id == node.id ? nodeStrokeWidth + 0.75 : nodeStrokeWidth}
-                        style="transition: r 3000ms ease 500ms, stroke-width 150ms ease;"
-                      />
+                      <text
+                        class="text-[12px] font-bold"
+                        text-anchor={label.anchor}
+                        fill={label.inside ? "white" : "#111827"}
+                        stroke={label.inside ? "none" : "white"}
+                        stroke-width={label.inside ? 0 : 3}
+                        paint-order="stroke"
+                        style="transition: fill 2000ms ease 1500ms, stroke 2000ms ease 1500ms;"
+                      >
+                        {node.participant}
+                      </text>
+                    </g>
+                    {#if showNodeSizeWarning(node)}
+                      {@const warningPosition = nodeSizeWarningPosition(node, label)}
                       <g
-                        style="transform: translate({label.x}px, {label.y}px); transition: transform 2000ms ease 1500ms;"
+                        style="transform: translate({warningPosition.x}px, {warningPosition.y}px); transition: transform 2000ms ease 1500ms;"
                       >
                         <text
-                          class="text-[12px] font-bold"
-                          text-anchor={label.anchor}
-                          fill={label.inside ? "white" : "#111827"}
-                          stroke={label.inside ? "none" : "white"}
-                          stroke-width={label.inside ? 0 : 3}
+                          class="text-[10px] font-extrabold"
+                          text-anchor="middle"
+                          dominant-baseline="central"
+                          fill="#111827"
+                          stroke="white"
+                          stroke-width={2.5}
                           paint-order="stroke"
-                          style="transition: fill 2000ms ease 1500ms, stroke 2000ms ease 1500ms;"
                         >
-                          {node.participant}
+                          ?
                         </text>
                       </g>
-                      {#if showNodeSizeWarning(node)}
-                        {@const warningPosition = nodeSizeWarningPosition(node, label)}
-                        <g
-                          style="transform: translate({warningPosition.x}px, {warningPosition.y}px); transition: transform 2000ms ease 1500ms;"
-                        >
-                          <text
-                            class="text-[10px] font-extrabold"
-                            text-anchor="middle"
-                            dominant-baseline="central"
-                            fill="#111827"
-                            stroke="white"
-                            stroke-width={2.5}
-                            paint-order="stroke"
-                          >
-                            ?
-                          </text>
-                        </g>
-                      {/if}
-                    </g>
-                  {/each}
-                </g>
-              </svg>
-              {#if tooltip}
-                {@const metricRows = nodeMetricRows(tooltip.node)}
-                <div
-                  class="pointer-events-none absolute z-20 max-w-sm border border-[#c4cec8] bg-white px-3 py-2 text-xs shadow-sm"
-                  style="left: {tooltip.x}px; top: {tooltip.y}px;"
-                  bind:clientWidth={tooltipWidth}
-                  bind:clientHeight={tooltipHeight}
-                >
-                  <div class="text-sm font-extrabold">{tooltip.node.participant}</div>
-                  <div class="mt-1 space-y-0.5 text-[#50615b]">
-                    <div>
-                      <span class={tooltipLabelClasses}>Start Date:</span>
-                      {displayDate(tooltip.node.start_date, tooltip.node.start_date_estimated)}
+                    {/if}
+                  </g>
+                {/each}
+              </g>
+            </svg>
+            {#if tooltip}
+              {@const metricRows = nodeMetricRows(tooltip.node)}
+              <div
+                class="pointer-events-none absolute z-20 max-w-sm border border-[#c4cec8] bg-white px-3 py-2 text-xs shadow-sm"
+                style="left: {tooltip.x}px; top: {tooltip.y}px;"
+                bind:clientWidth={tooltipWidth}
+                bind:clientHeight={tooltipHeight}
+              >
+                <div class="text-sm font-extrabold">{tooltip.node.participant}</div>
+                <div class="mt-1 space-y-0.5 text-[#50615b]">
+                  <div>
+                    <span class={tooltipLabelClasses}>Start Date:</span>
+                    {displayDate(tooltip.node.start_date, tooltip.node.start_date_estimated)}
+                  </div>
+                  <div>
+                    <span class={tooltipLabelClasses}>End Date:</span>
+                    {Number(tooltip.node.ongoing_war) == 1
+                      ? "Ongoing"
+                      : displayDate(tooltip.node.end_date, tooltip.node.end_date_estimated)}
+                  </div>
+                  <div class="mb-2">
+                    <span class={tooltipLabelClasses}>Days At War:</span>
+                    {displayMetricNumber(tooltip.node.metrics?.all_years?.days_at_war, "days_at_war")}
+                  </div>
+                </div>
+                {#if metricRows.length}
+                  <div class="mt-2 border-t border-[#dfe5e1] pt-1.5">
+                    <div class="mb-1 font-extrabold text-[#33413c]">
+                      Timeframe: {selectValue.timeframe?.label || "All Years"}
                     </div>
-                    <div>
-                      <span class={tooltipLabelClasses}>End Date:</span>
-                      {Number(tooltip.node.ongoing_war) == 1
-                        ? "Ongoing"
-                        : displayDate(tooltip.node.end_date, tooltip.node.end_date_estimated)}
-                    </div>
-                    <div class="mb-2">
-                      <span class={tooltipLabelClasses}>Days At War:</span>
-                      {displayMetricNumber(tooltip.node.metrics?.all_years?.days_at_war, "days_at_war")}
+                    <div class="space-y-0.5 text-[#50615b]">
+                      {#each metricRows as row (row.field)}
+                        <div>
+                          <span class={tooltipMetricLabelClasses}>{row.label}:</span>
+                          {row.value}
+                        </div>
+                      {/each}
                     </div>
                   </div>
-                  {#if metricRows.length}
-                    <div class="mt-2 border-t border-[#dfe5e1] pt-1.5">
-                      <div class="mb-1 font-extrabold text-[#33413c]">
-                        Timeframe: {selectValue.timeframe?.label || "All Years"}
-                      </div>
-                      <div class="space-y-0.5 text-[#50615b]">
-                        {#each metricRows as row (row.field)}
-                          <div>
-                            <span class={tooltipMetricLabelClasses}>{row.label}:</span>
-                            {row.value}
-                          </div>
-                        {/each}
-                      </div>
-                    </div>
-                  {/if}
-                </div>
-              {/if}
-            {:else}
-              <div class="flex h-[700px] items-center justify-center px-6 text-center text-[#60706a]">
-                No graph rows are available for the current selection.
+                {/if}
               </div>
             {/if}
-          </div>
+          {:else}
+            <div
+              class="flex items-center justify-center px-6 text-center text-[#60706a]"
+              style="height:{graphLayout.height}px;"
+            >
+              No graph rows are available for the current selection.
+            </div>
+          {/if}
         </div>
       </section>
     </div>
