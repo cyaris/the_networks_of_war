@@ -202,6 +202,7 @@
   let selectedWar = null
 
   let width = 900
+  let viewportHeight = 700
   let simulation
   let svg
   let nodes = []
@@ -290,7 +291,8 @@
   const sideColors = { 1: "#2f7f66", 2: "#b54f72", 3: "#5f70b8", null: "#71717a", undefined: "#71717a" }
 
   $: {
-    let height = width < 640 ? 480 : width < 900 ? 600 : 700
+    let mobileHeight = Math.min(480, Math.max(280, viewportHeight * 0.42))
+    let height = width < 640 ? mobileHeight : width < 900 ? 600 : 700
     let widthPressure = width < 900 ? Math.min(1, (900 - width) / 520) : 0
     let densityPressure = Math.min(1, (nodes.length + links.length * 0.35) / denseGraphReferenceSize)
     let pressure = widthPressure * densityPressure
@@ -1108,7 +1110,7 @@
   })
 </script>
 
-<svelte:window on:pointermove={drag} on:pointerup={endDrag} />
+<svelte:window bind:innerHeight={viewportHeight} on:pointermove={drag} on:pointerup={endDrag} />
 <main class="relative flex h-full w-full flex-col items-center justify-center" data-svelte-lib-tooltip-root>
   <div class="box-border flex w-full flex-col gap-4 px-3 py-4 min-[1300px]:w-[70%] min-[1300px]:px-0 min-[1300px]:py-5">
     <section class="network-filter-panel grid min-w-0 gap-3 border border-[#d8d3c4] bg-white p-3 min-[1300px]:p-4">
