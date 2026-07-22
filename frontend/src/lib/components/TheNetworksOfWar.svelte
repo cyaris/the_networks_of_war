@@ -302,9 +302,7 @@
 
     let roundedScaledValue =
       Math.round((value / unit.value) * 10 ** tooltipFractionDigits) / 10 ** tooltipFractionDigits
-    let compactValue = roundedScaledValue.toLocaleString("en-US", {
-      maximumFractionDigits: tooltipFractionDigits
-    })
+    let compactValue = roundedScaledValue.toLocaleString("en-US", { maximumFractionDigits: tooltipFractionDigits })
 
     return `${compactValue} ${unit.label}`
   }
