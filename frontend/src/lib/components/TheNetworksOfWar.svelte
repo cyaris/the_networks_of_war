@@ -1064,7 +1064,7 @@
     <section class="network-filter-panel grid min-w-0 gap-3 border border-[#d8d3c4] bg-white p-3 min-[1300px]:p-4">
       <div>
         <div class="mb-2 text-sm font-extrabold text-[#596b64]">War Types</div>
-        <div class="grid gap-2 text-sm sm:flex sm:flex-wrap sm:gap-x-5 sm:gap-y-2">
+        <div class="grid gap-x-2 text-sm sm:flex sm:flex-wrap sm:gap-x-5 sm:gap-y-2">
           {#each warTypeItems as warTypeItem (warTypeItem.value)}
             <CheckboxFilter
               labelClasses="mb-0 font-medium"
