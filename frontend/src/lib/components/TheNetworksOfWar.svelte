@@ -633,12 +633,18 @@
     return nodeMargins.radius_size[node.id] ?? radiusScale(stdNullRadiusSize)
   }
 
+  function nodeHorizontalBoundsMargin(id) {
+    return Math.max(nodeMargins.radius_size[id] ?? radiusScale(stdNullRadiusSize), linkNodeSize) + graphLayout.marginSize
+  }
+
   function getXAdjusted(id, xLoc) {
     if (id == primaryNode && nodes.length > 2) return graphLayout.centerX
 
+    let horizontalMargin = nodeHorizontalBoundsMargin(id)
+
     return Math.max(
-      nodeMargins.added_left_margin[id] ?? graphLayout.marginSize,
-      Math.min(width - (nodeMargins.added_right_margin[id] ?? graphLayout.marginSize), xLoc ?? graphLayout.centerX)
+      horizontalMargin,
+      Math.min(width - horizontalMargin, xLoc ?? graphLayout.centerX)
     )
   }
 
@@ -684,6 +690,17 @@
     return getYAdjusted(linkEndpointId(link, endpoint), link[endpoint]?.y)
   }
 
+  function externalLabelX(nodeX, labelWidth, horizontalShift, xOperator) {
+    let labelHalfWidth = labelWidth / 2
+    let labelCenterX = nodeX + horizontalShift * xOperator
+    let minLabelCenterX = graphLayout.marginSize + labelHalfWidth
+    let maxLabelCenterX = width - graphLayout.marginSize - labelHalfWidth
+
+    labelCenterX = Math.max(minLabelCenterX, Math.min(maxLabelCenterX, labelCenterX))
+
+    return labelCenterX - nodeX
+  }
+
   function labelPosition(node) {
     let id = node.id
     let x = getXAdjusted(id, node.x)
@@ -714,8 +731,11 @@
       }
     }
 
+    let labelWidth = nodeMargins.name_lengths[id] ?? textWidth(node.participant)
+    let horizontalShift = nodeMargins.horizontal_name_shift[id] ?? 30
+
     return {
-      x: (nodeMargins.horizontal_name_shift[id] ?? 30) * xOperator,
+      x: externalLabelX(x, labelWidth, horizontalShift, xOperator),
       y: (nodeMargins.vertical_name_shift[id] ?? nodeRadius(node) + 22.5) * yOperator + yAdjustment,
       anchor: "middle",
       inside: false
@@ -885,7 +905,7 @@
   function tooltipBounds() {
     let rect = svg.parentElement.getBoundingClientRect()
 
-    return { width: rect.width || width, height: rect.height || height }
+    return { width: rect.width || width, height: rect.height || graphLayout.height }
   }
 
   function clampTooltipCoordinates(x, y, bounds) {
@@ -900,7 +920,7 @@
     let x = event.clientX - rect.left + tooltipOffset
     let y = event.clientY - rect.top + tooltipOffset
 
-    return clampTooltipCoordinates(x, y, { width: rect.width || width, height: rect.height || height })
+    return clampTooltipCoordinates(x, y, { width: rect.width || width, height: rect.height || graphLayout.height })
   }
 
   function showTooltip(node, event) {
