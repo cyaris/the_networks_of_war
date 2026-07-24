@@ -3,6 +3,8 @@
 ## Documentation
 
 - Keep README link behavior intentional and consistent. Use standard Markdown links by default, and use HTML anchors with `target="_blank"` and `rel="noopener noreferrer"` only when links should explicitly open in a new tab.
+- Keep GitHub Actions deployment notes aligned with the root `Rollup upload` workflow. Project-specific S3 and branch
+  behavior should be documented in the README; maintainer-facing workflow conventions belong here.
 - Keep README pipeline command documentation in sync with `backend/src/pipeline.py` CLI parser behavior.
 - When backend metrics are added, removed, renamed, or recalculated, update
   `frontend/src/lib/static/metricDataDictionary.json` in the same change. Keep README references and any README metric
@@ -69,3 +71,11 @@
 ## Notebooks
 
 Do not update `.ipynb` files while working on the backend replacement unless explicitly requested.
+
+## GitHub Actions
+
+- Keep the root `Rollup upload` workflow as a thin caller of the reusable `svelte-lib` rollup upload workflow. Project
+  specifics belong in workflow inputs, including the S3 prefix, bundle file list, and `SVELTE_LIB_REF` branch selection
+  for automatic production uploads.
+- Preserve automatic production uploads on pushes to `main` or `master`; manual dispatch should keep staged uploads as
+  the default unless `production` is explicitly selected.
