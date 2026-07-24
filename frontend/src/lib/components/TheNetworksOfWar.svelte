@@ -16,9 +16,18 @@
     { value: "last_year", label: "Last Year" },
     { value: "all_years", label: "All Years" }
   ]
-  const noTimeframeItemsMessage = "No timeframe data available."
-  const noNodeSizeItemsMessage = "No node size data available."
-  const noLinkDashItemsMessage = "No link dash data available."
+  const selectNoItemsMessage = {
+    country: "No countries available.",
+    war: "No wars match the selected filters.",
+    timeframe: "No timeframe data available.",
+    nodeDescriptor: "No node size data available.",
+    linkDescriptor: "No link dash data available."
+  }
+  const selectFallbackPlaceholder = {
+    timeframe: "",
+    nodeDescriptor: "Choose a node size.",
+    linkDescriptor: "Choose a link dash."
+  }
   const metricDictionary = dataDictionary.metrics || {}
   const controlTooltips = dataDictionary.controls || {}
 
@@ -68,7 +77,46 @@
   }
 
   function syncWarSelectValue(items) {
-    syncSelectValue("war", items, preferredWarItem(items))
+    syncSelectValue("war", items)
+  }
+
+  function warItem(war) {
+    return {
+      value: String(war.war_id),
+      label: war.war_name,
+      selectedLabel: war.war_name,
+      secondaryLabel: warSecondaryLabel(war),
+      war_type: war.war_type,
+      linkDashFieldCount: linkDashFieldCountsByWarId[String(war.war_id)] || 0,
+      war
+    }
+  }
+
+  function countryItemsForWars(warList) {
+    let availableWarIds = new Set(warList.map(war => String(war.war_id)))
+
+    return allCountryItems
+      .map(country => {
+        let availableWarCount = Array.from(country.warIds).filter(warId => availableWarIds.has(warId)).length
+
+        return availableWarCount ? { ...country, secondaryLabel: plural(availableWarCount, "war") } : null
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.label.localeCompare(b.label))
+  }
+
+  function updateCountryValue(event) {
+    let nextCountry = event.detail.d
+
+    selectValue.country = nextCountry
+
+    if (nextCountry && selectValue.war && !nextCountry.warIds.has(selectValue.war.value)) {
+      selectValue.war = null
+    }
+  }
+
+  function updateWarValue(event) {
+    selectValue.war = event.detail.d
   }
 
   function emptyNodeMargins() {
@@ -108,33 +156,32 @@
   let linkDashFieldCountsByWarId = Object.fromEntries(wars.map(war => [String(war.war_id), linkDashFieldCount(war)]))
   let warTypeItems = Array.from(new Set(wars.map(war => war.war_type)))
     .sort()
-    .map(warType => ({
-      value: warType,
-      label: warType
-    }))
-  let selectItems = {
-    country: Object.values(countryFiltersByCCode)
-      .map(country => {
-        let label = Array.from(country.names).sort((a, b) => a.localeCompare(b))[0]
+    .map(warType => ({ value: warType, label: warType }))
+  let allCountryItems = Object.values(countryFiltersByCCode)
+    .map(country => {
+      let label = Array.from(country.names).sort((a, b) => a.localeCompare(b))[0]
 
-        return {
-          value: String(country.c_code),
-          label,
-          selectedLabel: label,
-          secondaryLabel: plural(country.warIds.size, "war"),
-          c_code: country.c_code,
-          warIds: country.warIds
-        }
-      })
-      .sort((a, b) => a.label.localeCompare(b.label)),
-    war: [],
+      return {
+        value: String(country.c_code),
+        label,
+        selectedLabel: label,
+        secondaryLabel: plural(country.warIds.size, "war"),
+        c_code: country.c_code,
+        warIds: country.warIds
+      }
+    })
+    .sort((a, b) => a.label.localeCompare(b.label))
+  let initialWarItems = wars.map(warItem)
+  let selectItems = {
+    country: [],
+    war: initialWarItems,
     timeframe: timeframeItems,
     nodeDescriptor: [],
     linkDescriptor: []
   }
   let selectValue = {
     country: null,
-    war: null,
+    war: preferredWarItem(initialWarItems),
     timeframe: timeframeItems[2],
     nodeDescriptor: null,
     linkDescriptor: null
@@ -143,9 +190,10 @@
   let deselectedWarTypes = []
   let graph = { nodes: [], links: [] }
   let selectedWar = null
-  let pageWidth
 
   let width = 900
+  let viewportWidth = 900
+  let viewportHeight = 700
   let simulation
   let svg
   let nodes = []
@@ -171,9 +219,17 @@
   let nodeMargins = emptyNodeMargins()
   let radiusScale = scaleLinear([0, maxDomain], [1, 125])
   let primaryNode = null
+  let graphLayout = {
+    height: 700,
+    centerX: 450,
+    centerY: 350,
+    pressure: 0,
+    spacingScale: 1,
+    maxRadiusSize: 125,
+    marginSize: 10
+  }
 
   const graphTextSize = 12
-  const height = 700
   const minRadiusSize = 1
   const maxRadiusSize = 125
   const dyadMinLinkDistance = 380
@@ -182,7 +238,11 @@
   const nodeSizeWarningOffset = 10
   const nodeSizeWarningLabelGap = 14
   const maxVisibleNodeSizeWarnings = 6
-  const graphCenterY = height * 0.5
+  const denseGraphReferenceSize = 40
+  const controlLabelClasses = "mb-1 flex items-center gap-2 text-sm font-extrabold text-[#596b64]"
+  const summaryLabelClasses = "font-bold text-[#60706a]"
+  const tooltipLabelClasses = "font-bold text-[#33413c]"
+  const tooltipMetricLabelClasses = "font-semibold text-[#33413c]"
   const addedMarginSize = Math.max(linkNodeSize, 10)
   const tooltipOffset = 16
   const tooltipPadding = 8
@@ -221,24 +281,38 @@
   ])
   const sideColors = { 1: "#2f7f66", 2: "#b54f72", 3: "#5f70b8", null: "#71717a", undefined: "#71717a" }
 
-  $: graphCenterX = width * 0.5
+  $: {
+    let mobileHeight = Math.min(480, Math.max(280, viewportHeight * 0.42))
+    let height = width < 640 ? mobileHeight : width < 900 ? 600 : 700
+    let widthPressure = width < 900 ? Math.min(1, (900 - width) / 520) : 0
+    let densityPressure = Math.min(1, (nodes.length + links.length * 0.35) / denseGraphReferenceSize)
+    let pressure = widthPressure * densityPressure
+    let spacingScale = 1 - pressure * 0.25
+
+    graphLayout = {
+      height,
+      centerX: width * 0.5,
+      centerY: height * 0.5,
+      pressure,
+      spacingScale,
+      maxRadiusSize: maxRadiusSize * (1 - pressure * 0.36),
+      marginSize: Math.max(linkNodeSize, addedMarginSize * spacingScale)
+    }
+  }
   $: selectedWarTypeValues = selectedWarTypes?.length ? selectedWarTypes : []
   $: selectedCountryWarIds = selectValue.country?.warIds
-  $: filteredWars = wars.filter(
-    war =>
-      selectedWarTypeValues.includes(war.war_type) &&
-      (!selectedCountryWarIds || selectedCountryWarIds.has(String(war.war_id)))
+  $: filteredWarsByType = wars.filter(war => selectedWarTypeValues.includes(war.war_type))
+  $: filteredWars = filteredWarsByType.filter(
+    war => !selectedCountryWarIds || selectedCountryWarIds.has(String(war.war_id))
   )
   $: {
-    let nextWarItems = filteredWars.map(war => ({
-      value: String(war.war_id),
-      label: war.war_name,
-      selectedLabel: war.war_name,
-      secondaryLabel: warSecondaryLabel(war),
-      war_type: war.war_type,
-      linkDashFieldCount: linkDashFieldCountsByWarId[String(war.war_id)] || 0,
-      war
-    }))
+    let nextCountryItems = countryItemsForWars(filteredWarsByType)
+
+    selectItems.country = nextCountryItems
+    syncSelectValue("country", nextCountryItems)
+  }
+  $: {
+    let nextWarItems = filteredWars.map(warItem)
 
     selectItems.war = nextWarItems
     syncWarSelectValue(nextWarItems)
@@ -269,9 +343,7 @@
 
     let roundedScaledValue =
       Math.round((value / unit.value) * 10 ** tooltipFractionDigits) / 10 ** tooltipFractionDigits
-    let compactValue = roundedScaledValue.toLocaleString("en-US", {
-      maximumFractionDigits: tooltipFractionDigits
-    })
+    let compactValue = roundedScaledValue.toLocaleString("en-US", { maximumFractionDigits: tooltipFractionDigits })
 
     return `${compactValue} ${unit.label}`
   }
@@ -493,10 +565,7 @@
 
       return {
         ...node,
-        metrics: {
-          ...(node.metrics || {}),
-          all_years: allYearMetrics
-        },
+        metrics: { ...(node.metrics || {}), all_years: allYearMetrics },
         all_years: {
           ...(node.all_years || {}),
           battle_deaths: battleDeaths,
@@ -518,7 +587,7 @@
   function getNodeMargins() {
     let margins = emptyNodeMargins()
 
-    radiusScale = scaleLinear([0, maxDomain], [minRadiusSize, maxRadiusSize])
+    radiusScale = scaleLinear([0, maxDomain], [minRadiusSize, graphLayout.maxRadiusSize])
 
     nodes.forEach(node => {
       let nodeSizing = nodeSizingById[node.id]
@@ -533,7 +602,7 @@
       let currentNameLength = textWidth(node.participant)
       let currentNameLengthHalf = currentNameLength / 2
       let currentVerticalShift = nameFits ? 5 : currentRadiusSize + 22.5
-      let currentHorizontalShift = nameFits ? 0 : 30
+      let currentHorizontalShift = nameFits ? 0 : 30 * graphLayout.spacingScale
 
       margins.radius_size[node.id] = currentRadiusSize
       margins.name[node.id] = node.participant
@@ -543,12 +612,12 @@
       margins.name_fits_in_node[node.id] = nameFits
 
       if (!nameFits) {
-        margins.added_top_margin[node.id] = currentVerticalShift + addedMarginSize
-        margins.added_bottom_margin[node.id] = currentVerticalShift + addedMarginSize
-        margins.added_left_margin[node.id] = currentNameLengthHalf + currentHorizontalShift + addedMarginSize
-        margins.added_right_margin[node.id] = currentNameLengthHalf + currentHorizontalShift + addedMarginSize
+        margins.added_top_margin[node.id] = currentVerticalShift + graphLayout.marginSize
+        margins.added_bottom_margin[node.id] = currentVerticalShift + graphLayout.marginSize
+        margins.added_left_margin[node.id] = currentNameLengthHalf + currentHorizontalShift + graphLayout.marginSize
+        margins.added_right_margin[node.id] = currentNameLengthHalf + currentHorizontalShift + graphLayout.marginSize
       } else {
-        let nodeMargin = Math.max(currentRadiusSize, linkNodeSize) + addedMarginSize
+        let nodeMargin = Math.max(currentRadiusSize, linkNodeSize) + graphLayout.marginSize
 
         margins.added_top_margin[node.id] = nodeMargin
         margins.added_bottom_margin[node.id] = nodeMargin
@@ -564,21 +633,30 @@
     return nodeMargins.radius_size[node.id] ?? radiusScale(stdNullRadiusSize)
   }
 
+  function nodeHorizontalBoundsMargin(id) {
+    return Math.max(nodeMargins.radius_size[id] ?? radiusScale(stdNullRadiusSize), linkNodeSize) + graphLayout.marginSize
+  }
+
   function getXAdjusted(id, xLoc) {
-    if (id == primaryNode && nodes.length > 2) return graphCenterX
+    if (id == primaryNode && nodes.length > 2) return graphLayout.centerX
+
+    let horizontalMargin = nodeHorizontalBoundsMargin(id)
 
     return Math.max(
-      nodeMargins.added_left_margin[id] ?? addedMarginSize,
-      Math.min(width - (nodeMargins.added_right_margin[id] ?? addedMarginSize), xLoc ?? graphCenterX)
+      horizontalMargin,
+      Math.min(width - horizontalMargin, xLoc ?? graphLayout.centerX)
     )
   }
 
   function getYAdjusted(id, yLoc) {
-    if (id == primaryNode && nodes.length > 2) return graphCenterY
+    if (id == primaryNode && nodes.length > 2) return graphLayout.centerY
 
     return Math.max(
-      nodeMargins.added_top_margin[id] ?? addedMarginSize,
-      Math.min(height - (nodeMargins.added_bottom_margin[id] ?? addedMarginSize), yLoc ?? graphCenterY)
+      nodeMargins.added_top_margin[id] ?? graphLayout.marginSize,
+      Math.min(
+        graphLayout.height - (nodeMargins.added_bottom_margin[id] ?? graphLayout.marginSize),
+        yLoc ?? graphLayout.centerY
+      )
     )
   }
 
@@ -612,6 +690,17 @@
     return getYAdjusted(linkEndpointId(link, endpoint), link[endpoint]?.y)
   }
 
+  function externalLabelX(nodeX, labelWidth, horizontalShift, xOperator) {
+    let labelHalfWidth = labelWidth / 2
+    let labelCenterX = nodeX + horizontalShift * xOperator
+    let minLabelCenterX = graphLayout.marginSize + labelHalfWidth
+    let maxLabelCenterX = width - graphLayout.marginSize - labelHalfWidth
+
+    labelCenterX = Math.max(minLabelCenterX, Math.min(maxLabelCenterX, labelCenterX))
+
+    return labelCenterX - nodeX
+  }
+
   function labelPosition(node) {
     let id = node.id
     let x = getXAdjusted(id, node.x)
@@ -620,14 +709,14 @@
     let yOperator = 1
     let yAdjustment = 0
 
-    if (x <= graphCenterX && y >= graphCenterY) {
+    if (x <= graphLayout.centerX && y >= graphLayout.centerY) {
       xOperator = -1
       yOperator = 1
-    } else if (x >= graphCenterX && y <= graphCenterY) {
+    } else if (x >= graphLayout.centerX && y <= graphLayout.centerY) {
       xOperator = 1
       yOperator = -1
       yAdjustment = graphTextSize
-    } else if (x < graphCenterX && y < graphCenterY) {
+    } else if (x < graphLayout.centerX && y < graphLayout.centerY) {
       xOperator = -1
       yOperator = -1
       yAdjustment = graphTextSize
@@ -642,8 +731,11 @@
       }
     }
 
+    let labelWidth = nodeMargins.name_lengths[id] ?? textWidth(node.participant)
+    let horizontalShift = nodeMargins.horizontal_name_shift[id] ?? 30
+
     return {
-      x: (nodeMargins.horizontal_name_shift[id] ?? 30) * xOperator,
+      x: externalLabelX(x, labelWidth, horizontalShift, xOperator),
       y: (nodeMargins.vertical_name_shift[id] ?? nodeRadius(node) + 22.5) * yOperator + yAdjustment,
       anchor: "middle",
       inside: false
@@ -660,10 +752,7 @@
     let labelDirection = label.x < 0 ? -1 : 1
     let labelWidth = nodeMargins.name_lengths[node.id] ?? textWidth(node.participant)
 
-    return {
-      x: label.x + labelDirection * (labelWidth / 2 + nodeSizeWarningLabelGap),
-      y: label.y
-    }
+    return { x: label.x + labelDirection * (labelWidth / 2 + nodeSizeWarningLabelGap), y: label.y }
   }
 
   function showNodeSizeWarning(node) {
@@ -696,11 +785,7 @@
         return field == selectValue.nodeDescriptor?.value
       })
       .sort((a, b) => fieldLabel(a).localeCompare(fieldLabel(b)))
-      .map(field => ({
-        field,
-        label: fieldLabel(field),
-        value: nodeMetricValue(node, metrics, field)
-      }))
+      .map(field => ({ field, label: fieldLabel(field), value: nodeMetricValue(node, metrics, field) }))
   }
 
   function linkHasDescriptor(link) {
@@ -734,15 +819,17 @@
     let baseDistance =
       (nodeMargins.radius_size[link.source.id] ?? linkNodeSize) +
       (nodeMargins.radius_size[link.target.id] ?? linkNodeSize) +
-      Math.max(maxRadiusSize, addedMarginSize, 15)
+      Math.max(graphLayout.maxRadiusSize, graphLayout.marginSize, 15)
 
-    return nodes.length == 2 ? Math.max(baseDistance, dyadMinLinkDistance) : baseDistance
+    return nodes.length == 2
+      ? Math.max(baseDistance, dyadMinLinkDistance * graphLayout.spacingScale)
+      : baseDistance * graphLayout.spacingScale
   }
 
   function createLegacySimulation() {
     stopSimulation()
 
-    if (!nodes.length || !width || !height) return
+    if (!nodes.length || !width || !graphLayout.height) return
 
     let nodeById = new Map(nodes.map(node => [node.id, node]))
     primaryNode = identifyPrimaryNode()
@@ -757,25 +844,29 @@
 
     let averageNodeRadius = averageValue(Object.values(nodeMargins.radius_size))
     let averageHorizontalNameShift = averageValue(Object.values(nodeMargins.horizontal_name_shift))
+    let chargeScale = 1 - graphLayout.pressure * 0.3
+    let yTarget =
+      graphLayout.centerY * graphLayout.pressure +
+      (graphLayout.height - graphLayout.marginSize * 2) * (1 - graphLayout.pressure)
 
     simulation = forceSimulation(nodes.concat(linkNodes))
-      .force("charge", forceManyBody().strength(hasPrimaryNode ? -7500 : -1000))
-      .force("center", forceCenter(graphCenterX, graphCenterY))
-      .force("x", forceX(graphCenterX).strength(hasPrimaryNode ? 0.75 : 0.15))
-      .force("y", forceY(height - addedMarginSize * 2).strength(hasPrimaryNode ? 0.75 : 0.5))
+      .force("charge", forceManyBody().strength((hasPrimaryNode ? -7500 : -1000) * chargeScale))
+      .force("center", forceCenter(graphLayout.centerX, graphLayout.centerY))
+      .force("x", forceX(graphLayout.centerX).strength(hasPrimaryNode ? 0.75 : 0.15))
+      .force("y", forceY(yTarget).strength(hasPrimaryNode ? 0.75 : 0.5))
       .force(
         "collision",
         forceCollide()
           .radius(d => {
-            if (d.source !== undefined) return Math.max(linkNodeSize, addedMarginSize)
+            if (d.source !== undefined) return Math.max(linkNodeSize, graphLayout.marginSize)
 
             return Math.max(
               (nodeMargins.radius_size[d.id] ?? 0) +
                 Math.abs(nodeMargins.horizontal_name_shift[d.id] ?? 0) +
                 Math.abs(nodeMargins.vertical_name_shift[d.id] ?? 0) +
-                addedMarginSize,
-              averageNodeRadius + averageHorizontalNameShift + addedMarginSize,
-              addedMarginSize
+                graphLayout.marginSize,
+              averageNodeRadius + averageHorizontalNameShift + graphLayout.marginSize,
+              graphLayout.marginSize
             )
           })
           .strength(1)
@@ -807,17 +898,14 @@
 
     return {
       x: ((event.clientX - rect.left) / rect.width) * width,
-      y: ((event.clientY - rect.top) / rect.height) * height
+      y: ((event.clientY - rect.top) / rect.height) * graphLayout.height
     }
   }
 
   function tooltipBounds() {
     let rect = svg.parentElement.getBoundingClientRect()
 
-    return {
-      width: rect.width || width,
-      height: rect.height || height
-    }
+    return { width: rect.width || width, height: rect.height || graphLayout.height }
   }
 
   function clampTooltipCoordinates(x, y, bounds) {
@@ -832,7 +920,7 @@
     let x = event.clientX - rect.left + tooltipOffset
     let y = event.clientY - rect.top + tooltipOffset
 
-    return clampTooltipCoordinates(x, y, { width: rect.width || width, height: rect.height || height })
+    return clampTooltipCoordinates(x, y, { width: rect.width || width, height: rect.height || graphLayout.height })
   }
 
   function showTooltip(node, event) {
@@ -974,18 +1062,30 @@
     syncSelectValue("nodeDescriptor", nextNodeDescriptorItems)
     syncSelectValue("linkDescriptor", nextLinkDescriptorItems)
   }
-  $: timeframePlaceholder = !selectItems.timeframe.length && !selectValue.timeframe ? noTimeframeItemsMessage : ""
-  $: nodeDescriptorPlaceholder =
-    !selectItems.nodeDescriptor.length && !selectValue.nodeDescriptor ? noNodeSizeItemsMessage : "Choose a node size."
-  $: linkDescriptorPlaceholder =
-    !selectItems.linkDescriptor.length && !selectValue.linkDescriptor ? noLinkDashItemsMessage : "Choose a link dash."
-  $: nodeDescriptorTooltip = selectValue.nodeDescriptor?.value
-    ? metricTooltip(selectValue.nodeDescriptor.value, controlTooltips.node_size)
-    : controlTooltips.node_size
-  $: linkDescriptorTooltip = selectValue.linkDescriptor?.value
-    ? metricTooltip(selectValue.linkDescriptor.value, controlTooltips.link_dash)
-    : controlTooltips.link_dash
-  $: sizingSignature = `${selectValue.timeframe?.value || "all_years"}|${selectValue.nodeDescriptor?.value || "none"}|${width}|${height}|${nodes.length}|${links.length}`
+  $: selectPlaceholder = {
+    timeframe:
+      !selectItems.timeframe.length && !selectValue.timeframe
+        ? selectNoItemsMessage.timeframe
+        : selectFallbackPlaceholder.timeframe,
+    nodeDescriptor:
+      !selectItems.nodeDescriptor.length && !selectValue.nodeDescriptor
+        ? selectNoItemsMessage.nodeDescriptor
+        : selectFallbackPlaceholder.nodeDescriptor,
+    linkDescriptor:
+      !selectItems.linkDescriptor.length && !selectValue.linkDescriptor
+        ? selectNoItemsMessage.linkDescriptor
+        : selectFallbackPlaceholder.linkDescriptor
+  }
+  $: selectTooltip = {
+    nodeDescriptor: selectValue.nodeDescriptor?.value
+      ? metricTooltip(selectValue.nodeDescriptor.value, controlTooltips.node_size)
+      : controlTooltips.node_size,
+    linkDescriptor: selectValue.linkDescriptor?.value
+      ? metricTooltip(selectValue.linkDescriptor.value, controlTooltips.link_dash)
+      : controlTooltips.link_dash
+  }
+  $: warSecondaryLabelIdentifier = viewportWidth < 640 ? "mobileSecondaryLabel" : "secondaryLabel"
+  $: sizingSignature = `${selectValue.timeframe?.value || "all_years"}|${selectValue.nodeDescriptor?.value || "none"}|${width}|${graphLayout.height}|${graphLayout.pressure}|${nodes.length}|${links.length}`
   $: if (nodes.length && sizingSignature != currentSizingSignature) {
     currentSizingSignature = sizingSignature
     applyLegacySizing()
@@ -1018,289 +1118,305 @@
   })
 </script>
 
-<svelte:window on:pointermove={drag} on:pointerup={endDrag} />
-<main
-  class="relative flex h-full w-full flex-col items-center justify-center"
-  bind:clientWidth={pageWidth}
-  data-svelte-lib-tooltip-root
->
-  <div class="px-8 py-12 text-center text-lg min-[1300px]:hidden">
-    This visualization is best viewed on a larger screen. So, grab a computer and come back soon!
-  </div>
-  <div class="hidden min-[1300px]:block" style="width:{pageWidth ? pageWidth * 0.7 : 0}px">
-    <div class="mx-auto flex w-full flex-col gap-4 py-5">
-      <section class="grid gap-3 border border-[#d8d3c4] bg-white p-4">
-        <div>
-          <div class="mb-2 text-sm font-extrabold text-[#596b64]">War Types</div>
-          <div class="flex flex-wrap gap-x-5 gap-y-2 text-sm">
-            {#each warTypeItems as warTypeItem (warTypeItem.value)}
-              <CheckboxFilter
-                labelClasses="mb-0 font-medium"
-                label={warTypeItem.label}
-                value={warTypeItem.value}
-                selection={selectedWarTypes}
-                deselection={deselectedWarTypes}
-                on:update={({ detail }) => {
-                  selectedWarTypes = detail.selection
-                  deselectedWarTypes = detail.deselection
-                }}
-              />
-            {/each}
-          </div>
+<svelte:window
+  bind:innerWidth={viewportWidth}
+  bind:innerHeight={viewportHeight}
+  on:pointermove={drag}
+  on:pointerup={endDrag}
+/>
+<main class="relative flex h-full w-full flex-col items-center justify-center" data-svelte-lib-tooltip-root>
+  <div class="box-border flex w-full flex-col gap-4 px-3 py-4 min-[1300px]:w-[70%] min-[1300px]:px-0 min-[1300px]:py-5">
+    <section class="network-filter-panel grid min-w-0 gap-3 border border-[#d8d3c4] bg-white p-3 min-[1300px]:p-4">
+      <div>
+        <div class="mb-2 text-sm font-extrabold text-[#596b64]">War Types</div>
+        <div class="grid gap-x-2 text-sm sm:flex sm:flex-wrap sm:gap-x-5 sm:gap-y-2">
+          {#each warTypeItems as warTypeItem (warTypeItem.value)}
+            <CheckboxFilter
+              labelClasses="mb-0 font-medium"
+              label={warTypeItem.label}
+              value={warTypeItem.value}
+              selection={selectedWarTypes}
+              deselection={deselectedWarTypes}
+              on:update={({ detail }) => {
+                selectedWarTypes = detail.selection
+                deselectedWarTypes = detail.deselection
+              }}
+            />
+          {/each}
         </div>
-        <div>
-          <div class="mb-1 flex items-center gap-2 text-sm font-extrabold text-[#596b64]">
-            Country
-            <InfoIcon title={controlTooltips.country} tooltipClasses="max-w-80" />
-          </div>
-          <Select
-            items={selectItems.country}
-            value={selectValue.country}
-            labelConstruction={true}
-            secondaryLabelIdentifier="secondaryLabel"
-            placeholder="Filter by country"
-            noItemsMessage="No countries available."
-            on:valueChange={({ detail: e }) => (selectValue.country = e.d)}
-          />
+      </div>
+      <div>
+        <div class={controlLabelClasses}>
+          Country
+          <InfoIcon title={controlTooltips.country} tooltipClasses="max-w-80" />
         </div>
-        <div>
-          <div class="mb-1 flex items-center gap-2 text-sm font-extrabold text-[#596b64]">
-            War
-            <InfoIcon title={controlTooltips.war} tooltipClasses="max-w-80" />
-          </div>
-          <Select
-            items={selectItems.war}
-            value={selectValue.war}
-            groupBy="war_type"
-            labelConstruction={true}
-            secondaryLabelIdentifier="secondaryLabel"
-            placeholder="Select a war"
-            noItemsMessage="No wars match the selected filters."
-            on:valueChange={({ detail: e }) => (selectValue.war = e.d)}
-          />
+        <Select
+          items={selectItems.country}
+          value={selectValue.country}
+          labelConstruction={true}
+          secondaryLabelIdentifier="secondaryLabel"
+          placeholder="Filter by country"
+          noItemsMessage={selectNoItemsMessage.country}
+          on:valueChange={updateCountryValue}
+        />
+      </div>
+      <div>
+        <div class={controlLabelClasses}>
+          War
+          <InfoIcon title={controlTooltips.war} tooltipClasses="max-w-80" />
         </div>
-      </section>
-      <div class="relative w-full overflow-hidden border border-solid border-black">
-        <section class="min-h-[690px] bg-[#fbfcf9]" bind:clientWidth={width}>
-          <div class="flex flex-col gap-4 border-b border-[#d2d7d3] bg-white px-4 py-3">
-            {#if selectedWar}
-              <div class="grid gap-3 text-sm md:grid-cols-3 md:items-start">
-                <div class="grid gap-1 font-semibold">
-                  <div>
-                    <span class="font-bold text-[#60706a]">Type:</span>
-                    {selectedWar.war_type}
-                  </div>
-                  <div>
-                    <span class="font-bold text-[#60706a]">Subtype:</span>
-                    {selectedWar.war_subtype || "Unspecified"}
-                  </div>
-                </div>
-                <div class="self-center text-center">
-                  <div class="text-base font-extrabold">{selectedWar.war_name}</div>
-                  <div class="mt-1 font-semibold text-[#60706a]">
-                    {selectedWar.ongoing_war
-                      ? `${selectedWar.start_year}-Present`
-                      : selectedWar.start_year == selectedWar.end_year
-                        ? String(selectedWar.start_year)
-                        : `${selectedWar.start_year}-${selectedWar.end_year}`}
-                    ({Number(selectedWar.total_days_in_war || 0).toLocaleString()} days)
-                  </div>
-                </div>
-                <div aria-hidden="true"></div>
-              </div>
-            {/if}
-            {#if nodes.length}
-              <div class="grid gap-3 md:grid-cols-3">
-                <div>
-                  <div class="mb-1 flex items-center gap-2 text-sm font-extrabold text-[#596b64]">
-                    Timeframe
-                    <InfoIcon title={controlTooltips.timeframe} tooltipClasses="max-w-80" />
-                  </div>
-                  <Select
-                    items={selectItems.timeframe}
-                    value={selectValue.timeframe}
-                    placeholder={timeframePlaceholder}
-                    noItemsMessage={noTimeframeItemsMessage}
-                    clearable={false}
-                    disabled={selectItems.timeframe.length <= 1}
-                    on:valueChange={({ detail: e }) => (selectValue.timeframe = e.d)}
-                  />
-                </div>
-                <div>
-                  <div class="mb-1 flex items-center gap-2 text-sm font-extrabold text-[#596b64]">
-                    Node Size
-                    <InfoIcon title={nodeDescriptorTooltip} tooltipClasses="max-w-96" />
-                  </div>
-                  <Select
-                    items={selectItems.nodeDescriptor}
-                    value={selectValue.nodeDescriptor}
-                    placeholder={nodeDescriptorPlaceholder}
-                    noItemsMessage={noNodeSizeItemsMessage}
-                    clearable={true}
-                    disabled={!selectItems.nodeDescriptor.length && !selectValue.nodeDescriptor}
-                    on:valueChange={({ detail: e }) => (selectValue.nodeDescriptor = e.d)}
-                  />
-                </div>
-                <div>
-                  <div class="mb-1 flex items-center gap-2 text-sm font-extrabold text-[#596b64]">
-                    Link Dash
-                    <InfoIcon title={linkDescriptorTooltip} tooltipClasses="max-w-96" />
-                  </div>
-                  <Select
-                    items={selectItems.linkDescriptor}
-                    value={selectValue.linkDescriptor}
-                    placeholder={linkDescriptorPlaceholder}
-                    noItemsMessage={noLinkDashItemsMessage}
-                    clearable={true}
-                    disabled={!selectItems.linkDescriptor.length && !selectValue.linkDescriptor}
-                    on:valueChange={updateLinkDescriptorValue}
-                  />
-                </div>
-              </div>
-            {/if}
-          </div>
-          {#if nodes.length}
-            <div class="relative">
-              <svg
-                class="block w-full touch-none"
-                {height}
-                viewBox="0 0 {width} {height}"
-                role="img"
-                bind:this={svg}
-                on:pointermove={moveTooltip}
-                on:pointerleave={clearTooltip}
+        <Select
+          items={selectItems.war}
+          value={selectValue.war}
+          groupBy="war_type"
+          labelConstruction={true}
+          secondaryLabelIdentifier={warSecondaryLabelIdentifier}
+          placeholder="Select a war"
+          noItemsMessage={selectNoItemsMessage.war}
+          on:valueChange={updateWarValue}
+        />
+      </div>
+    </section>
+    <div class="relative w-full overflow-hidden border border-black">
+      <section class="bg-[#fbfcf9]">
+        <div class="flex flex-col gap-4 border-b border-[#d2d7d3] bg-white px-4 py-3">
+          {#if selectedWar}
+            <div class="grid min-w-0 gap-3 text-sm min-[1300px]:grid-cols-3 min-[1300px]:items-start">
+              <div
+                class="order-2 mt-1 grid min-w-0 gap-1 text-center font-semibold min-[1300px]:order-1 min-[1300px]:mt-0 min-[1300px]:text-left"
               >
-                <g>
-                  {#each links as link, i (i)}
-                    <line
-                      x1={linkX(link, "source")}
-                      y1={linkY(link, "source")}
-                      x2={linkX(link, "target")}
-                      y2={linkY(link, "target")}
-                      stroke="#8a948f"
-                      stroke-opacity={0.45}
-                      stroke-width={1}
+                <div>
+                  <span class={summaryLabelClasses}>Type:</span>
+                  {selectedWar.war_type}
+                </div>
+                <div>
+                  <span class={summaryLabelClasses}>Subtype:</span>
+                  {selectedWar.war_subtype || "Unspecified"}
+                </div>
+              </div>
+              <div class="order-1 min-w-0 self-center text-center min-[1300px]:order-2">
+                <div
+                  class="mx-auto max-w-full break-words px-2 text-sm font-extrabold leading-snug min-[1300px]:px-0 min-[1300px]:text-base min-[1300px]:leading-normal"
+                >
+                  {selectedWar.war_name}
+                </div>
+                <div class="mt-1 font-semibold text-[#60706a]">
+                  {selectedWar.ongoing_war
+                    ? `${selectedWar.start_year}-Present`
+                    : selectedWar.start_year == selectedWar.end_year
+                      ? String(selectedWar.start_year)
+                      : `${selectedWar.start_year}-${selectedWar.end_year}`}
+                  ({Number(selectedWar.total_days_in_war || 0).toLocaleString()} days)
+                </div>
+              </div>
+            </div>
+          {/if}
+          {#if nodes.length}
+            <div class="grid gap-3 md:grid-cols-3">
+              <div>
+                <div class={controlLabelClasses}>
+                  Timeframe
+                  <InfoIcon title={controlTooltips.timeframe} tooltipClasses="max-w-80" />
+                </div>
+                <Select
+                  items={selectItems.timeframe}
+                  value={selectValue.timeframe}
+                  placeholder={selectPlaceholder.timeframe}
+                  noItemsMessage={selectNoItemsMessage.timeframe}
+                  clearable={false}
+                  disabled={selectItems.timeframe.length <= 1}
+                  on:valueChange={({ detail: e }) => (selectValue.timeframe = e.d)}
+                />
+              </div>
+              <div>
+                <div class={controlLabelClasses}>
+                  Node Size
+                  <InfoIcon title={selectTooltip.nodeDescriptor} tooltipClasses="max-w-96" />
+                </div>
+                <Select
+                  items={selectItems.nodeDescriptor}
+                  value={selectValue.nodeDescriptor}
+                  placeholder={selectPlaceholder.nodeDescriptor}
+                  noItemsMessage={selectNoItemsMessage.nodeDescriptor}
+                  clearable={true}
+                  disabled={!selectItems.nodeDescriptor.length && !selectValue.nodeDescriptor}
+                  on:valueChange={({ detail: e }) => (selectValue.nodeDescriptor = e.d)}
+                />
+              </div>
+              <div>
+                <div class={controlLabelClasses}>
+                  Link Dash
+                  <InfoIcon title={selectTooltip.linkDescriptor} tooltipClasses="max-w-96" />
+                </div>
+                <Select
+                  items={selectItems.linkDescriptor}
+                  value={selectValue.linkDescriptor}
+                  placeholder={selectPlaceholder.linkDescriptor}
+                  noItemsMessage={selectNoItemsMessage.linkDescriptor}
+                  clearable={true}
+                  disabled={!selectItems.linkDescriptor.length && !selectValue.linkDescriptor}
+                  on:valueChange={updateLinkDescriptorValue}
+                />
+              </div>
+            </div>
+          {/if}
+        </div>
+        <div class="relative min-w-0" bind:clientWidth={width}>
+          {#if nodes.length}
+            <svg
+              class="block w-full touch-none"
+              height={graphLayout.height}
+              viewBox="0 0 {width} {graphLayout.height}"
+              role="img"
+              bind:this={svg}
+              on:pointermove={moveTooltip}
+              on:pointerleave={clearTooltip}
+            >
+              <g>
+                {#each links as link, i (i)}
+                  <line
+                    x1={linkX(link, "source")}
+                    y1={linkY(link, "source")}
+                    x2={linkX(link, "target")}
+                    y2={linkY(link, "target")}
+                    stroke="#8a948f"
+                    stroke-opacity={0.45}
+                    stroke-width={1}
+                  />
+                  <line
+                    x1={linkX(link, "source")}
+                    y1={linkY(link, "source")}
+                    x2={linkX(link, "target")}
+                    y2={linkY(link, "target")}
+                    stroke={linkHasDescriptor(link) ? "blue" : "transparent"}
+                    stroke-opacity={0.9}
+                    stroke-width={linkDashStrokeWidth}
+                    stroke-dasharray="2.5 15"
+                    stroke-dashoffset={-7.5}
+                    style="transition: stroke-width 1000ms ease 50ms, stroke 1000ms ease 50ms;"
+                  />
+                {/each}
+              </g>
+              <g role="list">
+                {#each nodes as node (node.id)}
+                  {@const label = labelPosition(node)}
+                  <g
+                    class="cursor-grab active:cursor-grabbing"
+                    role="listitem"
+                    transform="translate({getXAdjusted(node.id, node.x)}, {getYAdjusted(node.id, node.y)})"
+                    on:pointerdown={event => startDrag(node, event)}
+                    on:pointerenter={event => showTooltip(node, event)}
+                    on:pointermove={event => showTooltip(node, event)}
+                    on:pointerleave={clearTooltip}
+                  >
+                    <circle
+                      r={nodeRadius(node)}
+                      fill={sideColors[node.side]}
+                      stroke="black"
+                      stroke-width={hoverNode?.id == node.id ? nodeStrokeWidth + 0.75 : nodeStrokeWidth}
+                      style="transition: r 3000ms ease 500ms, stroke-width 150ms ease;"
                     />
-                    <line
-                      x1={linkX(link, "source")}
-                      y1={linkY(link, "source")}
-                      x2={linkX(link, "target")}
-                      y2={linkY(link, "target")}
-                      stroke={linkHasDescriptor(link) ? "blue" : "transparent"}
-                      stroke-opacity={0.9}
-                      stroke-width={linkDashStrokeWidth}
-                      stroke-dasharray="2.5 15"
-                      stroke-dashoffset={-7.5}
-                      style="transition: stroke-width 1000ms ease 50ms, stroke 1000ms ease 50ms;"
-                    />
-                  {/each}
-                </g>
-                <g role="list">
-                  {#each nodes as node (node.id)}
-                    {@const label = labelPosition(node)}
                     <g
-                      class="cursor-grab active:cursor-grabbing"
-                      role="listitem"
-                      transform="translate({getXAdjusted(node.id, node.x)}, {getYAdjusted(node.id, node.y)})"
-                      on:pointerdown={event => startDrag(node, event)}
-                      on:pointerenter={event => showTooltip(node, event)}
-                      on:pointermove={event => showTooltip(node, event)}
-                      on:pointerleave={clearTooltip}
+                      style="transform: translate({label.x}px, {label.y}px); transition: transform 2000ms ease 1500ms;"
                     >
-                      <circle
-                        r={nodeRadius(node)}
-                        fill={sideColors[node.side]}
-                        stroke="black"
-                        stroke-width={hoverNode?.id == node.id ? nodeStrokeWidth + 0.75 : nodeStrokeWidth}
-                        style="transition: r 3000ms ease 500ms, stroke-width 150ms ease;"
-                      />
+                      <text
+                        class="text-[12px] font-bold"
+                        text-anchor={label.anchor}
+                        fill={label.inside ? "white" : "#111827"}
+                        stroke={label.inside ? "none" : "white"}
+                        stroke-width={label.inside ? 0 : 3}
+                        paint-order="stroke"
+                        style="transition: fill 2000ms ease 1500ms, stroke 2000ms ease 1500ms;"
+                      >
+                        {node.participant}
+                      </text>
+                    </g>
+                    {#if showNodeSizeWarning(node)}
+                      {@const warningPosition = nodeSizeWarningPosition(node, label)}
                       <g
-                        style="transform: translate({label.x}px, {label.y}px); transition: transform 2000ms ease 1500ms;"
+                        style="transform: translate({warningPosition.x}px, {warningPosition.y}px); transition: transform 2000ms ease 1500ms;"
                       >
                         <text
-                          class="text-[12px] font-bold"
-                          text-anchor={label.anchor}
-                          fill={label.inside ? "white" : "#111827"}
-                          stroke={label.inside ? "none" : "white"}
-                          stroke-width={label.inside ? 0 : 3}
+                          class="text-[10px] font-extrabold"
+                          text-anchor="middle"
+                          dominant-baseline="central"
+                          fill="#111827"
+                          stroke="white"
+                          stroke-width={2.5}
                           paint-order="stroke"
-                          style="transition: fill 2000ms ease 1500ms, stroke 2000ms ease 1500ms;"
                         >
-                          {node.participant}
+                          ?
                         </text>
                       </g>
-                      {#if showNodeSizeWarning(node)}
-                        {@const warningPosition = nodeSizeWarningPosition(node, label)}
-                        <g
-                          style="transform: translate({warningPosition.x}px, {warningPosition.y}px); transition: transform 2000ms ease 1500ms;"
-                        >
-                          <text
-                            class="text-[10px] font-extrabold"
-                            text-anchor="middle"
-                            dominant-baseline="central"
-                            fill="#111827"
-                            stroke="white"
-                            stroke-width={2.5}
-                            paint-order="stroke"
-                          >
-                            ?
-                          </text>
-                        </g>
-                      {/if}
-                    </g>
-                  {/each}
-                </g>
-              </svg>
-              {#if tooltip}
-                {@const metricRows = nodeMetricRows(tooltip.node)}
-                <div
-                  class="pointer-events-none absolute z-20 max-w-sm border border-[#c4cec8] bg-white px-3 py-2 text-xs shadow-sm"
-                  style="left: {tooltip.x}px; top: {tooltip.y}px;"
-                  bind:clientWidth={tooltipWidth}
-                  bind:clientHeight={tooltipHeight}
-                >
-                  <div class="text-sm font-extrabold">{tooltip.node.participant}</div>
-                  <div class="mt-1 space-y-0.5 text-[#50615b]">
-                    <div>
-                      <span class="font-bold text-[#33413c]">Start Date:</span>
-                      {displayDate(tooltip.node.start_date, tooltip.node.start_date_estimated)}
+                    {/if}
+                  </g>
+                {/each}
+              </g>
+            </svg>
+            {#if tooltip}
+              {@const metricRows = nodeMetricRows(tooltip.node)}
+              <div
+                class="pointer-events-none absolute z-20 max-w-sm border border-[#c4cec8] bg-white px-3 py-2 text-xs shadow-sm"
+                style="left: {tooltip.x}px; top: {tooltip.y}px;"
+                bind:clientWidth={tooltipWidth}
+                bind:clientHeight={tooltipHeight}
+              >
+                <div class="text-sm font-extrabold">{tooltip.node.participant}</div>
+                <div class="mt-1 space-y-0.5 text-[#50615b]">
+                  <div>
+                    <span class={tooltipLabelClasses}>Start Date:</span>
+                    {displayDate(tooltip.node.start_date, tooltip.node.start_date_estimated)}
+                  </div>
+                  <div>
+                    <span class={tooltipLabelClasses}>End Date:</span>
+                    {Number(tooltip.node.ongoing_war) == 1
+                      ? "Ongoing"
+                      : displayDate(tooltip.node.end_date, tooltip.node.end_date_estimated)}
+                  </div>
+                  <div class="mb-2">
+                    <span class={tooltipLabelClasses}>Days At War:</span>
+                    {displayMetricNumber(tooltip.node.metrics?.all_years?.days_at_war, "days_at_war")}
+                  </div>
+                </div>
+                {#if metricRows.length}
+                  <div class="mt-2 border-t border-[#dfe5e1] pt-1.5">
+                    <div class="mb-1 font-extrabold text-[#33413c]">
+                      Timeframe: {selectValue.timeframe?.label || "All Years"}
                     </div>
-                    <div>
-                      <span class="font-bold text-[#33413c]">End Date:</span>
-                      {Number(tooltip.node.ongoing_war) == 1
-                        ? "Ongoing"
-                        : displayDate(tooltip.node.end_date, tooltip.node.end_date_estimated)}
-                    </div>
-                    <div class="mb-2">
-                      <span class="font-bold text-[#33413c]">Days At War:</span>
-                      {displayMetricNumber(tooltip.node.metrics?.all_years?.days_at_war, "days_at_war")}
+                    <div class="space-y-0.5 text-[#50615b]">
+                      {#each metricRows as row (row.field)}
+                        <div>
+                          <span class={tooltipMetricLabelClasses}>{row.label}:</span>
+                          {row.value}
+                        </div>
+                      {/each}
                     </div>
                   </div>
-                  {#if metricRows.length}
-                    <div class="mt-2 border-t border-[#dfe5e1] pt-1.5">
-                      <div class="mb-1 font-extrabold text-[#33413c]">
-                        Timeframe: {selectValue.timeframe?.label || "All Years"}
-                      </div>
-                      <div class="space-y-0.5 text-[#50615b]">
-                        {#each metricRows as row (row.field)}
-                          <div>
-                            <span class="font-semibold text-[#33413c]">{row.label}:</span>
-                            {row.value}
-                          </div>
-                        {/each}
-                      </div>
-                    </div>
-                  {/if}
-                </div>
-              {/if}
-            </div>
+                {/if}
+              </div>
+            {/if}
           {:else}
-            <div class="flex h-[700px] items-center justify-center px-6 text-center text-[#60706a]">
+            <div
+              class="flex items-center justify-center px-6 text-center text-[#60706a]"
+              style="height:{graphLayout.height}px;"
+            >
               No graph rows are available for the current selection.
             </div>
           {/if}
-        </section>
-      </div>
+        </div>
+      </section>
     </div>
   </div>
 </main>
+
+<style>
+  @media (max-width: 767px) {
+    .network-filter-panel :global(table td:last-child) {
+      display: none;
+    }
+
+    .network-filter-panel :global(table td:nth-child(2)) {
+      width: 100%;
+    }
+  }
+</style>
