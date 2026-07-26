@@ -1,0 +1,20 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      svelte-lib-ref:
+        description: svelte-lib ref used for the local file dependency.
+        required: false
+        type: string
+        default: cy_dev3
+
+jobs:
+  node-package-ci:
+    uses: cyaris/svelte-lib/.github/workflows/node-package-ci.yml@cy_dev3
+    with:
+      working-directory: frontend
+      svelte-lib-ref: ${{ github.event_name == 'workflow_dispatch' && inputs.svelte-lib-ref || vars.SVELTE_LIB_REF || 'cy_dev3' }}
+    secrets: inherit
