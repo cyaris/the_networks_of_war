@@ -77,6 +77,8 @@ Do not update `.ipynb` files while working on the backend replacement unless exp
 - Keep the root `Rollup upload` workflow as a thin caller of the `svelte-lib` rollup upload composite action. Project
   specifics belong in action inputs, including the S3 prefix, bundle file list, and `SVELTE_LIB_REF` branch selection
   for automatic production uploads.
+- Keep the root `Auto release` workflow as a thin caller of the shared `svelte-lib` auto-release workflow. Project
+  release naming and milestone overrides belong in `.github/release-policy.yml`.
 - Preserve automatic production uploads on pushes to `main` or `master`; manual dispatch should keep staged uploads as
   the default unless `production` is explicitly selected.
 
