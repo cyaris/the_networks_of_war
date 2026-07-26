@@ -74,6 +74,9 @@ Do not update `.ipynb` files while working on the backend replacement unless exp
 
 ## GitHub Actions
 
+- Keep every GitHub Actions workflow and composite action documented in the README. For each documented feature, include
+  its trigger, purpose, important inputs or secrets, whether it can be dispatched from the GitHub Actions UI, and how it
+  is dispatched when UI dispatch is not available.
 - Keep the root `Rollup upload` workflow as a thin caller of the shared `svelte-lib` rollup upload workflow. Project
   specifics belong in action inputs, including the S3 prefix, bundle file list, and `SVELTE_LIB_REF` branch selection
   for automatic production uploads.
