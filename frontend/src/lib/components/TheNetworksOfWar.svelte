@@ -634,7 +634,9 @@
   }
 
   function nodeHorizontalBoundsMargin(id) {
-    return Math.max(nodeMargins.radius_size[id] ?? radiusScale(stdNullRadiusSize), linkNodeSize) + graphLayout.marginSize
+    return (
+      Math.max(nodeMargins.radius_size[id] ?? radiusScale(stdNullRadiusSize), linkNodeSize) + graphLayout.marginSize
+    )
   }
 
   function getXAdjusted(id, xLoc) {
@@ -642,10 +644,7 @@
 
     let horizontalMargin = nodeHorizontalBoundsMargin(id)
 
-    return Math.max(
-      horizontalMargin,
-      Math.min(width - horizontalMargin, xLoc ?? graphLayout.centerX)
-    )
+    return Math.max(horizontalMargin, Math.min(width - horizontalMargin, xLoc ?? graphLayout.centerX))
   }
 
   function getYAdjusted(id, yLoc) {
