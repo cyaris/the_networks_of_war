@@ -18,7 +18,7 @@
       "unit": "deaths",
       "valueSuffix": "deaths",
       "source": "START, Global Terrorism Database",
-      "calculation": "Counts people killed in terrorist incidents associated with the participant country, then averages those yearly counts across the selected timeframe."
+      "calculation": "Counts people killed in terrorist incidents associated with the participant country, then averages those yearly counts."
     },
     "mid_dyads": {
       "label": "MID Dyads",
@@ -26,7 +26,7 @@
       "unit": "dyads",
       "valueSuffix": "dyads",
       "source": "Correlates of War, Militarized Interstate Disputes",
-      "calculation": "Counts distinct militarized dispute dyads involving the participant country, then averages those yearly counts across the selected timeframe."
+      "calculation": "Counts distinct militarized dispute dyads involving the participant country, then averages those yearly counts."
     },
     "mid_dyads_initiated": {
       "label": "MID Dyads Initiated",
@@ -34,7 +34,7 @@
       "unit": "dyads",
       "valueSuffix": "dyads",
       "source": "Correlates of War, Militarized Interstate Disputes",
-      "calculation": "Counts distinct militarized dispute dyads where the participant country is coded as an initiator, then averages those yearly counts across the selected timeframe."
+      "calculation": "Counts distinct militarized dispute dyads where the participant country is coded as an initiator, then averages those yearly counts."
     },
     "mid_dyads_targeted": {
       "label": "MID Dyads Targeted",
@@ -42,7 +42,7 @@
       "unit": "dyads",
       "valueSuffix": "dyads",
       "source": "Correlates of War, Militarized Interstate Disputes",
-      "calculation": "Counts distinct militarized dispute dyads where the participant country is coded as a target, then averages those yearly counts across the selected timeframe."
+      "calculation": "Counts distinct militarized dispute dyads where the participant country is coded as a target, then averages those yearly counts."
     },
     "mid_dyads_joined": {
       "label": "MID Dyads Joined",
@@ -50,7 +50,7 @@
       "unit": "dyads",
       "valueSuffix": "dyads",
       "source": "Correlates of War, Militarized Interstate Disputes",
-      "calculation": "Counts distinct militarized dispute dyads where the participant country is coded as joining an existing dispute, then averages those yearly counts across the selected timeframe."
+      "calculation": "Counts distinct militarized dispute dyads where the participant country is coded as joining an existing dispute, then averages those yearly counts."
     },
     "allied_countries": {
       "label": "Allied Countries",
@@ -58,7 +58,7 @@
       "unit": "countries",
       "valueSuffix": "countries",
       "source": "Correlates of War, Formal Alliances",
-      "calculation": "Counts countries with a defense, neutrality, nonaggression, or entente alliance with the participant country, then averages those yearly counts across the selected timeframe."
+      "calculation": "Counts countries with a defense, neutrality, nonaggression, or entente alliance with the participant country, then averages those yearly counts."
     },
     "trade_countries": {
       "label": "Trade Countries",
@@ -66,7 +66,7 @@
       "unit": "countries",
       "valueSuffix": "countries",
       "source": "Correlates of War, Trade Data Set",
-      "calculation": "Counts countries that traded with the participant country in a year, then averages those yearly counts across the selected timeframe."
+      "calculation": "Counts countries that traded with the participant country in a year, then averages those yearly counts."
     },
     "money_flow_in": {
       "label": "Money Flow In",
@@ -74,7 +74,7 @@
       "unit": "current-year US dollars",
       "valuePrefix": "$",
       "source": "Correlates of War, Trade Data Set",
-      "calculation": "Sums imports into the participant country from its trade partners, then averages those yearly totals across the selected timeframe. The source reports millions of dollars; the graph displays dollars."
+      "calculation": "Sums imports into the participant country from its trade partners, then averages those yearly totals. The source reports millions of dollars; the graph displays dollars."
     },
     "money_flow_out": {
       "label": "Money Flow Out",
@@ -82,7 +82,7 @@
       "unit": "current-year US dollars",
       "valuePrefix": "$",
       "source": "Correlates of War, Trade Data Set",
-      "calculation": "Sums partner imports from the participant country, then averages those yearly totals across the selected timeframe. The source reports millions of dollars; the graph displays dollars."
+      "calculation": "Sums partner imports from the participant country, then averages those yearly totals. The source reports millions of dollars; the graph displays dollars."
     },
     "imports": {
       "label": "Imports",
@@ -90,7 +90,7 @@
       "unit": "current-year US dollars",
       "valuePrefix": "$",
       "source": "Correlates of War, Trade Data Set",
-      "calculation": "Uses the participant country's national import totals, then averages those yearly totals across the selected timeframe. The source reports millions of dollars; the graph displays dollars."
+      "calculation": "Uses the participant country's national import totals, then averages those yearly totals. The source reports millions of dollars; the graph displays dollars."
     },
     "exports": {
       "label": "Exports",
@@ -98,7 +98,7 @@
       "unit": "current-year US dollars",
       "valuePrefix": "$",
       "source": "Correlates of War, Trade Data Set",
-      "calculation": "Uses the participant country's national export totals, then averages those yearly totals across the selected timeframe. The source reports millions of dollars; the graph displays dollars."
+      "calculation": "Uses the participant country's national export totals, then averages those yearly totals. The source reports millions of dollars; the graph displays dollars."
     },
     "military_expenditure": {
       "label": "Military Expenditure",
@@ -106,7 +106,7 @@
       "unit": "historical currency units",
       "valuePrefix": "£/$",
       "source": "Correlates of War, National Material Capabilities",
-      "calculation": "Uses the participant country's military spending from the National Material Capabilities study, then averages yearly values across the selected timeframe. The source reports thousands of historical currency units; the graph displays single units. Values before 1914 are British pounds, and values from 1914 onward are US dollars."
+      "calculation": "Uses the participant country's military spending from the National Material Capabilities study, then averages yearly values. The source reports thousands of historical currency units; the graph displays single units. Values before 1914 are British pounds, and values from 1914 onward are US dollars."
     },
     "military_personnel": {
       "label": "Military Personnel",
@@ -114,7 +114,7 @@
       "unit": "people",
       "valueSuffix": "people",
       "source": "Correlates of War, National Material Capabilities",
-      "calculation": "Uses the participant country's active military personnel, then averages yearly values across the selected timeframe. The source reports thousands of people; the graph displays people."
+      "calculation": "Uses the participant country's active military personnel, then averages yearly values. The source reports thousands of people; the graph displays people."
     },
     "iron_steel_production": {
       "label": "Iron And Steel Production",
@@ -122,7 +122,7 @@
       "unit": "tons",
       "valueSuffix": "tons",
       "source": "Correlates of War, National Material Capabilities",
-      "calculation": "Uses the participant country's iron and steel production, then averages yearly values across the selected timeframe. The source reports thousands of tons; the graph displays tons."
+      "calculation": "Uses the participant country's iron and steel production, then averages yearly values. The source reports thousands of tons; the graph displays tons."
     },
     "energy_consumption": {
       "label": "Energy Consumption",
@@ -130,7 +130,7 @@
       "unit": "coal-ton equivalents",
       "valueSuffix": "coal-ton equivalents",
       "source": "Correlates of War, National Material Capabilities",
-      "calculation": "Uses the participant country's primary energy consumption, then averages yearly values across the selected timeframe. The source reports thousands of coal-ton equivalents; the graph displays coal-ton equivalents."
+      "calculation": "Uses the participant country's primary energy consumption, then averages yearly values. The source reports thousands of coal-ton equivalents; the graph displays coal-ton equivalents."
     },
     "population": {
       "label": "Population",
@@ -138,7 +138,7 @@
       "unit": "people",
       "valueSuffix": "people",
       "source": "Correlates of War, National Material Capabilities",
-      "calculation": "Uses the participant country's total population, then averages yearly values across the selected timeframe. The source reports thousands of people; the graph displays people."
+      "calculation": "Uses the participant country's total population, then averages yearly values. The source reports thousands of people; the graph displays people."
     },
     "urban_population": {
       "label": "Urban Population",
@@ -146,7 +146,7 @@
       "unit": "people",
       "valueSuffix": "people",
       "source": "Correlates of War, National Material Capabilities",
-      "calculation": "Uses the participant country's urban population, then averages yearly values across the selected timeframe. The source reports thousands of people; the graph displays people."
+      "calculation": "Uses the participant country's urban population, then averages yearly values. The source reports thousands of people; the graph displays people."
     },
     "urban_population_growth_rate": {
       "label": "Urban Population Growth Rate",
@@ -154,7 +154,7 @@
       "unit": "percent",
       "valueSuffix": "%",
       "source": "Correlates of War, National Material Capabilities",
-      "calculation": "Uses the participant country's urban population growth rate, then averages yearly values across the selected timeframe."
+      "calculation": "Uses the participant country's urban population growth rate, then averages yearly values."
     },
     "cinc_score": {
       "label": "CINC Score",
@@ -169,7 +169,7 @@
       "unit": "technologies",
       "valueSuffix": "technologies",
       "source": "Correlates of War, Arms Technology Dataset",
-      "calculation": "Counts arms technologies used by the participant country in a year, excluding the source's aggregate total row, then averages those yearly counts across the selected timeframe."
+      "calculation": "Counts arms technologies used by the participant country in a year, excluding the source's aggregate total row, then averages those yearly counts."
     },
     "co2_emissions_per_capita": {
       "label": "CO2 Emissions Per Capita",
@@ -177,7 +177,7 @@
       "unit": "tonnes per person",
       "valueSuffix": "t/person",
       "source": "Our World in Data, CO2 Emissions Per Capita",
-      "calculation": "Uses fossil carbon dioxide emissions per person for the participant country, then averages yearly values across the selected timeframe. These figures exclude land-use change emissions."
+      "calculation": "Uses fossil carbon dioxide emissions per person for the participant country, then averages yearly values. These figures exclude land-use change emissions."
     },
     "land_mass_exchange_gain": {
       "label": "Land Mass Exchange Gain",
@@ -185,7 +185,7 @@
       "unit": "square kilometers",
       "valueSuffix": "km2",
       "source": "Correlates of War, Territorial Change Dataset",
-      "calculation": "Sums territory gained by the participant country in a year, then averages yearly gains across the selected timeframe."
+      "calculation": "Sums territory gained by the participant country in a year, then averages yearly gains."
     },
     "population_exchange_gain": {
       "label": "Population Exchange Gain",
@@ -193,7 +193,7 @@
       "unit": "people",
       "valueSuffix": "people",
       "source": "Correlates of War, Territorial Change Dataset",
-      "calculation": "Sums the population living in territory gained by the participant country in a year, then averages yearly gains across the selected timeframe."
+      "calculation": "Sums the population living in territory gained by the participant country in a year, then averages yearly gains."
     },
     "land_mass_exchange_loss": {
       "label": "Land Mass Exchange Loss",
@@ -201,7 +201,7 @@
       "unit": "square kilometers",
       "valueSuffix": "km2",
       "source": "Correlates of War, Territorial Change Dataset",
-      "calculation": "Sums territory lost by the participant country in a year, then averages yearly losses across the selected timeframe."
+      "calculation": "Sums territory lost by the participant country in a year, then averages yearly losses."
     },
     "population_exchange_loss": {
       "label": "Population Exchange Loss",
@@ -209,7 +209,7 @@
       "unit": "people",
       "valueSuffix": "people",
       "source": "Correlates of War, Territorial Change Dataset",
-      "calculation": "Sums the population living in territory lost by the participant country in a year, then averages yearly losses across the selected timeframe."
+      "calculation": "Sums the population living in territory lost by the participant country in a year, then averages yearly losses."
     },
     "refugees_originated": {
       "label": "Refugees Originated",
@@ -217,7 +217,7 @@
       "unit": "people",
       "valueSuffix": "people",
       "source": "United States Committee for Refugees and Immigrants, Forcibly Displaced Populations",
-      "calculation": "Uses the number of refugees originating from the participant country, then averages yearly values across the selected timeframe. The source reports thousands of people; the graph displays people."
+      "calculation": "Uses the number of refugees originating from the participant country, then averages yearly values. The source reports thousands of people; the graph displays people."
     },
     "refugees_hosted": {
       "label": "Refugees Hosted",
@@ -225,7 +225,7 @@
       "unit": "people",
       "valueSuffix": "people",
       "source": "United States Committee for Refugees and Immigrants, Forcibly Displaced Populations",
-      "calculation": "Uses the number of refugees hosted by the participant country, then averages yearly values across the selected timeframe. The source reports thousands of people; the graph displays people."
+      "calculation": "Uses the number of refugees hosted by the participant country, then averages yearly values. The source reports thousands of people; the graph displays people."
     },
     "internally_displaced_persons": {
       "label": "Internally Displaced Persons",
@@ -233,7 +233,7 @@
       "unit": "people",
       "valueSuffix": "people",
       "source": "United States Committee for Refugees and Immigrants, Forcibly Displaced Populations",
-      "calculation": "Uses the number of internally displaced people in the participant country, then averages yearly values across the selected timeframe. The source reports thousands of people; the graph displays people."
+      "calculation": "Uses the number of internally displaced people in the participant country, then averages yearly values. The source reports thousands of people; the graph displays people."
     },
     "concurrent_wars": {
       "label": "Concurrent Wars",
@@ -241,7 +241,7 @@
       "unit": "average wars per year",
       "valueSuffix": "wars",
       "source": "Calculated from this project's war-participant data",
-      "calculation": "Counts how many other wars involved the same country in the same year, then averages those yearly counts across the selected timeframe. Multi-year timeframes can therefore show fractional average war counts."
+      "calculation": "Counts how many other wars involved the same country in the same year, then averages those yearly counts. Multi-year timeframes can therefore show fractional average war counts."
     },
     "days_at_war": {
       "label": "Days At War",
