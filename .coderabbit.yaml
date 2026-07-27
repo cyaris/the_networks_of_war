@@ -35,7 +35,6 @@ reviews:
         - Incorrect behavior and likely runtime bugs
         - Security vulnerabilities
         - Broken links, navigation, or user interactions
-        - Backward compatibility
         - Meaningful performance problems
         - Unnecessary complexity
         - Missing error handling

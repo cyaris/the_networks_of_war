@@ -92,11 +92,11 @@ npm run rollup
 
 The backend build runs three ordered steps:
 
-| Step | Purpose |
-| --- | --- |
-| 1 | Ingest source files, apply source-level normalization and adjustments, and create the base war, participant, dyad, and dyad-year tables. |
-| 2 | Add country-year, participant, and dyad descriptors from military, economic, demographic, displacement, terrorism, and related sources. |
-| 3 | Merge the final participant, dyad, and war outputs, then produce the graph payload used by the frontend. |
+| Step | Purpose                                                                                                                                  |
+| ---- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | Ingest source files, apply source-level normalization and adjustments, and create the base war, participant, dyad, and dyad-year tables. |
+| 2    | Add country-year, participant, and dyad descriptors from military, economic, demographic, displacement, terrorism, and related sources.  |
+| 3    | Merge the final participant, dyad, and war outputs, then produce the graph payload used by the frontend.                                 |
 
 ## Current Architecture
 
@@ -157,16 +157,16 @@ python src/pipeline.py
 
 Pipeline parameters:
 
-| Parameter | Default | Demonstration |
-| --- | --- | --- |
-| `--data-dir PATH` | `backend/data/` | Source-data directory. Use `--data-dir data` for the default relative backend path. |
-| `--db-path PATH` | `backend/the_networks_of_war.duckdb` | DuckDB database path. Use `--db-path the_networks_of_war.duckdb` for the default relative backend path. |
-| `--build`, `--no-build` | `--build` | `--build` runs Steps 1, 2, and 3; `--no-build` skips preprocessing so commands can inspect or query an existing database. |
-| `--inspect` | off | Print table row counts after build completes, or immediately with `--no-build`. |
-| `--prepare-data` | off | Download and validate missing source-data folders before opening the database. |
-| `--recreate-data` | off | Delete and recreate the full source-data directory before opening the database. |
-| `--query SQL` | none | Execute an inline SQL query after build completes, or immediately with `--no-build`. |
-| `--query-file PATH` | none | Execute SQL read from a local `.sql` file after build completes, or immediately with `--no-build`. Mutually exclusive with `--query`. |
+| Parameter               | Default                              | Demonstration                                                                                                                         |
+| ----------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `--data-dir PATH`       | `backend/data/`                      | Source-data directory. Use `--data-dir data` for the default relative backend path.                                                   |
+| `--db-path PATH`        | `backend/the_networks_of_war.duckdb` | DuckDB database path. Use `--db-path the_networks_of_war.duckdb` for the default relative backend path.                               |
+| `--build`, `--no-build` | `--build`                            | `--build` runs Steps 1, 2, and 3; `--no-build` skips preprocessing so commands can inspect or query an existing database.             |
+| `--inspect`             | off                                  | Print table row counts after build completes, or immediately with `--no-build`.                                                       |
+| `--prepare-data`        | off                                  | Download and validate missing source-data folders before opening the database.                                                        |
+| `--recreate-data`       | off                                  | Delete and recreate the full source-data directory before opening the database.                                                       |
+| `--query SQL`           | none                                 | Execute an inline SQL query after build completes, or immediately with `--no-build`.                                                  |
+| `--query-file PATH`     | none                                 | Execute SQL read from a local `.sql` file after build completes, or immediately with `--no-build`. Mutually exclusive with `--query`. |
 
 Run or rebuild all pipeline steps:
 
@@ -286,7 +286,7 @@ frontend dependencies and run the default format, lint, Svelte check, and build 
 The workflow can be dispatched from the GitHub Actions UI with **Actions > CI > Run workflow**. Manual dispatch exposes
 the `svelte-lib-ref` input for choosing the sibling `svelte-lib` ref checked out for the local `file:` dependency.
 Automatic push and pull-request runs use the `SVELTE_LIB_REF` repository variable when present, falling back to
-`cy_dev3`.
+`e7b482b3627dd2cd9272fa12f851e2109eb826a8`.
 
 ### `.github/workflows/rollup-upload.yml`
 
@@ -309,15 +309,16 @@ authentication uses `AWS_ROLLUP_UPLOAD_ROLE_ARN` when present, otherwise it expe
 
 ### `.github/workflows/auto-release.yml`
 
-The `Auto release` workflow runs after a pull request is closed and delegates to the shared
+The `Auto release` workflow runs after a pull request targeting `main` or `master` is closed and delegates to the shared
 `cyaris/svelte-lib/.github/workflows/auto-release.yml` workflow only when that pull request was merged. It evaluates the
 merge commit against the repository release policy, asks the configured OpenAI model whether the merge warrants a
 release, publishes a GitHub release when warranted, and comments the outcome on the pull request.
 
 The workflow can also be dispatched from the GitHub Actions UI with **Actions > Auto release > Run workflow**. Manual
 dispatch accepts optional `release-sha`, `pr-number`, and `svelte-lib-ref` inputs; when `release-sha` is blank, it
-evaluates the workflow SHA. Release runs require `OPENAI_API_KEY`; `RELEASE_TOKEN` and `CHECKOUT_TOKEN` can be provided
-when the default token cannot create releases or read private repositories.
+evaluates the workflow SHA. Automatic runs use `SVELTE_LIB_REF` when present and otherwise read the shared release
+policy from `e7b482b3627dd2cd9272fa12f851e2109eb826a8`. Release runs require `OPENAI_API_KEY`; `RELEASE_TOKEN` and
+`CHECKOUT_TOKEN` can be provided when the default token cannot create releases or read private repositories.
 
 ## Source Tables
 
@@ -328,36 +329,36 @@ The current backend ingests the following source files.
 Release date note: local PDF text and metadata were checked but are treated as documentation/build metadata unless they
 explicitly identify the current source file's release date.
 
-| Table | Organization | Source CSV | Version | Release Date | Release Date Source | Download source |
-| --- | --- | --- | --- | --- | --- | --- |
-| `source_country_codes` | Correlates of War Project (COW) | `COW-country-codes.csv` | unversioned | 2022-09-07 | WordPress media attachment date | [Data](https://correlatesofwar.org/wp-content/uploads/COW-country-codes.csv) |
-| `source_extrastate_wars` | Correlates of War Project (COW) | `Extra-StateWarData_v4.0.csv` | 4.0 | 2011-12-08 | COW war-data release note | [Data](https://correlatesofwar.org/wp-content/uploads/Extra-StateWarData_v4.0.csv)<br>[Doc](https://correlatesofwar.org/wp-content/uploads/Extra-StateWars_Codebook.pdf) |
-| `source_interstate_mid_dyads` | Correlates of War Project (COW) | `dyadic_mid_4.03.csv` | 4.03 | 2025-04-06 | WordPress media attachment date | [Release](https://correlatesofwar.org/wp-content/uploads/dyadic_mid_4.03_update.zip) |
-| `source_interstate_war_dyads` | Correlates of War Project (COW) | `directed_dyadic_war.csv` | unversioned | 2022-07-12 | WordPress media attachment date | [Release](https://correlatesofwar.org/wp-content/uploads/Dyadic-Interstate-War-Dataset.zip) |
-| `source_interstate_wars` | Correlates of War Project (COW) | `Inter-StateWarData_v4.0.csv` | 4.0 | 2011-03-01 | COW war-data release note | [Data](https://correlatesofwar.org/wp-content/uploads/Inter-StateWarData_v4.0.csv)<br>[Doc 1](https://correlatesofwar.org/wp-content/uploads/Inter-StateWars_Codebook.pdf)<br>[Doc 2](https://correlatesofwar.org/wp-content/uploads/Inter-StateWarsList.pdf) |
-| `source_intrastate_wars` | Correlates of War Project (COW) | `INTRA-STATE_State_participants v5.1 CSV.csv` | 5.1 | 2020-04-06 | COW war-data release note | [Release](https://correlatesofwar.org/wp-content/uploads/Intra-State-Wars-v5.1.zip) |
+| Table                         | Organization                    | Source CSV                                    | Version     | Release Date | Release Date Source             | Download source                                                                                                                                                                                                                                               |
+| ----------------------------- | ------------------------------- | --------------------------------------------- | ----------- | ------------ | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `source_country_codes`        | Correlates of War Project (COW) | `COW-country-codes.csv`                       | unversioned | 2022-09-07   | WordPress media attachment date | [Data](https://correlatesofwar.org/wp-content/uploads/COW-country-codes.csv)                                                                                                                                                                                  |
+| `source_extrastate_wars`      | Correlates of War Project (COW) | `Extra-StateWarData_v4.0.csv`                 | 4.0         | 2011-12-08   | COW war-data release note       | [Data](https://correlatesofwar.org/wp-content/uploads/Extra-StateWarData_v4.0.csv)<br>[Doc](https://correlatesofwar.org/wp-content/uploads/Extra-StateWars_Codebook.pdf)                                                                                      |
+| `source_interstate_mid_dyads` | Correlates of War Project (COW) | `dyadic_mid_4.03.csv`                         | 4.03        | 2025-04-06   | WordPress media attachment date | [Release](https://correlatesofwar.org/wp-content/uploads/dyadic_mid_4.03_update.zip)                                                                                                                                                                          |
+| `source_interstate_war_dyads` | Correlates of War Project (COW) | `directed_dyadic_war.csv`                     | unversioned | 2022-07-12   | WordPress media attachment date | [Release](https://correlatesofwar.org/wp-content/uploads/Dyadic-Interstate-War-Dataset.zip)                                                                                                                                                                   |
+| `source_interstate_wars`      | Correlates of War Project (COW) | `Inter-StateWarData_v4.0.csv`                 | 4.0         | 2011-03-01   | COW war-data release note       | [Data](https://correlatesofwar.org/wp-content/uploads/Inter-StateWarData_v4.0.csv)<br>[Doc 1](https://correlatesofwar.org/wp-content/uploads/Inter-StateWars_Codebook.pdf)<br>[Doc 2](https://correlatesofwar.org/wp-content/uploads/Inter-StateWarsList.pdf) |
+| `source_intrastate_wars`      | Correlates of War Project (COW) | `INTRA-STATE_State_participants v5.1 CSV.csv` | 5.1         | 2020-04-06   | COW war-data release note       | [Release](https://correlatesofwar.org/wp-content/uploads/Intra-State-Wars-v5.1.zip)                                                                                                                                                                           |
 
 ### Step 2 Source Tables
 
-| Table | Organization | Source CSV | Version | Download source |
-| --- | --- | --- | --- | --- |
-| `source_global_terrorism_database` | START | `globalterrorismdb_0522dist.csv`<br>`globalterrorismdb_2021Jan-June_1222dist.csv` | 0522 + 2021 Jan-June 1222 | [Data 1](https://www.start.umd.edu/system/files/globalterrorismdb_0522dist.xlsx)<br>[Data 2](https://www.start.umd.edu/system/files/globalterrorismdb_2021Jan-June_1222dist.xlsx)<br>[Doc](https://www.start.umd.edu/sites/default/files/2024-10/Codebook.pdf) |
-| `source_formal_alliances_directed_yearly` | Correlates of War Project (COW) | `alliance_v4.1_by_directed_yearly.csv` | 4.1 | [Release](https://correlatesofwar.org/wp-content/uploads/version4.1_csv.zip) |
-| `source_territorial_changes` | Correlates of War Project (COW) | `tc2018.csv` | 6 | [Release](https://correlatesofwar.org/wp-content/uploads/terr-changes-v6.zip) |
-| `source_forcibly_displaced_populations` | United States Committee for Refugees and Immigrants (USCRI) | `FDP2008a.csv` | 2008a | [Data](http://www.systemicpeace.org/inscr/FDP2008a.xls)<br>[Doc](http://www.systemicpeace.org/inscr/FDPCodebook2008.pdf) |
-| `source_colonial_dependency_contiguity` | Correlates of War Project (COW) | `contcold.csv` | 3.1 | [Release](https://correlatesofwar.org/wp-content/uploads/ColonialContiguity310.zip) |
-| `source_direct_contiguity` | Correlates of War Project (COW) | `contdird.csv` | 3.2 | [Release](https://correlatesofwar.org/wp-content/uploads/DirectContiguity320.zip) |
-| `source_defense_cooperation_agreements` | Correlates of War Project (COW) | `DCAD-v1.0-dyadic.csv` | 1.0 | [Release](https://correlatesofwar.org/wp-content/uploads/kinne_dca.zip) |
-| `source_intergovernmental_organizations_dyadic` | Correlates of War Project (COW) | `dyadic_formatv3.csv` | 3 | [Data](https://correlatesofwar.org/wp-content/uploads/dyadic_formatv3.zip)<br>[Doc](https://correlatesofwar.org/wp-content/uploads/IGO-Codebook_v3_short-copy.pdf) |
-| `source_diplomatic_exchange` | Correlates of War Project (COW) | `Diplomatic_Exchange_2006v1.csv` | 2006.1 | [Release](https://correlatesofwar.org/wp-content/uploads/Diplomatic_Exchange_2006.1.zip) |
-| `source_dd_revisited` | University of Illinois at Urbana‐Champain (UIUC), Emory University, Georgetown University | `ddrevisited_data_v1.csv` | 1 | [Data](https://github.com/cyaris/the_networks_of_war/releases/download/source-data-dd-revisited-v1/ddrevisited_data_v1.csv)<br>[Doc](https://rforpoliticalscience.com/wp-content/uploads/2022/04/ddrevisited-codebook.pdf) |
-| `source_co_emissions_per_capita` | Our World in Data | `co-emissions-per-capita.csv` | 1 | [Data](https://ourworldindata.org/grapher/co-emissions-per-capita.csv?v=1&csvType=full&useColumnShortNames=true)<br>[Doc](https://ourworldindata.org/grapher/co-emissions-per-capita.metadata.json?v=1&csvType=full&useColumnShortNames=true&utm_source=chatgpt.com) |
-| `source_arms_technology` | Correlates of War Project (COW) | `cow_arms_tech_long.csv` | 1.1 | [Release](https://correlatesofwar.org/wp-content/uploads/Arms-TechnologyV1.1.zip) |
-| `source_atop_dyadic_years` | ATOP Project | `atop5_1ddyr.csv` | 5.1 | [Data](http://www.atopdata.org/uploads/6/9/1/3/69134503/atop_5.1__.csv_.zip)<br>[Doc](http://www.atopdata.org/uploads/6/9/1/3/69134503/atop_5_1_codebook.pdf) |
-| `source_mtops_dyadic` | Issue Correlates of War Project (ICOW) | `mtopsd150.csv` | 1.5 | [Release](https://www.paulhensel.org/Data/mtops.zip) |
-| `source_cow_trade_dyadic` | Correlates of War Project (COW) | `Dyadic_COW_4.0.csv` | 4.0 | [Release](https://correlatesofwar.org/wp-content/uploads/COW_Trade_4.0.zip) |
-| `source_cow_trade_national` | Correlates of War Project (COW) | `National_COW_4.0.csv` | 4.0 | [Release](https://correlatesofwar.org/wp-content/uploads/COW_Trade_4.0.zip) |
-| `source_national_material_capabilities` | Correlates of War Project (COW) | `NMC-70-wsupplementary.csv` | 7.0 | [Release](https://correlatesofwar.org/wp-content/uploads/NMCv7.zip) |
+| Table                                           | Organization                                                                              | Source CSV                                                                        | Version                   | Download source                                                                                                                                                                                                                                                      |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `source_global_terrorism_database`              | START                                                                                     | `globalterrorismdb_0522dist.csv`<br>`globalterrorismdb_2021Jan-June_1222dist.csv` | 0522 + 2021 Jan-June 1222 | [Data 1](https://www.start.umd.edu/system/files/globalterrorismdb_0522dist.xlsx)<br>[Data 2](https://www.start.umd.edu/system/files/globalterrorismdb_2021Jan-June_1222dist.xlsx)<br>[Doc](https://www.start.umd.edu/sites/default/files/2024-10/Codebook.pdf)       |
+| `source_formal_alliances_directed_yearly`       | Correlates of War Project (COW)                                                           | `alliance_v4.1_by_directed_yearly.csv`                                            | 4.1                       | [Release](https://correlatesofwar.org/wp-content/uploads/version4.1_csv.zip)                                                                                                                                                                                         |
+| `source_territorial_changes`                    | Correlates of War Project (COW)                                                           | `tc2018.csv`                                                                      | 6                         | [Release](https://correlatesofwar.org/wp-content/uploads/terr-changes-v6.zip)                                                                                                                                                                                        |
+| `source_forcibly_displaced_populations`         | United States Committee for Refugees and Immigrants (USCRI)                               | `FDP2008a.csv`                                                                    | 2008a                     | [Data](http://www.systemicpeace.org/inscr/FDP2008a.xls)<br>[Doc](http://www.systemicpeace.org/inscr/FDPCodebook2008.pdf)                                                                                                                                             |
+| `source_colonial_dependency_contiguity`         | Correlates of War Project (COW)                                                           | `contcold.csv`                                                                    | 3.1                       | [Release](https://correlatesofwar.org/wp-content/uploads/ColonialContiguity310.zip)                                                                                                                                                                                  |
+| `source_direct_contiguity`                      | Correlates of War Project (COW)                                                           | `contdird.csv`                                                                    | 3.2                       | [Release](https://correlatesofwar.org/wp-content/uploads/DirectContiguity320.zip)                                                                                                                                                                                    |
+| `source_defense_cooperation_agreements`         | Correlates of War Project (COW)                                                           | `DCAD-v1.0-dyadic.csv`                                                            | 1.0                       | [Release](https://correlatesofwar.org/wp-content/uploads/kinne_dca.zip)                                                                                                                                                                                              |
+| `source_intergovernmental_organizations_dyadic` | Correlates of War Project (COW)                                                           | `dyadic_formatv3.csv`                                                             | 3                         | [Data](https://correlatesofwar.org/wp-content/uploads/dyadic_formatv3.zip)<br>[Doc](https://correlatesofwar.org/wp-content/uploads/IGO-Codebook_v3_short-copy.pdf)                                                                                                   |
+| `source_diplomatic_exchange`                    | Correlates of War Project (COW)                                                           | `Diplomatic_Exchange_2006v1.csv`                                                  | 2006.1                    | [Release](https://correlatesofwar.org/wp-content/uploads/Diplomatic_Exchange_2006.1.zip)                                                                                                                                                                             |
+| `source_dd_revisited`                           | University of Illinois at Urbana‐Champain (UIUC), Emory University, Georgetown University | `ddrevisited_data_v1.csv`                                                         | 1                         | [Data](https://github.com/cyaris/the_networks_of_war/releases/download/source-data-dd-revisited-v1/ddrevisited_data_v1.csv)<br>[Doc](https://rforpoliticalscience.com/wp-content/uploads/2022/04/ddrevisited-codebook.pdf)                                           |
+| `source_co_emissions_per_capita`                | Our World in Data                                                                         | `co-emissions-per-capita.csv`                                                     | 1                         | [Data](https://ourworldindata.org/grapher/co-emissions-per-capita.csv?v=1&csvType=full&useColumnShortNames=true)<br>[Doc](https://ourworldindata.org/grapher/co-emissions-per-capita.metadata.json?v=1&csvType=full&useColumnShortNames=true&utm_source=chatgpt.com) |
+| `source_arms_technology`                        | Correlates of War Project (COW)                                                           | `cow_arms_tech_long.csv`                                                          | 1.1                       | [Release](https://correlatesofwar.org/wp-content/uploads/Arms-TechnologyV1.1.zip)                                                                                                                                                                                    |
+| `source_atop_dyadic_years`                      | ATOP Project                                                                              | `atop5_1ddyr.csv`                                                                 | 5.1                       | [Data](http://www.atopdata.org/uploads/6/9/1/3/69134503/atop_5.1__.csv_.zip)<br>[Doc](http://www.atopdata.org/uploads/6/9/1/3/69134503/atop_5_1_codebook.pdf)                                                                                                        |
+| `source_mtops_dyadic`                           | Issue Correlates of War Project (ICOW)                                                    | `mtopsd150.csv`                                                                   | 1.5                       | [Release](https://www.paulhensel.org/Data/mtops.zip)                                                                                                                                                                                                                 |
+| `source_cow_trade_dyadic`                       | Correlates of War Project (COW)                                                           | `Dyadic_COW_4.0.csv`                                                              | 4.0                       | [Release](https://correlatesofwar.org/wp-content/uploads/COW_Trade_4.0.zip)                                                                                                                                                                                          |
+| `source_cow_trade_national`                     | Correlates of War Project (COW)                                                           | `National_COW_4.0.csv`                                                            | 4.0                       | [Release](https://correlatesofwar.org/wp-content/uploads/COW_Trade_4.0.zip)                                                                                                                                                                                          |
+| `source_national_material_capabilities`         | Correlates of War Project (COW)                                                           | `NMC-70-wsupplementary.csv`                                                       | 7.0                       | [Release](https://correlatesofwar.org/wp-content/uploads/NMCv7.zip)                                                                                                                                                                                                  |
 
 ## Materialized Tables
 
@@ -503,13 +504,13 @@ The pipeline ingests raw source fields and recalculates derived columns from can
 
 Excluded calculated fields:
 
-| Source CSV | Excluded calculated fields |
-| --- | --- |
-| `directed_dyadic_war.csv` | `batdths`, `durindx` |
-| `dyadic_mid_4.03.csv` | `durindx`, `duration`, `cumdurat` |
+| Source CSV                                    | Excluded calculated fields               |
+| --------------------------------------------- | ---------------------------------------- |
+| `directed_dyadic_war.csv`                     | `batdths`, `durindx`                     |
+| `dyadic_mid_4.03.csv`                         | `durindx`, `duration`, `cumdurat`        |
 | `INTRA-STATE_State_participants v5.1 CSV.csv` | `WDuratDays`, `WDuratMo`, `TotalBDeaths` |
-| `cow_arms_tech_long.csv` | `total_use` |
-| `NMC-70-wsupplementary.csv` | `cinc` |
+| `cow_arms_tech_long.csv`                      | `total_use`                              |
+| `NMC-70-wsupplementary.csv`                   | `cinc`                                   |
 
 Derived replacements:
 
@@ -696,16 +697,16 @@ Derived replacements:
 - Named non-state participants with COW code `-8` are retained in `dyads`. Unnamed or literal aggregate
   placeholders are excluded.
 
-| Side | Source participants | Anchor rule | Selected anchors |
-| --- | --- | --- | --- |
-| 1 | United States of America, Uganda, Kenya, Burundi, Somalia, Ethiopia | No single total, non-state, or state participant | None |
-| 2 | ICU, Eritrea | One named non-state participant; one state participant | ICU, Eritrea |
+| Side | Source participants                                                 | Anchor rule                                            | Selected anchors |
+| ---- | ------------------------------------------------------------------- | ------------------------------------------------------ | ---------------- |
+| 1    | United States of America, Uganda, Kenya, Burundi, Somalia, Ethiopia | No single total, non-state, or state participant       | None             |
+| 2    | ICU, Eritrea                                                        | One named non-state participant; one state participant | ICU, Eritrea     |
 
 The selected anchors are then linked to every overlapping participant on the opposite side:
 
-| Anchor | Linked opposite-side participants |
-| --- | --- |
-| ICU | Burundi, Ethiopia, Kenya, Somalia, Uganda, United States of America |
+| Anchor  | Linked opposite-side participants                                   |
+| ------- | ------------------------------------------------------------------- |
+| ICU     | Burundi, Ethiopia, Kenya, Somalia, Uganda, United States of America |
 | Eritrea | Burundi, Ethiopia, Kenya, Somalia, Uganda, United States of America |
 
 ### Dyads

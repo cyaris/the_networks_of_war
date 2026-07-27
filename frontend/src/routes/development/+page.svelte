@@ -3,7 +3,7 @@
 </script>
 
 <div class="flex flex-col items-center">
-  <Button classes="w-56" href="tool" label="Begin Analysis" />
+  <Button classes="w-56" href="/the_networks_of_war/tool" label="Begin Analysis" />
 </div>
 
 <p>Development page coming soon! Stay tuned for updates.</p>

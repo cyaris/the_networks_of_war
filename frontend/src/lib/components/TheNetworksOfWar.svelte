@@ -639,23 +639,27 @@
     )
   }
 
+  function clampToBounds(min, max, value) {
+    if (min > max) return (min + max) / 2
+
+    return Math.max(min, Math.min(max, value))
+  }
+
   function getXAdjusted(id, xLoc) {
     if (id == primaryNode && nodes.length > 2) return graphLayout.centerX
 
     let horizontalMargin = nodeHorizontalBoundsMargin(id)
 
-    return Math.max(horizontalMargin, Math.min(width - horizontalMargin, xLoc ?? graphLayout.centerX))
+    return clampToBounds(horizontalMargin, width - horizontalMargin, xLoc ?? graphLayout.centerX)
   }
 
   function getYAdjusted(id, yLoc) {
     if (id == primaryNode && nodes.length > 2) return graphLayout.centerY
 
-    return Math.max(
+    return clampToBounds(
       nodeMargins.added_top_margin[id] ?? graphLayout.marginSize,
-      Math.min(
-        graphLayout.height - (nodeMargins.added_bottom_margin[id] ?? graphLayout.marginSize),
-        yLoc ?? graphLayout.centerY
-      )
+      graphLayout.height - (nodeMargins.added_bottom_margin[id] ?? graphLayout.marginSize),
+      yLoc ?? graphLayout.centerY
     )
   }
 
@@ -695,7 +699,7 @@
     let minLabelCenterX = graphLayout.marginSize + labelHalfWidth
     let maxLabelCenterX = width - graphLayout.marginSize - labelHalfWidth
 
-    labelCenterX = Math.max(minLabelCenterX, Math.min(maxLabelCenterX, labelCenterX))
+    labelCenterX = clampToBounds(minLabelCenterX, maxLabelCenterX, labelCenterX)
 
     return labelCenterX - nodeX
   }
@@ -909,8 +913,8 @@
 
   function clampTooltipCoordinates(x, y, bounds) {
     return {
-      x: Math.max(tooltipPadding, Math.min(bounds.width - tooltipWidth - tooltipPadding, x)),
-      y: Math.max(tooltipPadding, Math.min(bounds.height - tooltipHeight - tooltipPadding, y))
+      x: clampToBounds(tooltipPadding, bounds.width - tooltipWidth - tooltipPadding, x),
+      y: clampToBounds(tooltipPadding, bounds.height - tooltipHeight - tooltipPadding, y)
     }
   }
 
@@ -1083,7 +1087,6 @@
       ? metricTooltip(selectValue.linkDescriptor.value, controlTooltips.link_dash)
       : controlTooltips.link_dash
   }
-  $: warSecondaryLabelIdentifier = viewportWidth < 640 ? "mobileSecondaryLabel" : "secondaryLabel"
   $: sizingSignature = `${selectValue.timeframe?.value || "all_years"}|${selectValue.nodeDescriptor?.value || "none"}|${width}|${graphLayout.height}|${graphLayout.pressure}|${nodes.length}|${links.length}`
   $: if (nodes.length && sizingSignature != currentSizingSignature) {
     currentSizingSignature = sizingSignature
@@ -1169,7 +1172,7 @@
           value={selectValue.war}
           groupBy="war_type"
           labelConstruction={true}
-          secondaryLabelIdentifier={warSecondaryLabelIdentifier}
+          secondaryLabelIdentifier="secondaryLabel"
           placeholder="Select a war"
           noItemsMessage={selectNoItemsMessage.war}
           on:valueChange={updateWarValue}
@@ -1407,15 +1410,3 @@
     </div>
   </div>
 </main>
-
-<style>
-  @media (max-width: 767px) {
-    .network-filter-panel :global(table td:last-child) {
-      display: none;
-    }
-
-    .network-filter-panel :global(table td:nth-child(2)) {
-      width: 100%;
-    }
-  }
-</style>
