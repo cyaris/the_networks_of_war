@@ -16,7 +16,8 @@ jobs:
     uses: cyaris/shared-automation/.github/workflows/ci.yml@main
     with:
       working-directory: frontend
-      svelte-lib-ref: ${{ inputs.svelte-lib-ref || vars.SVELTE_LIB_REF || github.head_ref == 'dev' && 'dev' || github.ref_name == 'dev' && 'dev' || 'main' }}
+      local-dependency-repositories: |
+        cyaris/svelte-lib:svelte-lib:${{ inputs.svelte-lib-ref || vars.SVELTE_LIB_REF || github.head_ref == 'dev' && 'dev' || github.ref_name == 'dev' && 'dev' || 'main' }}
     secrets:
       CHECKOUT_TOKEN: ${{ secrets.CHECKOUT_TOKEN }}
       RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
