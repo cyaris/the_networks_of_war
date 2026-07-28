@@ -116,8 +116,10 @@ The backend build runs three ordered steps:
 - In Vite development, routes are mirrored for the local root and the simulated GitHub Pages base:
   - `/` and `/the_networks_of_war` render the menu.
   - `/tool` and `/the_networks_of_war/tool` render the network analysis tool.
-- Generated frontend data is written to `frontend/src/lib/static/graphData.json`, which is not committed.
+- Generated frontend data is written to `frontend/src/lib/static/graphData.json`.
   - The export query lives at `backend/src/sql/step_3/04_export_frontend_graph_data.sql`.
+  - TODO: Replace the current committed `graphData.json` CI unblock with a cleaner generated-data path, such as a
+    release asset, S3/R2 download, Git LFS, or a CI prebuild step that can reliably recreate the file from source data.
 - Generated graph rows keep two metric layers:
   - Top-level timeframe fields hold descriptor values that can appear in node-size or link-style controls.
   - Each node's `metrics` object holds participant metric values for tooltips, including fields that are not eligible
