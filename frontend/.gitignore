@@ -3,4 +3,3 @@
 build
 dist
 node_modules
-src/lib/static/graphData.json
