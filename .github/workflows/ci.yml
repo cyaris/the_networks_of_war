@@ -9,13 +9,13 @@ on:
         description: svelte-lib ref used for the local file dependency.
         required: false
         type: string
-        default: e7b482b3627dd2cd9272fa12f851e2109eb826a8
+        default: main
 
 jobs:
   node-package-ci:
-    uses: cyaris/svelte-lib/.github/workflows/node-package-ci.yml@e7b482b3627dd2cd9272fa12f851e2109eb826a8
+    uses: cyaris/svelte-lib/.github/workflows/node-package-ci.yml@main
     with:
       working-directory: frontend
-      svelte-lib-ref: ${{ github.event_name == 'workflow_dispatch' && inputs.svelte-lib-ref || vars.SVELTE_LIB_REF || 'e7b482b3627dd2cd9272fa12f851e2109eb826a8' }}
+      svelte-lib-ref: ${{ github.event_name == 'workflow_dispatch' && inputs.svelte-lib-ref || vars.SVELTE_LIB_REF || 'main' }}
     secrets:
       CHECKOUT_TOKEN: ${{ secrets.CHECKOUT_TOKEN }}

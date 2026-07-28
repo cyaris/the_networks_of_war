@@ -286,7 +286,7 @@ frontend dependencies and run the default format, lint, Svelte check, and build 
 The workflow can be dispatched from the GitHub Actions UI with **Actions > CI > Run workflow**. Manual dispatch exposes
 the `svelte-lib-ref` input for choosing the sibling `svelte-lib` ref checked out for the local `file:` dependency.
 Automatic push and pull-request runs use the `SVELTE_LIB_REF` repository variable when present, falling back to
-`e7b482b3627dd2cd9272fa12f851e2109eb826a8`.
+`main`.
 
 ### `.github/workflows/rollup-upload.yml`
 
@@ -317,7 +317,7 @@ release, publishes a GitHub release when warranted, and comments the outcome on 
 The workflow can also be dispatched from the GitHub Actions UI with **Actions > Auto release > Run workflow**. Manual
 dispatch accepts optional `release-sha`, `pr-number`, and `svelte-lib-ref` inputs; when `release-sha` is blank, it
 evaluates the workflow SHA. Automatic runs use `SVELTE_LIB_REF` when present and otherwise read the shared release
-policy from `e7b482b3627dd2cd9272fa12f851e2109eb826a8`. Release runs require `OPENAI_API_KEY`; `RELEASE_TOKEN` and
+policy from `main`. Release runs require `OPENAI_API_KEY`; `RELEASE_TOKEN` and
 `CHECKOUT_TOKEN` can be provided when the default token cannot create releases or read private repositories.
 
 ## Source Tables
