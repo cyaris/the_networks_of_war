@@ -74,18 +74,11 @@ Do not update `.ipynb` files while working on the backend replacement unless exp
 
 ## GitHub Actions
 
-- Keep every GitHub Actions workflow and composite action documented in the README. For each documented feature, include
-  its trigger, purpose, important inputs or secrets, whether it can be dispatched from the GitHub Actions UI, and how it
-  is dispatched when UI dispatch is not available.
-- Keep the root `Rollup upload` workflow as a thin caller of the shared `shared-automation` rollup upload workflow. Project
-  specifics belong in action inputs, including the S3 prefix, bundle file list, and `SVELTE_LIB_REF` branch selection
+- Use `../shared-automation/AGENTS.md` as the source of truth for shared GitHub Actions, reusable workflow wrapper,
+  release-policy, dispatch, and automation documentation conventions.
+- Project-specific rollup upload inputs include the S3 prefix, bundle file list, and `SVELTE_LIB_REF` branch selection
   for automatic production uploads.
-- Keep the root `CI` workflow as a thin caller of the shared `shared-automation` Node package CI workflow. Project-specific
-  commands or local dependency refs belong in workflow inputs.
-- Keep the root `Auto release` workflow as a thin caller of the shared `shared-automation` auto-release workflow. Project
-  release naming and milestone overrides belong in `.github/release-policy.yml`.
-- Preserve automatic production uploads on pushes to `main` or `master`; manual dispatch should keep staged uploads as
-  the default unless `production` is explicitly selected.
+- Project release naming and milestone overrides belong in `.github/release-policy.yml`.
 
 ## Release Management
 
