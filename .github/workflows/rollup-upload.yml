@@ -19,9 +19,9 @@ on:
         default: false
       svelte-lib-ref:
         description: svelte-lib ref used for the local file dependency.
-        required: true
+        required: false
         type: string
-        default: main
+        default: ""
 
 jobs:
   resolve-inputs:
@@ -44,7 +44,12 @@ jobs:
 
           production="$INPUT_PRODUCTION"
           dry_run="$INPUT_DRY_RUN"
-          svelte_lib_ref="${INPUT_SVELTE_LIB_REF:-${VAR_SVELTE_LIB_REF:-main}}"
+          default_svelte_lib_ref="main"
+          if [[ "${GITHUB_HEAD_REF:-${GITHUB_REF_NAME:-}}" == "dev" || "${GITHUB_REF_NAME:-}" == "dev" ]]; then
+            default_svelte_lib_ref="dev"
+          fi
+
+          svelte_lib_ref="${INPUT_SVELTE_LIB_REF:-${VAR_SVELTE_LIB_REF:-$default_svelte_lib_ref}}"
 
           if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
             production="true"
