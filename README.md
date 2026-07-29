@@ -279,62 +279,35 @@ npm run build
 
 ## GitHub Actions Workflows
 
-These local wrappers inherit their reusable implementations from `cyaris/shared-automation`. Manual `workflow_dispatch` paths delegated to the shared workflows are restricted to the `cyaris` GitHub actor by default.
+These local wrappers inherit their reusable implementations from `cyaris/shared-automation`. Shared workflow behavior,
+inputs, and secrets are documented in the
+[shared-automation workflow reference](https://github.com/cyaris/shared-automation#workflows).
 
 ### `.github/workflows/auto-create-dev-pr.yml`
 
-The `Auto-create dev pull request` workflow runs on pushes to `dev` and delegates to the shared
-`cyaris/shared-automation/.github/workflows/auto-create-dev-pr.yml` workflow. It opens a `dev` to repository-default
-branch pull request when one does not already exist.
-
-This workflow has no GitHub Actions UI dispatch path. To run the same behavior manually, dispatch the reusable workflow
-from `cyaris/shared-automation` or create the pull request with `gh pr create`. The workflow passes `RELEASE_TOKEN` so
-the shared workflow can create pull requests when the default token is restricted.
+The `Auto-create dev pull request` workflow runs on pushes to `dev` and calls the
+[shared auto-create-dev-pr workflow](https://github.com/cyaris/shared-automation#githubworkflowsauto-create-dev-pryml).
 
 ### `.github/workflows/ci.yml`
 
-The `CI` workflow runs on pushes, pull requests, and manual dispatch. It calls the shared
-`cyaris/shared-automation/.github/workflows/ci.yml` workflow with `working-directory: frontend` to install
-frontend dependencies and run the default format, lint, Svelte check, and build commands.
-
-The workflow can be dispatched from the GitHub Actions UI with **Actions > CI > Run workflow** by the `cyaris` actor by
-default; other users may be unable to dispatch it or may be rejected by the shared workflow. Manual dispatch exposes the
-`svelte-lib-ref` input for choosing the sibling `svelte-lib` ref checked out for the local `file:` dependency. Push and
-pull-request runs use `SVELTE_LIB_REF` when set, otherwise they select `dev` for matching `dev` refs and `main` for all
-other refs.
+The `CI` workflow runs on pushes, pull requests, and manual dispatch. It calls the
+[shared CI workflow](https://github.com/cyaris/shared-automation#githubworkflowsciyml) with
+`working-directory: frontend`. Manual dispatch exposes `svelte-lib-ref`; automatic runs use `SVELTE_LIB_REF` when set,
+otherwise they select `dev` for matching `dev` refs and `main` for all other refs.
 
 ### `.github/workflows/rollup-upload.yml`
 
-The `Rollup upload` GitHub Actions workflow builds the frontend rollup bundle and uploads it to
-`s3://cyaris.github.io/the_networks_of_war/`.
-
-The workflow runs automatically on pushes to `main` or `master`, including merges into those branches, and can be
-dispatched from the GitHub Actions UI with **Actions > Rollup upload > Run workflow**. Manual dispatch uploads staged
-`test_bundle.*` files by default. Set `production` during manual dispatch to upload live `bundle.*` files instead; set
-`dry-run` to print S3 operations without writing objects. Automatic push runs always use production upload names and
-disable `dry-run`.
-
-Set the repository variable `SVELTE_LIB_REF` to control which `svelte-lib` branch, tag, or SHA the automatic production
-workflow checks out for both the local file dependency and the shared rollup upload action. Manual dispatch exposes the
-same value as the `svelte-lib-ref` input.
-
-The workflow checks out `cyaris/shared-automation` for the shared rollup upload action and separately checks out the private `svelte-lib` repository as a local dependency.
-Provide `CHECKOUT_TOKEN` with read access to `svelte-lib` and any private local dependency repositories. AWS
-authentication uses `AWS_ROLLUP_UPLOAD_ROLE_ARN` when present, otherwise it expects AWS access-key secrets.
+The `Rollup upload` workflow calls the
+[shared rollup-upload workflow](https://github.com/cyaris/shared-automation#githubworkflowsrollup-uploadyml) to build
+the frontend rollup bundle and upload it to `s3://cyaris.github.io/the_networks_of_war/`. Manual dispatch exposes
+`svelte-lib-ref`; automatic runs use `SVELTE_LIB_REF` when set.
 
 ### `.github/workflows/auto-release.yml`
 
-The `Auto release` workflow runs from manual dispatch only and delegates to the shared
-`cyaris/shared-automation/.github/workflows/auto-release.yml` workflow. It reconciles commit history through a selected
-commit against existing GitHub releases, updates existing release notes and titles when enabled, and creates missing
-releases when warranted by the repository release policy.
-
-The workflow can be dispatched from the GitHub Actions UI with **Actions > Auto release > Run workflow**. Manual dispatch
-accepts optional `release-sha`, `shared-automation-ref`, `publish`, and `update-existing` inputs; when `release-sha` is
-blank, it reconciles through the current default branch tip. Manual runs use `SHARED_AUTOMATION_REF` when present and
-otherwise read the shared release policy from `main`. Release reconciliation requires `OPENAI_API_KEY`; missing
-credentials or failed OpenAI API requests fail the workflow. `RELEASE_TOKEN` and `CHECKOUT_TOKEN` can be provided when
-the default token cannot create releases or read private repositories.
+The `Auto release` workflow runs from manual dispatch only and calls the
+[shared auto-release workflow](https://github.com/cyaris/shared-automation#githubworkflowsauto-releaseyml). This
+repository contributes `.github/release-policy.yml` overrides; manual runs use `SHARED_AUTOMATION_REF` when present and
+otherwise read the shared release policy from `main`.
 
 ## Source Tables
 
