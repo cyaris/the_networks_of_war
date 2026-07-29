@@ -14,6 +14,7 @@ reviews:
     enabled: true
     drafts: false
     auto_incremental_review: true
+    auto_pause_after_reviewed_commits: 1
     ignore_title_keywords:
       - "WIP"
       - "[skip review]"
@@ -35,6 +36,7 @@ reviews:
         - Incorrect behavior and likely runtime bugs
         - Security vulnerabilities
         - Broken links, navigation, or user interactions
+        - Removed or renamed interfaces should delete stale parameters, aliases, scripts, and documentation unless a migration bridge is explicitly requested
         - Meaningful performance problems
         - Unnecessary complexity
         - Missing error handling
