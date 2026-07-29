@@ -300,7 +300,8 @@ otherwise they select `dev` for matching `dev` refs and `main` for all other ref
 The `Rollup upload` workflow calls the
 [shared rollup-upload workflow](https://github.com/cyaris/shared-automation#githubworkflowsrollup-uploadyml) to build
 the frontend rollup bundle and upload it to `s3://cyaris.github.io/the_networks_of_war/`. Manual dispatch exposes
-`svelte-lib-ref`; automatic runs use `SVELTE_LIB_REF` when set.
+`svelte-lib-ref`; automatic runs use `SVELTE_LIB_REF` when set and fall back to a dry-run build when the repository has
+no AWS upload credentials configured. Production uploads require a pinned 40-character `svelte-lib` commit SHA.
 
 ### `.github/workflows/auto-release.yml`
 
