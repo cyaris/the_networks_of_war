@@ -330,10 +330,10 @@ merge commit against the repository release policy, asks the configured OpenAI m
 release, publishes a GitHub release when warranted, and comments the outcome on the pull request.
 
 The workflow can also be dispatched from the GitHub Actions UI with **Actions > Auto release > Run workflow**. Manual
-dispatch accepts optional `release-sha`, `pr-number`, and `shared-automation-ref` inputs; when `release-sha` is blank, it
-evaluates the workflow SHA. Automatic runs use `SHARED_AUTOMATION_REF` when present and otherwise read the shared release
-policy from `main`. Release decisions use `OPENAI_API_KEY`; when it is not configured, the shared workflow skips release
-decision work without failing. `RELEASE_TOKEN` and `CHECKOUT_TOKEN` can be provided when the default token cannot create
+dispatch accepts optional `release-sha`, `pr-number`, `shared-automation-ref`, and `publish` inputs; when `release-sha`
+is blank, it evaluates the workflow SHA. Automatic runs use `SHARED_AUTOMATION_REF` when present and otherwise read the
+shared release policy from `main`. Release decisions require `OPENAI_API_KEY`; missing credentials or failed OpenAI API
+requests fail the workflow. `RELEASE_TOKEN` and `CHECKOUT_TOKEN` can be provided when the default token cannot create
 releases or read private repositories.
 
 ## Source Tables
