@@ -3,6 +3,10 @@
 ## Documentation
 
 - Keep README link behavior intentional and consistent. Use standard Markdown links by default, and use HTML anchors with `target="_blank"` and `rel="noopener noreferrer"` only when links should explicitly open in a new tab.
+- Keep README and AGENTS guidance focused on current behavior, active requirements, and durable project decisions. Remove
+  migration-era notes, deprecated-option explanations, old fallback paths, and historical caveats once they no longer
+  affect how someone uses, maintains, deploys, or releases the project. When a state change makes a requirement obsolete,
+  update the affected docs and configuration in that same change.
 - Keep GitHub Actions deployment notes aligned with the root `Rollup upload` workflow. Project-specific S3 and branch
   behavior should be documented in the README; maintainer-facing workflow conventions belong here.
 - Keep README pipeline command documentation in sync with `backend/src/pipeline.py` CLI parser behavior.
