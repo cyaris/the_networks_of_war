@@ -314,8 +314,8 @@ otherwise read the shared release policy from `main`.
 
 The `Release Please` workflow runs on pushes to `master` and manual dispatches by `cyaris`, using
 `release-please-config.json` and `.release-please-manifest.json` for future releases. Historical reconciliation is
-complete through `40b4eab2ed2f58fb496b5a8552cdf417339e8a4d`; `auto-release.yml` remains available for manual historical
-repair, while Release Please manages later commits.
+complete through the handoff recorded in `release-please-config.json`; `auto-release.yml` remains available for manual
+historical repair, while Release Please manages later commits.
 
 ### `.github/workflows/workflow-validation.yml`
 
