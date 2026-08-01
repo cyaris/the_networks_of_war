@@ -17,7 +17,6 @@ military, economic, demographic, and displacement sources.
     - [Pipeline Commands](#pipeline-commands)
     - [Test Commands](#test-commands)
     - [Frontend Commands](#frontend-commands)
-  - [GitHub Actions Workflows](#github-actions-workflows)
   - [Source Tables](#source-tables)
     - [Step 1 Source Tables](#step-1-source-tables)
     - [Step 2 Source Tables](#step-2-source-tables)
@@ -46,6 +45,7 @@ military, economic, demographic, and displacement sources.
     - [Dyads](#dyads)
     - [Graph Export And Descriptor Semantics](#graph-export-and-descriptor-semantics)
   - [Data-Entry Fixes And Assignment Rules](#data-entry-fixes-and-assignment-rules)
+  - [GitHub Actions Workflows](#github-actions-workflows)
 
 ## Quickstart
 
@@ -276,46 +276,6 @@ Run frontend checks:
 npm run check
 npm run build
 ```
-
-## GitHub Actions Workflows
-
-These local wrappers inherit their reusable implementations from `cyaris/shared-automation`. Shared workflow behavior,
-inputs, and secrets are documented in the
-[shared-automation workflow reference](https://github.com/cyaris/shared-automation#workflows).
-
-### `.github/workflows/auto-create-dev-pr.yml`
-
-The `Auto-create dev pull request` workflow runs on pushes to `dev` and calls the
-[shared auto-create-dev-pr workflow](https://github.com/cyaris/shared-automation#githubworkflowsauto-create-dev-pryml).
-
-### `.github/workflows/rollup.yml`
-
-The `Rollup` workflow runs on pushes, pull requests, and manual dispatch, then calls the
-[shared rollup workflow](https://github.com/cyaris/shared-automation#githubworkflowsrollupyml) with
-`working-directory: frontend`. Shared CI runs for every trigger; uploads run on `main` and `master` pushes or manual
-dispatches to build the frontend rollup bundle and upload it to `s3://cyaris.github.io/the_networks_of_war/`. Manual
-dispatch exposes `svelte-lib-ref`; automatic runs use `SVELTE_LIB_REF` when set, otherwise they select `dev` for matching
-`dev` refs and `main` for all other refs. Production uploads require a pinned 40-character `svelte-lib` commit SHA.
-
-### `.github/workflows/auto-release.yml`
-
-The `Auto release` workflow runs from manual dispatch only and calls the
-[shared auto-release workflow](https://github.com/cyaris/shared-automation#githubworkflowsauto-releaseyml). This
-repository contributes `.github/release-policy.yml` overrides; manual runs use `SHARED_AUTOMATION_REF` when present and
-otherwise read the shared release policy from `main`.
-
-### `.github/workflows/release-please.yml`
-
-The `Release Please` workflow runs on pushes to `master` and manual dispatches by `cyaris`, using
-`release-please-config.json` and `.release-please-manifest.json` for future releases. Historical reconciliation is
-complete through the handoff recorded in `release-please-config.json`; `auto-release.yml` remains available for manual
-historical repair, while Release Please manages later commits.
-
-### `.github/workflows/workflow-validation.yml`
-
-The `Workflow validation` workflow runs on local workflow and automation configuration changes, then calls the
-[shared workflow-validation workflow](https://github.com/cyaris/shared-automation#githubworkflowsworkflow-validationyml)
-to validate rollup upload wrapper logic, release configuration, and Renovate configuration.
 
 ## Source Tables
 
@@ -801,3 +761,43 @@ The selected anchors are then linked to every overlapping participant on the opp
       - `991`
       - `991.4`
       - `992.5`
+
+## GitHub Actions Workflows
+
+These local wrappers inherit their reusable implementations from `cyaris/shared-automation`. Shared workflow behavior,
+inputs, and secrets are documented in the
+[shared-automation workflow reference](https://github.com/cyaris/shared-automation#workflows).
+
+### `.github/workflows/auto-create-dev-pr.yml`
+
+The `Auto-create dev pull request` workflow runs on pushes to `dev` and calls the
+[shared auto-create-dev-pr workflow](https://github.com/cyaris/shared-automation#githubworkflowsauto-create-dev-pryml).
+
+### `.github/workflows/rollup.yml`
+
+The `Rollup` workflow runs on pushes, pull requests, and manual dispatch, then calls the
+[shared rollup workflow](https://github.com/cyaris/shared-automation#githubworkflowsrollupyml) with
+`working-directory: frontend`. Shared CI runs for every trigger; uploads run on `main` and `master` pushes or manual
+dispatches to build the frontend rollup bundle and upload it to `s3://cyaris.github.io/the_networks_of_war/`. Manual
+dispatch exposes `svelte-lib-ref`; automatic runs use `SVELTE_LIB_REF` when set, otherwise they select `dev` for matching
+`dev` refs and `main` for all other refs. Production uploads require a pinned 40-character `svelte-lib` commit SHA.
+
+### `.github/workflows/auto-release.yml`
+
+The `Auto release` workflow runs from manual dispatch only and calls the
+[shared auto-release workflow](https://github.com/cyaris/shared-automation#githubworkflowsauto-releaseyml). This
+repository contributes `.github/release-policy.yml` overrides; manual runs use `SHARED_AUTOMATION_REF` when present and
+otherwise read the shared release policy from `main`.
+
+### `.github/workflows/release-please.yml`
+
+The `Release Please` workflow runs on pushes to `master` and manual dispatches by `cyaris`, using
+`release-please-config.json` and `.release-please-manifest.json` for future releases. Historical reconciliation is
+complete through the handoff recorded in `release-please-config.json`; `auto-release.yml` remains available for manual
+historical repair, while Release Please manages later commits.
+
+### `.github/workflows/workflow-validation.yml`
+
+The `Workflow validation` workflow runs on local workflow and automation configuration changes, then calls the
+[shared workflow-validation workflow](https://github.com/cyaris/shared-automation#githubworkflowsworkflow-validationyml)
+to validate rollup upload wrapper logic, release configuration, and Renovate configuration.
