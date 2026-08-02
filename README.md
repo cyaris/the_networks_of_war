@@ -787,16 +787,11 @@ commit SHA before checkout.
 The `Auto release` workflow runs from manual dispatch only and calls the
 [shared auto-release workflow](https://github.com/cyaris/shared-automation#githubworkflowsauto-releaseyml). This
 repository contributes `.github/release-policy.yml` overrides; manual runs read the shared release policy from `main`.
-
-### `.github/workflows/release-please.yml`
-
-The `Release Please` workflow runs on pushes to `master` and manual dispatches by `cyaris`, using
-`release-please-config.json` and `.release-please-manifest.json` for future releases. Historical reconciliation is
-complete through the handoff recorded in `release-please-config.json`; `auto-release.yml` remains available for manual
-historical repair, while Release Please manages later commits.
+Release creation or existing-release updates require reviewing the generated plan and explicitly enabling publication for
+an approved run.
 
 ### `.github/workflows/workflow-validation.yml`
 
 The `Workflow validation` workflow runs on local workflow and automation configuration changes, then calls the
 [shared workflow-validation workflow](https://github.com/cyaris/shared-automation#githubworkflowsworkflow-validationyml)
-to validate rollup upload wrapper logic, release configuration, and Renovate configuration.
+to validate rollup upload wrapper logic, release-policy configuration, and Renovate configuration.
