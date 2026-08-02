@@ -2,6 +2,8 @@ name: Rollup
 
 on:
   push:
+    branches:
+      - master
   pull_request:
   workflow_dispatch:
     inputs:
@@ -15,11 +17,6 @@ on:
         required: true
         type: boolean
         default: false
-      svelte-lib-ref:
-        description: svelte-lib ref used for the local file dependency.
-        required: false
-        type: string
-        default: ""
 
 permissions:
   contents: read
@@ -42,8 +39,6 @@ jobs:
       aws-role-to-assume: ${{ vars.AWS_ROLLUP_UPLOAD_ROLE_ARN }}
       manual-production: ${{ inputs.production || false }}
       manual-dry-run: ${{ inputs.dry-run || false }}
-      manual-svelte-lib-ref: ${{ inputs.svelte-lib-ref || '' }}
-      svelte-lib-variable-ref: ${{ vars.SVELTE_LIB_REF }}
     secrets:
       CHECKOUT_TOKEN: ${{ secrets.CHECKOUT_TOKEN }}
       RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
