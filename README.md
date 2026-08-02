@@ -775,10 +775,11 @@ The `Auto-create dev pull request` workflow runs on pushes to `dev` and calls th
 
 ### `.github/workflows/rollup.yml`
 
-The `Rollup` workflow runs on pushes to `master`, pull requests, and manual dispatch, then calls the
+The `Rollup` workflow runs on pushes to `dev` and `master`, pull requests, and manual dispatch, then calls the
 [shared rollup workflow](https://github.com/cyaris/shared-automation#githubworkflowsrollupyml) with
-`working-directory: frontend`. Shared CI runs for every trigger; uploads run on `master` pushes or manual dispatches to
-build the frontend rollup bundle and upload it to `s3://cyaris.github.io/the_networks_of_war/`. The workflow checks out
+`working-directory: frontend`. Shared CI runs for every trigger; uploads run on `dev` and `master` pushes or manual
+dispatches to build the frontend rollup bundle and upload it to `s3://cyaris.github.io/the_networks_of_war/`. `master`
+runs upload unprefixed production bundles, and `dev` runs upload staged `test_bundle.*` names. The workflow checks out
 `svelte-lib` at its latest `main` commit as a local dependency. The shared workflow resolves that branch to an exact
 commit SHA before checkout.
 
