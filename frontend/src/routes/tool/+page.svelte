@@ -1,5 +1,5 @@
 <script>
-  import TheNetworksOfWar from "../../lib/components/TheNetworksOfWar.svelte"
+  import Tool from "../../lib/components/Tool.svelte"
 </script>
 
-<TheNetworksOfWar />
+<Tool />
