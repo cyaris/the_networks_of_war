@@ -11,14 +11,14 @@
 
 ## Routing And Hosting
 
-- Use `/the_networks_of_war` as the simulated GitHub Pages route base. The forecasting tool itself belongs on `src/routes/tool/+page.svelte`.
+- Use `/the_networks_of_war` as the simulated GitHub Pages route base. The network graph itself belongs on `src/routes/tool/+page.svelte`.
 
 ## Chart Data Derivations
 
 - Keep `Tool.svelte` focused on project-specific data, chart state, and markup. Move generic reusable rendering helpers to `svelte-lib` and import them from `svelte-lib/functions` or `svelte-lib/components`.
-- Keep sorted/parsed time-series rows and indexed observed/forecast row lists as shared derived data instead of rebuilding them inside layout or pointer-driven reactive blocks.
-- Moving-average helpers must preserve row alignment and treat valid `0` values as data. Use finite-value checks rather than truthiness filters for chart paths, points, domains, and trends.
-- Cache hover-derived comparative series and model metrics by stable inputs such as prediction column, moving-average window, year, and timeframe.
+- Compute node sizing per descriptor field as a value-and-domain pair (`getNodeDescriptiveValues`): give nodes with no finite value a shared fallback radius rather than dropping them, and feed the resulting max domain into the radius scale rather than recomputing it inline.
+- Filter node/link descriptor fields down to selectable options only when they have at least one positive finite value, real sizing variation across nodes, and fewer than half their nodes null; keep this filtering in the shared descriptor-items derivation instead of the select markup.
+- Derive hover tooltip metric rows (`nodeMetricRows`) from the hovered node's current-timeframe metrics, filtering out zero values unless the field is explicitly allow-listed to always show, and excluding the field currently driving node sizing.
 
 ## Chart Layout
 
