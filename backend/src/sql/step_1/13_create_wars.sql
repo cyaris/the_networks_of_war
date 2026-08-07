@@ -94,12 +94,12 @@ select
     a.war_id,
     any_value(a.war_name) war_name,
     any_value(a.war_type_id) war_type_id,
-    any_value(b.war_type) war_type,
-    any_value(b.war_subtype) war_subtype
+    any_value(c.war_type) war_type,
+    any_value(c.war_subtype) war_subtype
 from source_interstate_war_metadata_adjustments a
-join source_file_versions c on a.source_key = c.source_key
-                            and a.source_version = c.source_version
-left join war_types b on a.war_type_id = b.war_type_id
+join source_file_versions b on a.source_key = b.source_key
+                            and a.source_version = b.source_version
+left join war_types c on a.war_type_id = c.war_type_id
 group by 1),
 
 war_metadata as (

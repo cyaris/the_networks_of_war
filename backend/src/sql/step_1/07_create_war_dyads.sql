@@ -54,49 +54,49 @@ select
     a.war_id,
     a.war_name,
     a.war_type_id,
-    c.war_type,
-    c.war_subtype,
+    b.war_type,
+    b.war_subtype,
     a.c_code_a,
     a.c_code_b,
-    coalesce(d.state_name, a.participant_a) participant_a,
-    coalesce(e.state_name, a.participant_b) participant_b,
+    coalesce(c.state_name, a.participant_a) participant_a,
+    coalesce(d.state_name, a.participant_b) participant_b,
     1 side_a,
     2 side_b,
     least(cow_date(a.start_year_1, a.start_month_1, a.start_day_1, 1, 1), cow_date(a.start_year_2, a.start_month_2, a.start_day_2, 1, 1)) start_date,
-    greatest(cow_end_date(a.end_year_1, a.end_month_1, a.end_day_1, f.source_release_date), cow_end_date(a.end_year_2, a.end_month_2, a.end_day_2, f.source_release_date)) end_date,
+    greatest(cow_end_date(a.end_year_1, a.end_month_1, a.end_day_1, e.source_release_date), cow_end_date(a.end_year_2, a.end_month_2, a.end_day_2, e.source_release_date)) end_date,
     greatest(date_estimated(a.start_year_1, a.start_month_1, a.start_day_1), date_estimated(a.start_year_2, a.start_month_2, a.start_day_2)) start_date_estimated,
     greatest(date_estimated(a.end_year_1, a.end_month_1, a.end_day_1), date_estimated(a.end_year_2, a.end_month_2, a.end_day_2)) end_date_estimated,
     a.battle_deaths_a,
     a.battle_deaths_b
 from source_extrastate_wars a
-left join war_types c on a.war_type_id = c.war_type_id
-left join country_codes d on a.c_code_a = d.c_code
-left join country_codes e on a.c_code_b = e.c_code
-join source_file_versions f on f.source_key = 'extrastate_wars'
+left join war_types b on a.war_type_id = b.war_type_id
+left join country_codes c on a.c_code_a = c.c_code
+left join country_codes d on a.c_code_b = d.c_code
+join source_file_versions e on e.source_key = 'extrastate_wars'
 union all
 select
     a.war_id,
     a.war_name,
     a.war_type_id,
-    c.war_type,
-    c.war_subtype,
+    b.war_type,
+    b.war_subtype,
     a.c_code_a,
     a.c_code_b,
-    coalesce(d.state_name, a.participant_a) participant_a,
-    coalesce(e.state_name, a.participant_b) participant_b,
+    coalesce(c.state_name, a.participant_a) participant_a,
+    coalesce(d.state_name, a.participant_b) participant_b,
     1 side_a,
     2 side_b,
     least(cow_date(a.start_year_1, a.start_month_1, a.start_day_1, 1, 1), cow_date(a.start_year_2, a.start_month_2, a.start_day_2, 1, 1), cow_date(a.start_year_3, a.start_month_3, a.start_day_3, 1, 1), cow_date(a.start_year_4, a.start_month_4, a.start_day_4, 1, 1)) start_date,
-    greatest(cow_end_date(a.end_year_1, a.end_month_1, a.end_day_1, f.source_release_date), cow_end_date(a.end_year_2, a.end_month_2, a.end_day_2, f.source_release_date), cow_end_date(a.end_year_3, a.end_month_3, a.end_day_3, f.source_release_date), cow_end_date(a.end_year_4, a.end_month_4, a.end_day_4, f.source_release_date)) end_date,
+    greatest(cow_end_date(a.end_year_1, a.end_month_1, a.end_day_1, e.source_release_date), cow_end_date(a.end_year_2, a.end_month_2, a.end_day_2, e.source_release_date), cow_end_date(a.end_year_3, a.end_month_3, a.end_day_3, e.source_release_date), cow_end_date(a.end_year_4, a.end_month_4, a.end_day_4, e.source_release_date)) end_date,
     greatest(date_estimated(a.start_year_1, a.start_month_1, a.start_day_1), date_estimated(a.start_year_2, a.start_month_2, a.start_day_2), date_estimated(a.start_year_3, a.start_month_3, a.start_day_3), date_estimated(a.start_year_4, a.start_month_4, a.start_day_4)) start_date_estimated,
     greatest(date_estimated(a.end_year_1, a.end_month_1, a.end_day_1), date_estimated(a.end_year_2, a.end_month_2, a.end_day_2), date_estimated(a.end_year_3, a.end_month_3, a.end_day_3), date_estimated(a.end_year_4, a.end_month_4, a.end_day_4)) end_date_estimated,
     a.battle_deaths_a,
     a.battle_deaths_b
 from source_intrastate_wars a
-left join war_types c on a.war_type_id = c.war_type_id
-left join country_codes d on a.c_code_a = d.c_code
-left join country_codes e on a.c_code_b = e.c_code
-join source_file_versions f on f.source_key = 'intrastate_wars';
+left join war_types b on a.war_type_id = b.war_type_id
+left join country_codes c on a.c_code_a = c.c_code
+left join country_codes d on a.c_code_b = d.c_code
+join source_file_versions e on e.source_key = 'intrastate_wars';
 
 create or replace table dyads_after_sources as
 

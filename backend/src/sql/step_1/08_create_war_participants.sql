@@ -8,23 +8,23 @@ select
     a.war_id,
     a.war_name,
     a.war_type_id,
-    c.war_type,
-    c.war_subtype,
+    b.war_type,
+    b.war_subtype,
     a.c_code,
-    coalesce(d.state_name, clean_participant(a.participant, e.replacement)) participant,
+    coalesce(c.state_name, clean_participant(a.participant, d.replacement)) participant,
     a.side,
     least(cow_date(a.start_year_1, a.start_month_1, a.start_day_1, 1, 1), cow_date(a.start_year_2, a.start_month_2, a.start_day_2, 1, 1)) start_date,
-    greatest(cow_end_date(a.end_year_1, a.end_month_1, a.end_day_1, f.source_release_date), cow_end_date(a.end_year_2, a.end_month_2, a.end_day_2, f.source_release_date)) end_date,
+    greatest(cow_end_date(a.end_year_1, a.end_month_1, a.end_day_1, e.source_release_date), cow_end_date(a.end_year_2, a.end_month_2, a.end_day_2, e.source_release_date)) end_date,
     greatest(date_estimated(a.start_year_1, a.start_month_1, a.start_day_1), date_estimated(a.start_year_2, a.start_month_2, a.start_day_2)) start_date_estimated,
     greatest(date_estimated(a.end_year_1, a.end_month_1, a.end_day_1), date_estimated(a.end_year_2, a.end_month_2, a.end_day_2)) end_date_estimated,
     a.battle_deaths,
     0 battle_deaths_estimated
 from source_interstate_wars a
-left join war_types c on a.war_type_id = c.war_type_id
-left join country_codes d on a.c_code = d.c_code
-left join participant_name_replacements e on d.c_code is null
-                                          and clean_text(a.participant) = e.source
-join source_file_versions f on f.source_key = 'interstate_wars'
+left join war_types b on a.war_type_id = b.war_type_id
+left join country_codes c on a.c_code = c.c_code
+left join participant_name_replacements d on c.c_code is null
+                                          and clean_text(a.participant) = d.source
+join source_file_versions e on e.source_key = 'interstate_wars'
 union all
 select
     a.war_id,

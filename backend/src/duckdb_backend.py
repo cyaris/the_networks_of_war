@@ -227,6 +227,7 @@ SQL_CHECKPOINTS = {
 def add_duckdb_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--db-path", default=DEFAULT_DB_PATH, type=Path)
     parser.add_argument("--inspect", action="store_true")
+
     query_group = parser.add_mutually_exclusive_group()
     query_group.add_argument(
         "--query", help="SQL query to execute after build completes, or immediately with --no-build."
@@ -236,6 +237,7 @@ def add_duckdb_arguments(parser: argparse.ArgumentParser) -> None:
         type=Path,
         help="Path to a local .sql file to execute after build completes, or immediately with --no-build.",
     )
+
     parser.add_argument(
         "--build",
         action=argparse.BooleanOptionalAction,
@@ -391,12 +393,12 @@ class DuckDBProcessesMixin:
 
 __all__ = [
     "DEFAULT_DB_PATH",
-    "SQL_ROOT",
-    "STEP_1_SQL",
-    "STEP_2_SQL",
-    "STEP_1_SOURCE_KEYS",
-    "STEP_2_SOURCE_KEYS",
     "DuckDBProcessesMixin",
+    "SQL_ROOT",
+    "STEP_1_SOURCE_KEYS",
+    "STEP_1_SQL",
+    "STEP_2_SOURCE_KEYS",
+    "STEP_2_SQL",
     "add_duckdb_arguments",
     "created_relation_names",
     "format_query_results",

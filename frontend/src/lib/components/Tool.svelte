@@ -68,8 +68,7 @@
       return
     }
 
-    let matchingItem = items.find(item => item.value == currentValue?.value)
-    let nextValue = matchingItem || fallbackItem
+    let nextValue = items.find(item => item.value == currentValue?.value) || fallbackItem
 
     if (currentValue !== nextValue) {
       selectValue[key] = nextValue
@@ -137,9 +136,7 @@
   let countryFiltersByCCode = {}
 
   Object.values(graphsByWarId).forEach(graph => {
-    let graphNodes = graph.nodes || []
-
-    graphNodes.forEach(node => {
+    ;(graph.nodes || []).forEach(node => {
       if (Number(node.c_code) <= 0) return
 
       let cCode = String(node.c_code)
@@ -194,6 +191,8 @@
   let width = 900
   let viewportWidth = 900
   let viewportHeight = 700
+  let stableViewportHeight = viewportHeight
+  let lastViewportWidthForHeight = null
   let simulation
   let svg
   let nodes = []
@@ -281,8 +280,13 @@
   ])
   const sideColors = { 1: "#2f7f66", 2: "#b54f72", 3: "#5f70b8", null: "#71717a", undefined: "#71717a" }
 
+  $: if (viewportWidth !== lastViewportWidthForHeight) {
+    lastViewportWidthForHeight = viewportWidth
+    stableViewportHeight = viewportHeight
+  }
+
   $: {
-    let mobileHeight = Math.min(480, Math.max(280, viewportHeight * 0.42))
+    let mobileHeight = Math.min(480, Math.max(280, stableViewportHeight * 0.42))
     let height = width < 640 ? mobileHeight : width < 900 ? 600 : 700
     let widthPressure = width < 900 ? Math.min(1, (900 - width) / 520) : 0
     let densityPressure = Math.min(1, (nodes.length + links.length * 0.35) / denseGraphReferenceSize)
@@ -361,20 +365,16 @@
     if (parsed == null) return "Unknown"
 
     let metric = metricDictionary[field] || {}
-    let prefix = metric.valuePrefix || ""
     let suffix = displayMetricSuffix(parsed, field, metric.valueSuffix || "")
-    let suffixSeparator = suffix && !suffix.startsWith("%") ? " " : ""
     let minimumFractionDigits = fixedFractionDigitMetricFields.has(field) ? tooltipFractionDigits : 0
 
-    return `${prefix}${displayCompactNumber(parsed, minimumFractionDigits)}${suffix ? `${suffixSeparator}${suffix}` : ""}`
+    return `${metric.valuePrefix || ""}${displayCompactNumber(parsed, minimumFractionDigits)}${suffix ? `${!suffix.startsWith("%") ? " " : ""}${suffix}` : ""}`
   }
 
   function displayDate(value, estimated = false) {
     if (!value) return "Unknown"
 
-    let formatted = String(value)
-
-    return `${formatted}${Number(estimated) == 1 ? " (estimated)" : ""}`
+    return `${String(value)}${Number(estimated) == 1 ? " (estimated)" : ""}`
   }
 
   function finiteValues(values) {
@@ -673,9 +673,9 @@
     let endpointCounts = new Map()
 
     links.forEach(link => {
-      for (let id of [linkEndpointId(link, "source"), linkEndpointId(link, "target")]) {
+      ;[linkEndpointId(link, "source"), linkEndpointId(link, "target")].forEach(id => {
         endpointCounts.set(id, (endpointCounts.get(id) || 0) + 1)
-      }
+      })
     })
 
     let primaryNodes = Array.from(endpointCounts)
@@ -1033,10 +1033,12 @@
     )
   }
 
-  $: if (graph !== currentGraph || width !== currentWidth) {
+  $: if (graph !== currentGraph) {
     currentGraph = graph
     currentWidth = width
     resetSimulation()
+  } else if (width !== currentWidth) {
+    currentWidth = width
   }
 
   $: {
@@ -1324,7 +1326,7 @@
                       <text
                         class="text-[12px] font-bold"
                         text-anchor={label.anchor}
-                        fill={label.inside ? "white" : "#111827"}
+                        fill={label.inside ? "white" : "var(--chart-1, #111827)"}
                         stroke={label.inside ? "none" : "white"}
                         stroke-width={label.inside ? 0 : 3}
                         paint-order="stroke"
@@ -1342,7 +1344,7 @@
                           class="text-[10px] font-extrabold"
                           text-anchor="middle"
                           dominant-baseline="central"
-                          fill="#111827"
+                          fill="var(--chart-1, #111827)"
                           stroke="white"
                           stroke-width={2.5}
                           paint-order="stroke"
