@@ -783,6 +783,13 @@ runs upload unprefixed production bundles, and `dev` runs upload staged `test_bu
 `svelte-lib` at its latest `main` commit as a local dependency. The shared workflow resolves that branch to an exact
 commit SHA before checkout.
 
+### `.github/workflows/upstream-watch.yml`
+
+The `Upstream Watch` workflow runs daily at 13:18 UTC and on manual dispatch, then calls the
+[shared upstream-watch workflow](https://github.com/cyaris/shared-automation#githubworkflowsupstream-watchyml). It
+watches `svelte-lib`'s `main` branch and, when it has moved since the last check, dispatches this repository's own
+`Rollup` workflow on `master` so the build picks up the new upstream commit without waiting for a push here.
+
 ### `.github/workflows/auto-release.yml`
 
 The `Auto release` workflow runs from manual dispatch only and calls the
