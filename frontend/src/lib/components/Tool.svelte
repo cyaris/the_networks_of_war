@@ -284,6 +284,7 @@
     lastViewportWidthForHeight = viewportWidth
     stableViewportHeight = viewportHeight
   }
+
   $: {
     let mobileHeight = Math.min(480, Math.max(280, stableViewportHeight * 0.42))
     let height = width < 640 ? mobileHeight : width < 900 ? 600 : 700
