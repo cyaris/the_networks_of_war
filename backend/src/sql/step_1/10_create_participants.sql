@@ -29,10 +29,10 @@ select
     sum(a.battle_deaths_a) battle_deaths,
     max(a.battle_deaths_estimated_a) battle_deaths_estimated
 from dyads_after_mid a
-left join war_participants c on a.war_id = c.war_id
-                             and a.c_code_a = c.c_code
-                             and a.participant_a = c.participant
-where c.c_code is null
+left join war_participants b on a.war_id = b.war_id
+                             and a.c_code_a = b.c_code
+                             and a.participant_a = b.participant
+where b.c_code is null
 group by 1, 2, 3),
 
 side_assignments as (
