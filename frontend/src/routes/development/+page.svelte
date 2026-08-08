@@ -10,7 +10,7 @@
 <div class="mx-auto mt-8 flex max-w-3xl flex-col items-center gap-2">
   <img
     src={minardNapoleonCampaign}
-    alt="Charles Joseph Minard's 1869 flow map of Napoleon's 1812 Russian campaign. A tan band shows the army advancing toward Moscow and a black band shows the retreat, narrowing from 422,000 to 10,000 men, above a chart of the temperatures during the withdrawal."
+    alt="Charles Joseph Minard's 1869 flow map of Napoleon's 1812 Russian campaign. A tan band tracks the army advancing east to Moscow and a black band tracks the retreat back west, the width of each falling from 422,000 men to 10,000, above a line chart of the sub-zero temperatures recorded during the withdrawal."
     class="w-full rounded"
   />
   <p class="text-sm italic">Charles Joseph Minard's 1869 map of Napoleon's Russian campaign</p>
