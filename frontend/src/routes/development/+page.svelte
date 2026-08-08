@@ -19,7 +19,7 @@
   I came across Minard's map in Edward R. Tufte's <em>The Visual Display of Quantitative Information</em> around the same
   time I started experimenting with D3.js. It got me hooked on the idea of a long-term project built on historical data that
   was actually historical. More than 150 years later, it still does something most charts can't. Four variables share a single
-  band, and the losses aren't reported anywhere — you just watch the band narrow until there's almost nothing left.
+  band, and the losses aren't reported anywhere—you just watch the band narrow until there's almost nothing left.
 </p>
 <p>
   So I went looking for a historical dataset of my own, and after a lot of Google searches I found the
