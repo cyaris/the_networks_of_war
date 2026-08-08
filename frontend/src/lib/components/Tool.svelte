@@ -60,6 +60,12 @@
     return items.find(item => item.linkDashFieldCount > 0) || items[0]
   }
 
+  function defaultWarItem(items, viewportWidth) {
+    let label = viewportWidth < 640 ? "World War I" : "World War II"
+
+    return items.find(item => item.label === label) ?? preferredWarItem(items)
+  }
+
   function syncSelectValue(key, items, fallbackItem = null) {
     let currentValue = selectValue[key]
 
@@ -115,6 +121,7 @@
   }
 
   function updateWarValue(event) {
+    warManuallySelected = true
     selectValue.war = event.detail.d
   }
 
@@ -177,8 +184,8 @@
     linkDescriptor: []
   }
   let selectValue = {
-    country: null,
-    war: preferredWarItem(initialWarItems),
+    country: allCountryItems.find(item => item.label === "United States of America") ?? null,
+    war: defaultWarItem(initialWarItems, 900),
     timeframe: timeframeItems[2],
     nodeDescriptor: null,
     linkDescriptor: null
@@ -187,6 +194,7 @@
   let deselectedWarTypes = []
   let graph = { nodes: [], links: [] }
   let selectedWar = null
+  let warManuallySelected = false
 
   let width = 900
   let viewportWidth = 900
@@ -283,6 +291,11 @@
   $: if (viewportWidth !== lastViewportWidthForHeight) {
     lastViewportWidthForHeight = viewportWidth
     stableViewportHeight = viewportHeight
+  }
+  $: mobileSecondaryLabelIdentifier = viewportWidth < 640 ? "" : "secondaryLabel"
+
+  $: if (!warManuallySelected) {
+    selectValue.war = defaultWarItem(initialWarItems, viewportWidth)
   }
 
   $: {
@@ -1158,7 +1171,7 @@
           items={selectItems.country}
           value={selectValue.country}
           labelConstruction={true}
-          secondaryLabelIdentifier="secondaryLabel"
+          secondaryLabelIdentifier={mobileSecondaryLabelIdentifier}
           placeholder="Filter by country"
           noItemsMessage={selectNoItemsMessage.country}
           on:valueChange={updateCountryValue}
@@ -1174,7 +1187,7 @@
           value={selectValue.war}
           groupBy="war_type"
           labelConstruction={true}
-          secondaryLabelIdentifier="secondaryLabel"
+          secondaryLabelIdentifier={mobileSecondaryLabelIdentifier}
           placeholder="Select a war"
           noItemsMessage={selectNoItemsMessage.war}
           on:valueChange={updateWarValue}
