@@ -60,6 +60,14 @@
     return items.find(item => item.linkDashFieldCount > 0) || items[0]
   }
 
+  function warLabelForViewport(viewportWidth) {
+    return viewportWidth < 640 ? "World War I" : "World War II"
+  }
+
+  function defaultWarItem(items, viewportWidth) {
+    return items.find(item => item.label === warLabelForViewport(viewportWidth)) ?? preferredWarItem(items)
+  }
+
   function syncSelectValue(key, items, fallbackItem = null) {
     let currentValue = selectValue[key]
 
@@ -77,6 +85,10 @@
 
   function syncWarSelectValue(items) {
     syncSelectValue("war", items)
+  }
+
+  function applyWarViewportDefault(items, viewportWidth) {
+    selectValue.war = items.find(item => item.label === warLabelForViewport(viewportWidth)) ?? null
   }
 
   function warItem(war) {
@@ -115,6 +127,7 @@
   }
 
   function updateWarValue(event) {
+    warManuallySelected = true
     selectValue.war = event.detail.d
   }
 
@@ -177,8 +190,8 @@
     linkDescriptor: []
   }
   let selectValue = {
-    country: null,
-    war: preferredWarItem(initialWarItems),
+    country: allCountryItems.find(item => item.label === "United States of America") ?? null,
+    war: defaultWarItem(initialWarItems, 900),
     timeframe: timeframeItems[2],
     nodeDescriptor: null,
     linkDescriptor: null
@@ -187,6 +200,7 @@
   let deselectedWarTypes = []
   let graph = { nodes: [], links: [] }
   let selectedWar = null
+  let warManuallySelected = false
 
   let width = 900
   let viewportWidth = 900
@@ -284,6 +298,7 @@
     lastViewportWidthForHeight = viewportWidth
     stableViewportHeight = viewportHeight
   }
+  $: mobileSecondaryLabelIdentifier = viewportWidth < 640 ? "" : "secondaryLabel"
 
   $: {
     let mobileHeight = Math.min(480, Math.max(280, stableViewportHeight * 0.42))
@@ -319,7 +334,12 @@
     let nextWarItems = filteredWars.map(warItem)
 
     selectItems.war = nextWarItems
-    syncWarSelectValue(nextWarItems)
+
+    if (warManuallySelected) {
+      syncWarSelectValue(nextWarItems)
+    } else {
+      applyWarViewportDefault(nextWarItems, viewportWidth)
+    }
   }
   $: selectedWar = selectValue.war?.war
   $: graph = selectedWar ? graphForWar(selectedWar) : { nodes: [], links: [] }
@@ -1158,7 +1178,7 @@
           items={selectItems.country}
           value={selectValue.country}
           labelConstruction={true}
-          secondaryLabelIdentifier="secondaryLabel"
+          secondaryLabelIdentifier={mobileSecondaryLabelIdentifier}
           placeholder="Filter by country"
           noItemsMessage={selectNoItemsMessage.country}
           on:valueChange={updateCountryValue}
@@ -1174,7 +1194,7 @@
           value={selectValue.war}
           groupBy="war_type"
           labelConstruction={true}
-          secondaryLabelIdentifier="secondaryLabel"
+          secondaryLabelIdentifier={mobileSecondaryLabelIdentifier}
           placeholder="Select a war"
           noItemsMessage={selectNoItemsMessage.war}
           on:valueChange={updateWarValue}
