@@ -60,10 +60,12 @@
     return items.find(item => item.linkDashFieldCount > 0) || items[0]
   }
 
-  function defaultWarItem(items, viewportWidth) {
-    let label = viewportWidth < 640 ? "World War I" : "World War II"
+  function warLabelForViewport(viewportWidth) {
+    return viewportWidth < 640 ? "World War I" : "World War II"
+  }
 
-    return items.find(item => item.label === label) ?? preferredWarItem(items)
+  function defaultWarItem(items, viewportWidth) {
+    return items.find(item => item.label === warLabelForViewport(viewportWidth)) ?? preferredWarItem(items)
   }
 
   function syncSelectValue(key, items, fallbackItem = null) {
@@ -83,6 +85,10 @@
 
   function syncWarSelectValue(items) {
     syncSelectValue("war", items)
+  }
+
+  function applyWarViewportDefault(items, viewportWidth) {
+    selectValue.war = items.find(item => item.label === warLabelForViewport(viewportWidth)) ?? null
   }
 
   function warItem(war) {
@@ -294,10 +300,6 @@
   }
   $: mobileSecondaryLabelIdentifier = viewportWidth < 640 ? "" : "secondaryLabel"
 
-  $: if (!warManuallySelected) {
-    selectValue.war = defaultWarItem(initialWarItems, viewportWidth)
-  }
-
   $: {
     let mobileHeight = Math.min(480, Math.max(280, stableViewportHeight * 0.42))
     let height = width < 640 ? mobileHeight : width < 900 ? 600 : 700
@@ -332,7 +334,12 @@
     let nextWarItems = filteredWars.map(warItem)
 
     selectItems.war = nextWarItems
-    syncWarSelectValue(nextWarItems)
+
+    if (warManuallySelected) {
+      syncWarSelectValue(nextWarItems)
+    } else {
+      applyWarViewportDefault(nextWarItems, viewportWidth)
+    }
   }
   $: selectedWar = selectValue.war?.war
   $: graph = selectedWar ? graphForWar(selectedWar) : { nodes: [], links: [] }
