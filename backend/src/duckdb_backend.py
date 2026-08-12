@@ -93,7 +93,7 @@ SQL_CHECKPOINTS = {
                 (select count(*) from source_interstate_war_dyad_adjustments),
                 (select count(*) from source_participant_side_adjustments)
             """,
-        ),
+        )
     ],
     "step_1/07_create_war_dyads.sql": [
         (
@@ -117,7 +117,7 @@ SQL_CHECKPOINTS = {
         ("Note: This is step 1 of 3 to getting the actual total for unique dyads.", None),
     ],
     "step_1/08_create_war_participants.sql": [
-        ("Total War Participants After Merging All War Types: %s", "select count(*) from war_participants"),
+        ("Total War Participants After Merging All War Types: %s", "select count(*) from war_participants")
     ],
     "step_1/09_create_dyads_after_mid.sql": [
         (
@@ -167,7 +167,7 @@ SQL_CHECKPOINTS = {
         (
             "Total Participants Added from Dyadic Data: %s",
             "select (select count(*) from participants) - (select count(*) from war_participants)",
-        ),
+        )
     ],
     "step_1/11_create_dyads.sql": [
         ("Total Unique Dyads After Step 3 of 3: %s", "select count(*) from dyads"),
@@ -194,7 +194,7 @@ SQL_CHECKPOINTS = {
         (
             "Total Dyad-Year Rows After Adding Years Between Start Year and End Year: %s",
             "select count(*) from dyad_years",
-        ),
+        )
     ],
     "step_1/13_create_wars.sql": [
         ("Total Participants: %s", "select count(*) from participants"),
@@ -202,25 +202,21 @@ SQL_CHECKPOINTS = {
         ("Total Wars: %s", "select count(*) from wars"),
     ],
     "step_2/05_create_participant_descriptives.sql": [
-        ("Total Rows of Participant Descriptive Data: %s", "select count(*) from participant_descriptives"),
+        ("Total Rows of Participant Descriptive Data: %s", "select count(*) from participant_descriptives")
     ],
     "step_2/06_create_dyad_year_descriptives.sql": [
         ("Total Unique Dyadic Years in Initial Data: %s", "select count(*) from dyad_year_descriptives"),
         ("Counting Total Dyadic Year Combinations by Descriptive Field", None),
     ],
     "step_2/07_create_dyadic_descriptives.sql": [
-        ("Total Dyadic Combinations of Descriptive Data: %s", "select count(*) from dyadic_descriptives"),
+        ("Total Dyadic Combinations of Descriptive Data: %s", "select count(*) from dyadic_descriptives")
     ],
-    "step_3/01_create_final_participants.sql": [
-        ("Total Participants: %s", "select count(*) from final_participants"),
-    ],
+    "step_3/01_create_final_participants.sql": [("Total Participants: %s", "select count(*) from final_participants")],
     "step_3/02_create_final_dyads.sql": [
         ("Total Dyadic Combinations: %s", "select count(*) from final_dyads"),
         ("Counting Total Dyadic War and Year Combinations by Descriptive Field", None),
     ],
-    "step_3/03_create_final_wars.sql": [
-        ("Total Wars: %s", "select count(*) from final_wars"),
-    ],
+    "step_3/03_create_final_wars.sql": [("Total Wars: %s", "select count(*) from final_wars")],
 }
 
 

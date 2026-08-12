@@ -327,10 +327,7 @@ def test_step_2_descriptor_tables_keep_expected_grain(conn):
         ("participant_year_descriptives", ["war_id", "c_code", "participant", "year"]),
         ("participant_descriptives", ["war_id", "c_code", "participant", "timeframe"]),
         ("dyad_year_descriptives", ["war_id", "c_code_a", "c_code_b", "participant_a", "participant_b", "year"]),
-        (
-            "dyadic_descriptives",
-            ["war_id", "c_code_a", "c_code_b", "participant_a", "participant_b", "timeframe"],
-        ),
+        ("dyadic_descriptives", ["war_id", "c_code_a", "c_code_b", "participant_a", "participant_b", "timeframe"]),
     ]
 
     for table_name, key_columns in checks:
