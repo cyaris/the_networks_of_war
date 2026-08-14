@@ -1288,7 +1288,7 @@
         <div class="relative min-w-0" bind:clientWidth={width}>
           {#if nodes.length}
             <svg
-              class="block w-full touch-none"
+              class="no-highlight block w-full touch-none"
               height={graphLayout.height}
               viewBox="0 0 {width} {graphLayout.height}"
               role="img"
