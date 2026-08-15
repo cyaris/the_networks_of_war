@@ -775,7 +775,7 @@ The `Auto-create dev pull request` workflow runs on pushes to `dev` and calls th
 
 ### `.github/workflows/rollup.yml`
 
-The `Rollup` workflow runs on pushes to `dev` and `master`, pull requests, and manual dispatch, then calls the
+The `Rollup` workflow runs on pushes to `dev` and `master` and on manual dispatch, then calls the
 [shared rollup workflow](https://github.com/cyaris/shared-automation#githubworkflowsrollupyml) with
 `working-directory: frontend`. Shared CI runs for every trigger; uploads run on `dev` and `master` pushes or manual
 dispatches to build the frontend rollup bundle and upload it to `s3://cyaris.github.io/the_networks_of_war/`. `master`
@@ -785,7 +785,7 @@ commit SHA before checkout.
 
 ### `.github/workflows/upstream-watch.yml`
 
-The `Upstream Watch` workflow runs daily at 13:00 UTC, 30 minutes before the `cyaris.github.io` Pages build, and on
+The `Upstream Watch` workflow runs daily at 12:53 UTC, 30 minutes before the `cyaris.github.io` Pages build, and on
 manual dispatch, then calls the
 [shared upstream-watch workflow](https://github.com/cyaris/shared-automation#githubworkflowsupstream-watchyml). It
 watches `svelte-lib`'s `main` branch and, when it has moved since the last check, dispatches this repository's own

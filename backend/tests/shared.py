@@ -247,13 +247,7 @@ def sql_check_failure(
     )
 
 
-def fail_if_detected_rows(
-    conn,
-    sql: str,
-    title: str,
-    label: str,
-    problem_columns: set[str] | None = None,
-) -> None:
+def fail_if_detected_rows(conn, sql: str, title: str, label: str, problem_columns: set[str] | None = None) -> None:
     detected_rows = query_result(conn, sql)
 
     if not detected_rows.rows:
@@ -261,16 +255,7 @@ def fail_if_detected_rows(
 
     problem_cells = problem_cells_for_columns(detected_rows, problem_columns or set())
     fail_sql_check(
-        title,
-        failures=[
-            sql_check_failure(
-                label,
-                sql,
-                len(detected_rows.rows),
-                detected_rows,
-                problem_cells,
-            )
-        ],
+        title, failures=[sql_check_failure(label, sql, len(detected_rows.rows), detected_rows, problem_cells)]
     )
 
 

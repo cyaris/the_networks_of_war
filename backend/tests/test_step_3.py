@@ -199,9 +199,7 @@ def test_step_3_frontend_graph_data_prunes_unavailable_descriptor_fields(step_3_
             assert any(value is not None and value > 0 for value in values)
 
 
-def test_step_3_frontend_graph_data_keeps_all_non_null_node_metrics_for_tooltips(
-    step_3_outputs: tuple[Path, Path],
-):
+def test_step_3_frontend_graph_data_keeps_all_non_null_node_metrics_for_tooltips(step_3_outputs: tuple[Path, Path]):
     _, frontend_data_path = step_3_outputs
     payload = json.loads(frontend_data_path.read_text())
     graphs_with_extra_tooltip_metrics = 0
@@ -226,9 +224,7 @@ def test_step_3_frontend_graph_data_keeps_all_non_null_node_metrics_for_tooltips
     assert graphs_with_extra_tooltip_metrics > 0
 
 
-def test_step_3_frontend_graph_data_omits_first_and_last_year_for_single_year_wars(
-    step_3_outputs: tuple[Path, Path],
-):
+def test_step_3_frontend_graph_data_omits_first_and_last_year_for_single_year_wars(step_3_outputs: tuple[Path, Path]):
     _, frontend_data_path = step_3_outputs
     payload = json.loads(frontend_data_path.read_text())
     single_year_wars = [war for war in payload["wars"] if war["start_year"] == war["end_year"]]

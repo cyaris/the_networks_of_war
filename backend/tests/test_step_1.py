@@ -464,12 +464,7 @@ def test_raw_source_date_components_use_valid_domains(conn):
             else {}
         )
         flagged_rows_sql = raw_source_date_component_check_sql(
-            source_key,
-            source_file,
-            source_path,
-            row_reference_columns,
-            date_components,
-            **encoding_kwargs,
+            source_key, source_file, source_path, row_reference_columns, date_components, **encoding_kwargs
         )
         flagged_count = flagged_row_count(conn, flagged_rows_sql)
 
