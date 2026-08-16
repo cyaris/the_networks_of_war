@@ -4,6 +4,7 @@
   import pluralize from "pluralize"
   import { onDestroy } from "svelte"
   import { CheckboxFilter, InfoIcon, Select } from "svelte-lib/components"
+  import { compareText } from "svelte-lib/functions"
 
   import graphData from "../static/graphData.json"
   import dataDictionary from "../static/metricDataDictionary.json"
@@ -113,7 +114,7 @@
         return availableWarCount ? { ...country, secondaryLabel: plural(availableWarCount, "war") } : null
       })
       .filter(Boolean)
-      .sort((a, b) => a.label.localeCompare(b.label))
+      .sort((a, b) => compareText(a.label, b.label))
   }
 
   function updateCountryValue(event) {
@@ -165,11 +166,11 @@
 
   let linkDashFieldCountsByWarId = Object.fromEntries(wars.map(war => [String(war.war_id), linkDashFieldCount(war)]))
   let warTypeItems = Array.from(new Set(wars.map(war => war.war_type)))
-    .sort()
+    .sort(compareText)
     .map(warType => ({ value: warType, label: warType }))
   let allCountryItems = Object.values(countryFiltersByCCode)
     .map(country => {
-      let label = Array.from(country.names).sort((a, b) => a.localeCompare(b))[0]
+      let label = Array.from(country.names).sort(compareText)[0]
 
       return {
         value: String(country.c_code),
@@ -180,7 +181,7 @@
         warIds: country.warIds
       }
     })
-    .sort((a, b) => a.label.localeCompare(b.label))
+    .sort((a, b) => compareText(a.label, b.label))
   let initialWarItems = wars.map(warItem)
   let selectItems = {
     country: [],
@@ -441,7 +442,7 @@
 
   function descriptorItems(fields) {
     return fields
-      .sort((a, b) => fieldLabel(a).localeCompare(fieldLabel(b)))
+      .sort((a, b) => compareText(fieldLabel(a), fieldLabel(b)))
       .map(field => ({
         value: field,
         label: fieldLabel(field),
@@ -807,7 +808,7 @@
 
         return field == selectValue.nodeDescriptor?.value
       })
-      .sort((a, b) => fieldLabel(a).localeCompare(fieldLabel(b)))
+      .sort((a, b) => compareText(fieldLabel(a), fieldLabel(b)))
       .map(field => ({ field, label: fieldLabel(field), value: nodeMetricValue(node, metrics, field) }))
   }
 
