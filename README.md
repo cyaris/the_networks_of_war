@@ -92,11 +92,11 @@ npm run rollup
 
 The backend build runs three ordered steps:
 
-| Step | Purpose |
-| --- | --- |
-| 1 | Ingest source files, apply source-level normalization and adjustments, and create the base war, participant, dyad, and dyad-year tables. |
-| 2 | Add country-year, participant, and dyad descriptors from military, economic, demographic, displacement, terrorism, and related sources. |
-| 3 | Merge the final participant, dyad, and war outputs, then produce the graph payload used by the frontend. |
+|Step|Purpose|
+|---|---|
+|1|Ingest source files, apply source-level normalization and adjustments, and create the base war, participant, dyad, and dyad-year tables.|
+|2|Add country-year, participant, and dyad descriptors from military, economic, demographic, displacement, terrorism, and related sources.|
+|3|Merge the final participant, dyad, and war outputs, then produce the graph payload used by the frontend.|
 
 ## Current Architecture
 
@@ -116,7 +116,7 @@ The backend build runs three ordered steps:
 - In Vite development, routes are mirrored for the local root and the simulated GitHub Pages base:
   - `/` and `/the_networks_of_war` render the menu.
   - `/tool` and `/the_networks_of_war/tool` render the network analysis tool.
-- Generated frontend data is written to `frontend/src/lib/static/graphData.json`.
+- The pipeline writes generated frontend data to `frontend/src/lib/static/graphData.json`.
   - The export query lives at `backend/src/sql/step_3/04_export_frontend_graph_data.sql`.
   - TODO: Replace the current committed `graphData.json` CI unblock with a cleaner generated-data path, such as a
     release asset, S3/R2 download, Git LFS, or a CI prebuild step that can reliably recreate the file from source data.
@@ -126,7 +126,7 @@ The backend build runs three ordered steps:
     for node-size controls.
 - The graph metric data dictionary lives at
   [`frontend/src/lib/static/metricDataDictionary.json`](frontend/src/lib/static/metricDataDictionary.json).
-  - The dictionary is written for non-technical users.
+  - The dictionary explains metrics for non-technical users.
   - The dictionary records each graph metric's source organization or study, high-level calculation, and display unit.
 
 ## Data Layout
@@ -159,16 +159,16 @@ python src/pipeline.py
 
 Pipeline parameters:
 
-| Parameter | Default | Demonstration |
-| --- | --- | --- |
-| `--data-dir PATH` | `backend/data/` | Source-data directory. Use `--data-dir data` for the default relative backend path. |
-| `--db-path PATH` | `backend/the_networks_of_war.duckdb` | DuckDB database path. Use `--db-path the_networks_of_war.duckdb` for the default relative backend path. |
-| `--build`, `--no-build` | `--build` | `--build` runs Steps 1, 2, and 3; `--no-build` skips preprocessing so commands can inspect or query an existing database. |
-| `--inspect` | off | Print table row counts after build completes, or immediately with `--no-build`. |
-| `--prepare-data` | off | Download and validate missing source-data folders before opening the database. |
-| `--recreate-data` | off | Delete and recreate the full source-data directory before opening the database. |
-| `--query SQL` | none | Execute an inline SQL query after build completes, or immediately with `--no-build`. |
-| `--query-file PATH` | none | Execute SQL read from a local `.sql` file after build completes, or immediately with `--no-build`. Mutually exclusive with `--query`. |
+|Parameter|Default|Demonstration|
+|---|---|---|
+|`--data-dir PATH`|`backend/data/`|Source-data directory. Use `--data-dir data` for the default relative backend path.|
+|`--db-path PATH`|`backend/the_networks_of_war.duckdb`|DuckDB database path. Use `--db-path the_networks_of_war.duckdb` for the default relative backend path.|
+|`--build`, `--no-build`|`--build`|`--build` runs Steps 1, 2, and 3; `--no-build` skips preprocessing so commands can inspect or query an existing database.|
+|`--inspect`|off|Print table row counts after build completes, or immediately with `--no-build`.|
+|`--prepare-data`|off|Download and validate missing source-data folders before opening the database.|
+|`--recreate-data`|off|Delete and recreate the full source-data directory before opening the database.|
+|`--query SQL`|none|Execute an inline SQL query after build completes, or immediately with `--no-build`.|
+|`--query-file PATH`|none|Execute SQL read from a local `.sql` file after build completes, or immediately with `--no-build`. Mutually exclusive with `--query`.|
 
 Run or rebuild all pipeline steps:
 
@@ -286,36 +286,36 @@ The current backend ingests the following source files.
 Release date note: local PDF text and metadata were checked but are treated as documentation/build metadata unless they
 explicitly identify the current source file's release date.
 
-| Table | Organization | Source CSV | Version | Release Date | Release Date Source | Download source |
-| --- | --- | --- | --- | --- | --- | --- |
-| `source_country_codes` | Correlates of War Project (COW) | `COW-country-codes.csv` | unversioned | 2022-09-07 | WordPress media attachment date | [Data](https://correlatesofwar.org/wp-content/uploads/COW-country-codes.csv) |
-| `source_extrastate_wars` | Correlates of War Project (COW) | `Extra-StateWarData_v4.0.csv` | 4.0 | 2011-12-08 | COW war-data release note | [Data](https://correlatesofwar.org/wp-content/uploads/Extra-StateWarData_v4.0.csv)<br>[Doc](https://correlatesofwar.org/wp-content/uploads/Extra-StateWars_Codebook.pdf) |
-| `source_interstate_mid_dyads` | Correlates of War Project (COW) | `dyadic_mid_4.03.csv` | 4.03 | 2025-04-06 | WordPress media attachment date | [Release](https://correlatesofwar.org/wp-content/uploads/dyadic_mid_4.03_update.zip) |
-| `source_interstate_war_dyads` | Correlates of War Project (COW) | `directed_dyadic_war.csv` | unversioned | 2022-07-12 | WordPress media attachment date | [Release](https://correlatesofwar.org/wp-content/uploads/Dyadic-Interstate-War-Dataset.zip) |
-| `source_interstate_wars` | Correlates of War Project (COW) | `Inter-StateWarData_v4.0.csv` | 4.0 | 2011-03-01 | COW war-data release note | [Data](https://correlatesofwar.org/wp-content/uploads/Inter-StateWarData_v4.0.csv)<br>[Doc 1](https://correlatesofwar.org/wp-content/uploads/Inter-StateWars_Codebook.pdf)<br>[Doc 2](https://correlatesofwar.org/wp-content/uploads/Inter-StateWarsList.pdf) |
-| `source_intrastate_wars` | Correlates of War Project (COW) | `INTRA-STATE_State_participants v5.1 CSV.csv` | 5.1 | 2020-04-06 | COW war-data release note | [Release](https://correlatesofwar.org/wp-content/uploads/Intra-State-Wars-v5.1.zip) |
+|Table|Organization|Source CSV|Version|Release Date|Release Date Source|Download source|
+|---|---|---|---|---|---|---|
+|`source_country_codes`|Correlates of War Project (COW)|`COW-country-codes.csv`|unversioned|2022-09-07|WordPress media attachment date|[Data](https://correlatesofwar.org/wp-content/uploads/COW-country-codes.csv)|
+|`source_extrastate_wars`|Correlates of War Project (COW)|`Extra-StateWarData_v4.0.csv`|4.0|2011-12-08|COW war-data release note|[Data](https://correlatesofwar.org/wp-content/uploads/Extra-StateWarData_v4.0.csv)<br>[Doc](https://correlatesofwar.org/wp-content/uploads/Extra-StateWars_Codebook.pdf)|
+|`source_interstate_mid_dyads`|Correlates of War Project (COW)|`dyadic_mid_4.03.csv`|4.03|2025-04-06|WordPress media attachment date|[Release](https://correlatesofwar.org/wp-content/uploads/dyadic_mid_4.03_update.zip)|
+|`source_interstate_war_dyads`|Correlates of War Project (COW)|`directed_dyadic_war.csv`|unversioned|2022-07-12|WordPress media attachment date|[Release](https://correlatesofwar.org/wp-content/uploads/Dyadic-Interstate-War-Dataset.zip)|
+|`source_interstate_wars`|Correlates of War Project (COW)|`Inter-StateWarData_v4.0.csv`|4.0|2011-03-01|COW war-data release note|[Data](https://correlatesofwar.org/wp-content/uploads/Inter-StateWarData_v4.0.csv)<br>[Doc 1](https://correlatesofwar.org/wp-content/uploads/Inter-StateWars_Codebook.pdf)<br>[Doc 2](https://correlatesofwar.org/wp-content/uploads/Inter-StateWarsList.pdf)|
+|`source_intrastate_wars`|Correlates of War Project (COW)|`INTRA-STATE_State_participants v5.1 CSV.csv`|5.1|2020-04-06|COW war-data release note|[Release](https://correlatesofwar.org/wp-content/uploads/Intra-State-Wars-v5.1.zip)|
 
 ### Step 2 Source Tables
 
-| Table | Organization | Source CSV | Version | Download source |
-| --- | --- | --- | --- | --- |
-| `source_global_terrorism_database` | START | `globalterrorismdb_0522dist.csv`<br>`globalterrorismdb_2021Jan-June_1222dist.csv` | 0522 + 2021 Jan-June 1222 | [Data 1](https://www.start.umd.edu/system/files/globalterrorismdb_0522dist.xlsx)<br>[Data 2](https://www.start.umd.edu/system/files/globalterrorismdb_2021Jan-June_1222dist.xlsx)<br>[Doc](https://www.start.umd.edu/sites/default/files/2024-10/Codebook.pdf) |
-| `source_formal_alliances_directed_yearly` | Correlates of War Project (COW) | `alliance_v4.1_by_directed_yearly.csv` | 4.1 | [Release](https://correlatesofwar.org/wp-content/uploads/version4.1_csv.zip) |
-| `source_territorial_changes` | Correlates of War Project (COW) | `tc2018.csv` | 6 | [Release](https://correlatesofwar.org/wp-content/uploads/terr-changes-v6.zip) |
-| `source_forcibly_displaced_populations` | United States Committee for Refugees and Immigrants (USCRI) | `FDP2008a.csv` | 2008a | [Data](http://www.systemicpeace.org/inscr/FDP2008a.xls)<br>[Doc](http://www.systemicpeace.org/inscr/FDPCodebook2008.pdf) |
-| `source_colonial_dependency_contiguity` | Correlates of War Project (COW) | `contcold.csv` | 3.1 | [Release](https://correlatesofwar.org/wp-content/uploads/ColonialContiguity310.zip) |
-| `source_direct_contiguity` | Correlates of War Project (COW) | `contdird.csv` | 3.2 | [Release](https://correlatesofwar.org/wp-content/uploads/DirectContiguity320.zip) |
-| `source_defense_cooperation_agreements` | Correlates of War Project (COW) | `DCAD-v1.0-dyadic.csv` | 1.0 | [Release](https://correlatesofwar.org/wp-content/uploads/kinne_dca.zip) |
-| `source_intergovernmental_organizations_dyadic` | Correlates of War Project (COW) | `dyadic_formatv3.csv` | 3 | [Data](https://correlatesofwar.org/wp-content/uploads/dyadic_formatv3.zip)<br>[Doc](https://correlatesofwar.org/wp-content/uploads/IGO-Codebook_v3_short-copy.pdf) |
-| `source_diplomatic_exchange` | Correlates of War Project (COW) | `Diplomatic_Exchange_2006v1.csv` | 2006.1 | [Release](https://correlatesofwar.org/wp-content/uploads/Diplomatic_Exchange_2006.1.zip) |
-| `source_dd_revisited` | University of Illinois at Urbana‐Champain (UIUC), Emory University, Georgetown University | `ddrevisited_data_v1.csv` | 1 | [Data](https://github.com/cyaris/the_networks_of_war/releases/download/source-data-dd-revisited-v1/ddrevisited_data_v1.csv)<br>[Doc](https://rforpoliticalscience.com/wp-content/uploads/2022/04/ddrevisited-codebook.pdf) |
-| `source_co_emissions_per_capita` | Our World in Data | `co-emissions-per-capita.csv` | 1 | [Data](https://ourworldindata.org/grapher/co-emissions-per-capita.csv?v=1&csvType=full&useColumnShortNames=true)<br>[Doc](https://ourworldindata.org/grapher/co-emissions-per-capita.metadata.json?v=1&csvType=full&useColumnShortNames=true&utm_source=chatgpt.com) |
-| `source_arms_technology` | Correlates of War Project (COW) | `cow_arms_tech_long.csv` | 1.1 | [Release](https://correlatesofwar.org/wp-content/uploads/Arms-TechnologyV1.1.zip) |
-| `source_atop_dyadic_years` | ATOP Project | `atop5_1ddyr.csv` | 5.1 | [Data](http://www.atopdata.org/uploads/6/9/1/3/69134503/atop_5.1__.csv_.zip)<br>[Doc](http://www.atopdata.org/uploads/6/9/1/3/69134503/atop_5_1_codebook.pdf) |
-| `source_mtops_dyadic` | Issue Correlates of War Project (ICOW) | `mtopsd150.csv` | 1.5 | [Release](https://www.paulhensel.org/Data/mtops.zip) |
-| `source_cow_trade_dyadic` | Correlates of War Project (COW) | `Dyadic_COW_4.0.csv` | 4.0 | [Release](https://correlatesofwar.org/wp-content/uploads/COW_Trade_4.0.zip) |
-| `source_cow_trade_national` | Correlates of War Project (COW) | `National_COW_4.0.csv` | 4.0 | [Release](https://correlatesofwar.org/wp-content/uploads/COW_Trade_4.0.zip) |
-| `source_national_material_capabilities` | Correlates of War Project (COW) | `NMC-70-wsupplementary.csv` | 7.0 | [Release](https://correlatesofwar.org/wp-content/uploads/NMCv7.zip) |
+|Table|Organization|Source CSV|Version|Download source|
+|---|---|---|---|---|
+|`source_global_terrorism_database`|START|`globalterrorismdb_0522dist.csv`<br>`globalterrorismdb_2021Jan-June_1222dist.csv`|0522 + 2021 Jan-June 1222|[Data 1](https://www.start.umd.edu/system/files/globalterrorismdb_0522dist.xlsx)<br>[Data 2](https://www.start.umd.edu/system/files/globalterrorismdb_2021Jan-June_1222dist.xlsx)<br>[Doc](https://www.start.umd.edu/sites/default/files/2024-10/Codebook.pdf)|
+|`source_formal_alliances_directed_yearly`|Correlates of War Project (COW)|`alliance_v4.1_by_directed_yearly.csv`|4.1|[Release](https://correlatesofwar.org/wp-content/uploads/version4.1_csv.zip)|
+|`source_territorial_changes`|Correlates of War Project (COW)|`tc2018.csv`|6|[Release](https://correlatesofwar.org/wp-content/uploads/terr-changes-v6.zip)|
+|`source_forcibly_displaced_populations`|United States Committee for Refugees and Immigrants (USCRI)|`FDP2008a.csv`|2008a|[Data](http://www.systemicpeace.org/inscr/FDP2008a.xls)<br>[Doc](http://www.systemicpeace.org/inscr/FDPCodebook2008.pdf)|
+|`source_colonial_dependency_contiguity`|Correlates of War Project (COW)|`contcold.csv`|3.1|[Release](https://correlatesofwar.org/wp-content/uploads/ColonialContiguity310.zip)|
+|`source_direct_contiguity`|Correlates of War Project (COW)|`contdird.csv`|3.2|[Release](https://correlatesofwar.org/wp-content/uploads/DirectContiguity320.zip)|
+|`source_defense_cooperation_agreements`|Correlates of War Project (COW)|`DCAD-v1.0-dyadic.csv`|1.0|[Release](https://correlatesofwar.org/wp-content/uploads/kinne_dca.zip)|
+|`source_intergovernmental_organizations_dyadic`|Correlates of War Project (COW)|`dyadic_formatv3.csv`|3|[Data](https://correlatesofwar.org/wp-content/uploads/dyadic_formatv3.zip)<br>[Doc](https://correlatesofwar.org/wp-content/uploads/IGO-Codebook_v3_short-copy.pdf)|
+|`source_diplomatic_exchange`|Correlates of War Project (COW)|`Diplomatic_Exchange_2006v1.csv`|2006.1|[Release](https://correlatesofwar.org/wp-content/uploads/Diplomatic_Exchange_2006.1.zip)|
+|`source_dd_revisited`|University of Illinois at Urbana‐Champain (UIUC), Emory University, Georgetown University|`ddrevisited_data_v1.csv`|1|[Data](https://github.com/cyaris/the_networks_of_war/releases/download/source-data-dd-revisited-v1/ddrevisited_data_v1.csv)<br>[Doc](https://rforpoliticalscience.com/wp-content/uploads/2022/04/ddrevisited-codebook.pdf)|
+|`source_co_emissions_per_capita`|Our World in Data|`co-emissions-per-capita.csv`|1|[Data](https://ourworldindata.org/grapher/co-emissions-per-capita.csv?v=1&csvType=full&useColumnShortNames=true)<br>[Doc](https://ourworldindata.org/grapher/co-emissions-per-capita.metadata.json?v=1&csvType=full&useColumnShortNames=true&utm_source=chatgpt.com)|
+|`source_arms_technology`|Correlates of War Project (COW)|`cow_arms_tech_long.csv`|1.1|[Release](https://correlatesofwar.org/wp-content/uploads/Arms-TechnologyV1.1.zip)|
+|`source_atop_dyadic_years`|ATOP Project|`atop5_1ddyr.csv`|5.1|[Data](http://www.atopdata.org/uploads/6/9/1/3/69134503/atop_5.1__.csv_.zip)<br>[Doc](http://www.atopdata.org/uploads/6/9/1/3/69134503/atop_5_1_codebook.pdf)|
+|`source_mtops_dyadic`|Issue Correlates of War Project (ICOW)|`mtopsd150.csv`|1.5|[Release](https://www.paulhensel.org/Data/mtops.zip)|
+|`source_cow_trade_dyadic`|Correlates of War Project (COW)|`Dyadic_COW_4.0.csv`|4.0|[Release](https://correlatesofwar.org/wp-content/uploads/COW_Trade_4.0.zip)|
+|`source_cow_trade_national`|Correlates of War Project (COW)|`National_COW_4.0.csv`|4.0|[Release](https://correlatesofwar.org/wp-content/uploads/COW_Trade_4.0.zip)|
+|`source_national_material_capabilities`|Correlates of War Project (COW)|`NMC-70-wsupplementary.csv`|7.0|[Release](https://correlatesofwar.org/wp-content/uploads/NMCv7.zip)|
 
 ## Materialized Tables
 
@@ -359,8 +359,8 @@ Step 3 materializes the final merge and graph-export tables:
   fields.
 - `final_wars`: war-level rows, including one `graph_json` payload per `war_id`.
 
-Node and link descriptor values are stored in `descriptor_timeframes` JSON; in the frontend payload, the same timeframe
-keys appear as top-level JSON properties on each node or link:
+The pipeline stores node and link descriptor values in `descriptor_timeframes` JSON. The frontend payload exposes the
+same timeframe keys as top-level JSON properties on each node or link:
 
 - `first_year`
 - `last_year`
@@ -438,11 +438,11 @@ Tooltip number formatting:
   - Encoding normalization
   - The data-entry fixes documented below
 - Source CSV headers are aliased to canonical pipeline names as early as possible:
-  - COW `WarNum` and `war_num` fields are loaded as `war_id`.
-  - Numeric war-type fields are loaded as `war_type_id`.
-- Fields derived during ingestion or populated by lookup tables use canonical names:
+  - The pipeline maps COW `WarNum` and `war_num` fields to `war_id`.
+  - The pipeline maps numeric war-type fields to `war_type_id`.
+- Ingestion calculations and lookup tables populate canonical field names:
   - `war_type` comes from `war_types.war_type`.
-  - Ongoing-war markers are stored as `ongoing_war` columns in backend tables and frontend payload rows.
+  - The pipeline stores ongoing-war markers in `ongoing_war` columns in backend tables and frontend payload rows.
 - `source_global_terrorism_database` stacks two prepared GTD CSVs with `union all` after confirming distinct `eventid`
   coverage across the files.
 - Source CSV schemas are compared when source versions change. Ingestion keeps relevant columns that remain available,
@@ -453,7 +453,7 @@ Tooltip number formatting:
   - The adjustment-row SQL inserts release metadata and adjustment rows for source facts that are not present in the
     source CSVs.
 - Downstream transformations join adjustment tables to `source_file_versions` when an assignment is version-scoped.
-- Data-entry fixes applied while reading source CSVs are documented below.
+- The sections below document data-entry fixes that ingestion applies while reading source CSVs.
 
 ### Excluded Calculated Columns
 
@@ -461,29 +461,29 @@ The pipeline ingests raw source fields and recalculates derived columns from can
 
 Excluded calculated fields:
 
-| Source CSV | Excluded calculated fields |
-| --- | --- |
-| `directed_dyadic_war.csv` | `batdths`, `durindx` |
-| `dyadic_mid_4.03.csv` | `durindx`, `duration`, `cumdurat` |
-| `INTRA-STATE_State_participants v5.1 CSV.csv` | `WDuratDays`, `WDuratMo`, `TotalBDeaths` |
-| `cow_arms_tech_long.csv` | `total_use` |
-| `NMC-70-wsupplementary.csv` | `cinc` |
+|Source CSV|Excluded calculated fields|
+|---|---|
+|`directed_dyadic_war.csv`|`batdths`, `durindx`|
+|`dyadic_mid_4.03.csv`|`durindx`, `duration`, `cumdurat`|
+|`INTRA-STATE_State_participants v5.1 CSV.csv`|`WDuratDays`, `WDuratMo`, `TotalBDeaths`|
+|`cow_arms_tech_long.csv`|`total_use`|
+|`NMC-70-wsupplementary.csv`|`cinc`|
 
 Derived replacements:
 
 - Duration and day-count fields are calculated from the pipeline's resolved start and end dates, after applying the date
   assumptions below.
   - Example: the pipeline uses the last day of the year when only the end year is known.
-- The source's calculated `total_use` column is replaced by `arms_technologies_used`; the calculation is described in
-  the [Metric And Descriptor Notes](#metric-and-descriptor-notes) section.
-- The source's calculated `cinc` column is replaced by `cinc_score`; the calculation is described in the
-  [Metric And Descriptor Notes](#metric-and-descriptor-notes) section.
+- The pipeline replaces the source's calculated `total_use` column with `arms_technologies_used`; the
+  [Metric And Descriptor Notes](#metric-and-descriptor-notes) section describes the calculation.
+- The pipeline replaces the source's calculated `cinc` column with `cinc_score`; the
+  [Metric And Descriptor Notes](#metric-and-descriptor-notes) section describes the calculation.
 
 ### Date Values
 
 #### General Date Cleaning
 
-- Blank strings are loaded as `null`.
+- The pipeline loads blank strings as `null`.
 - COW special codes allowed before cleaning are `-7`, `-8`, and `-9`.
 - Month fields, day fields, and start-year fields load those special codes as `null` because the COW codebooks use
   negative values for ongoing, not applicable, or unknown values.
@@ -491,19 +491,20 @@ Derived replacements:
   - Months: `1-12`
   - Days: `1-31`
   - Years: `1500-2100`
-- Values outside these domains are treated as data-entry issues and documented below when accepted by the pipeline.
+- The pipeline treats values outside these domains as data-entry issues; the sections below document accepted values.
 
 #### Start Dates
 
-- Negative start-year values are loaded as `null`.
+- The pipeline loads negative start-year values as `null`.
 - Missing, invalid, unknown, or not-applicable start months are interpreted as January.
 - Missing, invalid, unknown, or not-applicable start days are interpreted as day `1` of the resolved month.
 
 #### End Dates
 
-- Negative end-year values are loaded as `null` except for `-7`, which the COW codebooks document as the ongoing-war
+- The pipeline loads negative end-year values as `null` except for `-7`, which the COW codebooks document as the ongoing-war
   marker.
-- End year `-7` is resolved to the source file's release date from `source_file_versions.source_release_date`. The
+- The pipeline resolves end year `-7` to the source file's release date from
+  `source_file_versions.source_release_date`. The
   source-release cap keeps ongoing rows reproducible and prevents Step 2 `Last Year` and `All Years` descriptors from
   expanding beyond the years covered by the released source data.
 - Missing, invalid, unknown, or not-applicable end months are interpreted as December.
@@ -519,10 +520,10 @@ Derived replacements:
 
 ### Encoding And Deduplication
 
-- `COW-country-codes.csv` is deduplicated by `c_code`; the first row per code is retained.
+- The preparation step deduplicates `COW-country-codes.csv` by `c_code` and retains the first row per code.
 - Source CSVs that need explicit encoding handling use `latin-1` by default; `Extra-StateWarData_v4.0.csv` is the
   exception and uses `cp1252`.
-- Prepared copies are written as UTF-8 under `backend/.work/` before DuckDB reads them.
+- The preparation step writes UTF-8 copies under `backend/.work/` before DuckDB reads them.
 
 ### Field Normalization
 
@@ -577,7 +578,7 @@ Derived replacements:
   - `outcome_a`
   - `outcome_b`
   - `outcome`
-- After source date components are resolved, transformed tables carry:
+- After resolving source date components, transformed tables carry:
   - `start_date`
   - `end_date`
   - `start_date_estimated` and `end_date_estimated` flags, which mark dates resolved from an ongoing marker or from a
@@ -588,15 +589,15 @@ Derived replacements:
 
 - Extra-state and intra-state war dyads are treated as side A versus side B rows, with side A assigned side `1` and
   side B assigned side `2`.
-- Extra-state and intra-state participant rows are derived from both sides of the corresponding dyad rows.
+- The pipeline derives extra-state and intra-state participant rows from both sides of the corresponding dyad rows.
 - Directed dyadic interstate source rows represent row position with `c_code_a` and `c_code_b`.
-- The original directed dyadic role fields are retained as:
+- Transformed tables retain the original directed dyadic role fields as:
   - `role_a`
   - `role_b`
   - `dyad_role_a`
   - `dyad_role_b`
-- In the transformed `war_dyads` view, interstate side fields `side_a` and `side_b` are resolved back to substantive
-  participant sides from `source_interstate_wars`.
+- The transformed `war_dyads` view resolves interstate fields `side_a` and `side_b` back to substantive participant
+  sides from `source_interstate_wars`.
 - Extra-state and intra-state dyads keep their source side A versus side B convention.
 
 ### Date Spans
@@ -613,17 +614,17 @@ Derived replacements:
 - Participants that appear on both side 1 and side 2 in dyadic data are assigned side `3` programmatically.
 - Only dyadic MID records with `war = 1` are incorporated.
 - MID dyads are incorporated only when the same directed dyad in the same war has no overlapping source war-dyad row.
-- Existing battle-death values take precedence over MID fatality estimates after source and MID dyads are merged. MID
-  estimates are used when summed source battle deaths are `null` or zero and summed estimates are positive.
-- MID dyads are assigned to known wars by `disno` from `source_interstate_war_dyads` and version-scoped rows in
+- Existing battle-death values take precedence after the pipeline merges source and MID dyads. The pipeline uses MID
+  fatality estimates when summed source battle deaths are `null` or zero and summed estimates are positive.
+- The pipeline assigns MID dyads to known wars by `disno` from `source_interstate_war_dyads` and version-scoped rows in
   `source_interstate_mid_war_id_adjustments`.
-- Missing MID `disno` to `war_id` relationships are stored in the Step 1 source adjustment tables when those
+- Step 1 source adjustment tables store missing MID `disno` to `war_id` relationships when those
   relationships are absent from the current CSV version. If a future CSV version introduces a new unmatched MID war,
   `test_mid_dyads_resolve_all_mid_war_ids` is expected to fail until the source adjustment file is updated or the new
   source data is accepted as authoritative.
-- Manual interstate war-dyad additions that are missing from `directed_dyadic_war.csv` are stored in
-  `source_interstate_war_dyad_adjustments` and merged after source and MID dyads.
-- Synthetic war metadata is stored in `source_interstate_war_metadata_adjustments` and joined during transformation
+- `source_interstate_war_dyad_adjustments` stores manual interstate war-dyad additions missing from
+  `directed_dyadic_war.csv`; the pipeline merges them after source and MID dyads.
+- `source_interstate_war_metadata_adjustments` stores synthetic war metadata; the transformation joins it
   without adding partial rows to `source_interstate_wars`.
   - Example: the Lebanon-Israel MID conflict (`disno = 4182`) named
     `Israeli–Hezbollah Conflict (South Lebanon)`.
@@ -633,44 +634,45 @@ Derived replacements:
 - Participants found in dyadic data but missing from `war_participants` are added to `participants` from the
   dyadic side A records.
 - Missing participant sides are inferred from the opposite participant in dyadic data when that inference is unambiguous.
-- Remaining version-specific participant side assignments are stored in `source_participant_side_adjustments` and joined
-  during participant creation. These adjustments store source facts that cannot be recovered from participant and dyadic
+- `source_participant_side_adjustments` stores remaining version-specific participant side assignments; participant
+  creation joins them. These adjustments store source facts that participant and dyadic
   rows alone.
 - Interstate war participant sides are taken from `source_interstate_wars`, either directly in `war_participants` or
   through semantic side values on `war_dyads`.
 - The directed dyadic source can include reciprocal rows where the same state appears as both `c_code_a` and `c_code_b`
   for the same war or dispute.
-- Inferred dyads are created by choosing anchor participants for each war. An anchor is a participant that is treated as
-  a known adversary for all overlapping participants on the opposite side when source dyadic records are incomplete.
-- Anchor selection is independent by side and participant type. A participant is selected as an anchor when any one of
-  these conditions is true for its side:
+- The pipeline creates inferred dyads by choosing anchor participants for each war. It treats an anchor as a known
+  adversary for all overlapping participants on the opposite side when source dyadic records are incomplete.
+- Anchor selection operates independently by side and participant type. The pipeline selects a participant as an anchor
+  when any one of these conditions holds for its side:
   - Exactly one total participant
   - Exactly one named non-state participant
   - Exactly one state participant
-- More than one anchor can be selected for the same war, including anchors on both sides.
+- The pipeline can select more than one anchor for the same war, including anchors on both sides.
   - Example: in the Third Somalia War (`war_id = 940.8`), the source intra-state participant file lists six side 1
     states and two side 2 participants. Side 2 has exactly one named non-state participant, ICU (`c_code = -8`), and
     exactly one state participant, Eritrea (`c_code = 531`), so both become anchors.
-- Named non-state participants with COW code `-8` are retained in `dyads`. Unnamed or literal aggregate
-  placeholders are excluded.
+- `dyads` retains named non-state participants with COW code `-8`. The pipeline excludes unnamed or literal aggregate
+  placeholders.
 
-| Side | Source participants | Anchor rule | Selected anchors |
-| --- | --- | --- | --- |
-| 1 | United States of America, Uganda, Kenya, Burundi, Somalia, Ethiopia | No single total, non-state, or state participant | None |
-| 2 | ICU, Eritrea | One named non-state participant; one state participant | ICU, Eritrea |
+|Side|Source participants|Anchor rule|Selected anchors|
+|---|---|---|---|
+|1|United States of America, Uganda, Kenya, Burundi, Somalia, Ethiopia|No single total, non-state, or state participant|None|
+|2|ICU, Eritrea|One named non-state participant; one state participant|ICU, Eritrea|
 
 The selected anchors are then linked to every overlapping participant on the opposite side:
 
-| Anchor | Linked opposite-side participants |
-| --- | --- |
-| ICU | Burundi, Ethiopia, Kenya, Somalia, Uganda, United States of America |
-| Eritrea | Burundi, Ethiopia, Kenya, Somalia, Uganda, United States of America |
+|Anchor|Linked opposite-side participants|
+|---|---|
+|ICU|Burundi, Ethiopia, Kenya, Somalia, Uganda, United States of America|
+|Eritrea|Burundi, Ethiopia, Kenya, Somalia, Uganda, United States of America|
 
 ### Dyads
 
 - Source dyads with COW code `-8` on one side are expanded against every actual participant on that side.
   - Example: if `c_code_a = -8`, side B is treated as having fought each source participant on side A for that conflict.
-- Unnamed aggregate dyads are excluded from `dyads` after the aggregate rows are used for named-participant expansion.
+- The pipeline excludes unnamed aggregate dyads from `dyads` after using the aggregate rows for named-participant
+  expansion.
 - Inferred dyads are only created where the anchor and opposing participant date ranges overlap.
 - Final dyads are deduplicated to one row per `war_id` and unordered participant pair. When duplicate spans exist, the
   final row keeps the earliest start date and latest end date from the unordered dyad pair.
@@ -688,7 +690,7 @@ The selected anchors are then linked to every overlapping participant on the opp
     units
   - Displacement counts: from thousands to people
 - Step 3 keeps graph-control descriptors and tooltip metrics separate.
-  - Node tooltip metrics are stored under each node's `metrics` object and include all non-null participant metrics for
+  - Each node's `metrics` object stores all non-null participant tooltip metrics for
     the timeframe.
   - The tooltip displays:
     - Non-zero metrics
@@ -718,7 +720,7 @@ The selected anchors are then linked to every overlapping participant on the opp
       - Germany: `1914-08-23` through `1918-11-11`
       - Austria-Hungary: `1914-08-23` through `1918-11-03`
     - Added-link date spans use the overlapping participant date spans from `Inter-StateWarData_v4.0.csv`.
-  - The World War II Thailand dyad is loaded with Thailand battle deaths corrected from original blank `batdtha` to
+  - The pipeline loads the World War II Thailand dyad with Thailand battle deaths corrected from original blank `batdtha` to
     `5,569`:
     - Source row:
       - `war_id = 139`
@@ -753,7 +755,7 @@ The selected anchors are then linked to every overlapping participant on the opp
   - End-year handling:
     - Original source values include `-7`, `-8`, and `-9`.
     - Only `-7` is treated as an ongoing end-year marker.
-    - Other negative end-year values are loaded as `null` because the codebooks use them for not applicable or unknown
+    - The pipeline loads other negative end-year values as `null` because the codebooks use them for not applicable or unknown
       values.
     - The pipeline sets `EndYr1` to `-7` for source rows whose war names say `present` or `ongoing`:
       - `942`
@@ -764,9 +766,9 @@ The selected anchors are then linked to every overlapping participant on the opp
 
 ## GitHub Actions Workflows
 
-These local wrappers inherit their reusable implementations from `cyaris/shared-automation`. Shared workflow behavior,
-inputs, and secrets are documented in the
-[shared-automation workflow reference](https://github.com/cyaris/shared-automation#workflows).
+These local wrappers inherit their reusable implementations from `cyaris/shared-automation`. The
+[shared-automation workflow reference](https://github.com/cyaris/shared-automation#workflows) documents shared
+behavior, inputs, and secrets.
 
 ### `.github/workflows/auto-create-dev-pr.yml`
 
@@ -775,13 +777,15 @@ The `Auto-create dev pull request` workflow runs on pushes to `dev` and calls th
 
 ### `.github/workflows/rollup.yml`
 
-The `Rollup` workflow runs on pushes to `dev` and `master` and on manual dispatch, then calls the
-[shared rollup workflow](https://github.com/cyaris/shared-automation#githubworkflowsrollupyml) with
-`working-directory: frontend`. Shared CI runs for every trigger; uploads run on `dev` and `master` pushes or manual
-dispatches to build the frontend rollup bundle and upload it to `s3://cyaris.github.io/the_networks_of_war/`. `master`
-runs upload unprefixed production bundles, and `dev` runs upload staged `test_bundle.*` names. The workflow checks out
-`svelte-lib` at its latest `main` commit as a local dependency. The shared workflow resolves that branch to an exact
-commit SHA before checkout.
+The `Rollup` workflow calls the
+[shared rollup workflow](https://github.com/cyaris/shared-automation#githubworkflowsrollupyml) with these local details:
+
+- triggers: pushes to `dev` and `master`, plus manual dispatch
+- working directory: `frontend`
+- destination: `s3://cyaris.github.io/the_networks_of_war/`
+- production naming: unprefixed bundles from `master`
+- staged naming: `test_bundle.*` from `dev`
+- local dependency: latest `svelte-lib` `main` ref, resolved to an exact SHA
 
 ### `.github/workflows/upstream-watch.yml`
 
