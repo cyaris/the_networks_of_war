@@ -1024,7 +1024,6 @@
     tooltip = null
     hoverNode = null
     dragNode = null
-    selectValue.timeframe = timeframeItems[2]
     currentSizingSignature = null
     currentLinkDescriptorSignature = null
   }
@@ -1360,7 +1359,7 @@
                         stroke={label.inside ? "none" : "white"}
                         stroke-width={label.inside ? 0 : 3}
                         paint-order="stroke"
-                        style="transition: fill 2000ms ease 1500ms, stroke 2000ms ease 1500ms;"
+                        style="transition: fill 2000ms ease 1500ms;"
                       >
                         {node.participant}
                       </text>
