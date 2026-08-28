@@ -1155,7 +1155,7 @@
   <div class="box-border flex w-full flex-col gap-4 px-3 py-4 min-[1300px]:w-[70%] min-[1300px]:px-0 min-[1300px]:py-5">
     <section class="network-filter-panel grid min-w-0 gap-3 border border-[#d8d3c4] bg-white p-3 min-[1300px]:p-4">
       <div>
-        <div class="mb-2 text-sm font-extrabold text-[#596b64]">War Types</div>
+        <div class="mb-1 text-sm font-extrabold text-[#596b64]">War Types</div>
         <div class="grid gap-x-2 text-sm sm:flex sm:flex-wrap sm:gap-x-5 sm:gap-y-2">
           {#each warTypeItems as warTypeItem (warTypeItem.value)}
             <CheckboxFilter
