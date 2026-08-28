@@ -1356,7 +1356,7 @@
                       <text
                         class="text-[12px] font-bold"
                         text-anchor={label.anchor}
-                        fill={label.inside ? "white" : "var(--chart-1, #111827)"}
+                        fill={label.inside ? "white" : "var(--chart-ink, #111827)"}
                         stroke={label.inside ? "none" : "white"}
                         stroke-width={label.inside ? 0 : 3}
                         paint-order="stroke"
@@ -1374,7 +1374,7 @@
                           class="text-[10px] font-extrabold"
                           text-anchor="middle"
                           dominant-baseline="central"
-                          fill="var(--chart-1, #111827)"
+                          fill="var(--chart-ink, #111827)"
                           stroke="white"
                           stroke-width={2.5}
                           paint-order="stroke"
