@@ -304,8 +304,8 @@
   $: mobileSecondaryLabelIdentifier = viewportWidth < 640 ? "" : "secondaryLabel"
 
   $: {
-    let mobileHeight = Math.min(480, Math.max(280, stableViewportHeight * 0.42))
-    let height = width < 640 ? mobileHeight : width < 900 ? 600 : 700
+    let mobileHeight = Math.min(720, Math.max(420, stableViewportHeight * mobileGraphHeightScale))
+    let height = viewportWidth < 640 ? mobileHeight : width < 900 ? 600 : 700
     let widthPressure = width < 900 ? Math.min(1, (900 - width) / 520) : 0
     let densityPressure = Math.min(1, (nodes.length + links.length * 0.35) / denseGraphReferenceSize)
     let pressure = widthPressure * densityPressure
