@@ -784,7 +784,7 @@ The `Rollup` workflow calls the
 - working directory: `frontend`
 - destination: `s3://cyaris.github.io/the_networks_of_war/`
 - production naming: unprefixed bundles from `master`
-- staged naming: `test_bundle.*` from `dev`
+- staged naming: `dev_bundle.*` from `dev`
 - local dependency: `svelte-lib` `dev` for staged runs and `main` for production runs, resolved to an exact SHA
 
 ### `.github/workflows/upstream-watch.yml`
