@@ -1204,7 +1204,7 @@
         />
       </div>
     </section>
-    <div class="relative w-full overflow-x-auto overflow-y-hidden border border-[#d8d3c4]">
+    <div class="relative w-full overflow-x-auto overflow-y-hidden border border-chart-ink">
       <section class="bg-[#fbfcf9]">
         <div class="flex flex-col gap-4 border-b border-[#d2d7d3] bg-white px-4 py-3">
           {#if selectedWar}
@@ -1348,9 +1348,9 @@
                     on:pointerleave={clearTooltip}
                   >
                     <circle
+                      class="stroke-chart-ink"
                       r={nodeRadius(node)}
                       fill={sideColors[node.side]}
-                      stroke="black"
                       stroke-width={hoverNode?.id == node.id ? nodeStrokeWidth + 0.75 : nodeStrokeWidth}
                       style="transition: r 3000ms ease 500ms, stroke-width 150ms ease;"
                     />
