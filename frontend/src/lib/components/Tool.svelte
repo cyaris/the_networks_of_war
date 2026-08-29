@@ -1203,7 +1203,7 @@
         />
       </div>
     </section>
-    <div class="relative w-full overflow-x-auto overflow-y-hidden border border-black">
+    <div class="relative w-full overflow-x-auto overflow-y-hidden border border-[#d8d3c4]">
       <section class="bg-[#fbfcf9]">
         <div class="flex flex-col gap-4 border-b border-[#d2d7d3] bg-white px-4 py-3">
           {#if selectedWar}
