@@ -255,7 +255,7 @@
   const denseGraphReferenceSize = 40
   const graphMinWidth = 640
   const mobileGraphHeightScale = 0.63
-  const controlLabelClasses = "mb-1 flex items-center gap-2 text-sm font-extrabold text-[#596b64]"
+  const controlLabelClasses = "mb-1 flex items-center gap-2 text-sm font-bold text-[#596b64]"
   const summaryLabelClasses = "font-bold text-[#60706a]"
   const tooltipLabelClasses = "font-bold text-[#33413c]"
   const tooltipMetricLabelClasses = "font-semibold text-[#33413c]"
@@ -1154,11 +1154,11 @@
   <div class="box-border flex w-full flex-col gap-4 px-3 py-4 min-[1300px]:w-[70%] min-[1300px]:px-0 min-[1300px]:py-5">
     <section class="network-filter-panel grid min-w-0 gap-3 border border-[#d8d3c4] bg-white p-3 min-[1300px]:p-4">
       <div>
-        <div class="mb-1 text-sm font-extrabold text-[#596b64]">War Types</div>
+        <div class="mb-1 text-sm font-bold text-[#596b64]">War Types</div>
         <div class="grid gap-x-2 text-sm sm:flex sm:flex-wrap sm:gap-x-5 sm:gap-y-2">
           {#each warTypeItems as warTypeItem (warTypeItem.value)}
             <CheckboxFilter
-              labelClasses="mb-0 font-medium"
+              labelClasses="mb-0 font-normal"
               label={warTypeItem.label}
               value={warTypeItem.value}
               selection={selectedWarTypes}
@@ -1212,32 +1212,36 @@
               : selectedWar.start_year == selectedWar.end_year
                 ? String(selectedWar.start_year)
                 : `${selectedWar.start_year}-${selectedWar.end_year}`}
-            <div
-              class="flex min-w-0 items-baseline gap-x-4 overflow-x-auto whitespace-nowrap text-sm font-semibold min-[1300px]:grid min-[1300px]:grid-cols-3 min-[1300px]:items-start min-[1300px]:gap-3"
-            >
-              <div class="min-[1300px]:col-start-2 min-[1300px]:row-start-1 min-[1300px]:text-center">
-                <span class={summaryLabelClasses}>War:</span>
-                <span class="font-extrabold min-[1300px]:text-base">{selectedWar.war_name}</span>
-              </div>
-              {#if selectedWar.war_type}
-                <div class="min-[1300px]:col-start-1 min-[1300px]:row-start-1 min-[1300px]:text-left">
-                  <span class={summaryLabelClasses}>Type:</span>
-                  {selectedWar.war_type}
-                </div>
-              {/if}
-              {#if selectedWar.war_subtype}
-                <div class="min-[1300px]:col-start-1 min-[1300px]:row-start-2 min-[1300px]:text-left">
-                  <span class={summaryLabelClasses}>Subtype:</span>
-                  {selectedWar.war_subtype}
-                </div>
-              {/if}
-              <div class="min-[1300px]:col-start-2 min-[1300px]:row-start-2 min-[1300px]:text-center">
-                <span class={summaryLabelClasses}>Dates:</span>
-                {selectedWarDates}
-              </div>
+            <div class="grid min-w-0 gap-3 text-sm min-[1300px]:grid-cols-3 min-[1300px]:items-start">
               <div
-                class="min-[1300px]:col-start-3 min-[1300px]:row-span-2 min-[1300px]:row-start-1 min-[1300px]:self-center min-[1300px]:text-right"
+                class="order-2 mt-1 grid min-w-0 gap-1 text-center font-semibold min-[1300px]:order-1 min-[1300px]:mt-0 min-[1300px]:text-left"
               >
+                {#if selectedWar.war_type}
+                  <div>
+                    <span class={summaryLabelClasses}>Type:</span>
+                    {selectedWar.war_type}
+                  </div>
+                {/if}
+                {#if selectedWar.war_subtype}
+                  <div>
+                    <span class={summaryLabelClasses}>Subtype:</span>
+                    {selectedWar.war_subtype}
+                  </div>
+                {/if}
+              </div>
+              <div class="order-1 min-w-0 self-center text-center min-[1300px]:order-2">
+                <div
+                  class="mx-auto max-w-full break-words px-2 text-sm font-extrabold leading-snug min-[1300px]:px-0 min-[1300px]:text-base min-[1300px]:leading-normal"
+                >
+                  <span class={summaryLabelClasses}>War:</span>
+                  {selectedWar.war_name}
+                </div>
+                <div class="mt-1 font-semibold text-[#60706a]">
+                  <span class={summaryLabelClasses}>Dates:</span>
+                  {selectedWarDates}
+                </div>
+              </div>
+              <div class="order-3 self-center text-center font-semibold min-[1300px]:text-right">
                 <span class={summaryLabelClasses}>Days At War:</span>
                 {Number(selectedWar.total_days_in_war || 0).toLocaleString()}
               </div>
