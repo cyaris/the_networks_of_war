@@ -255,10 +255,10 @@
   const denseGraphReferenceSize = 40
   const graphMinWidth = 640
   const mobileGraphHeightScale = 0.63
-  const controlLabelClasses = "mb-1 flex items-center gap-2 text-sm font-bold text-[#596b64]"
-  const summaryLabelClasses = "font-bold text-[#60706a]"
-  const tooltipLabelClasses = "font-bold text-[#33413c]"
-  const tooltipMetricLabelClasses = "font-semibold text-[#33413c]"
+  const controlLabelClasses = "mb-1 flex items-center gap-2 text-sm font-bold text-ui-text"
+  const summaryLabelClasses = "font-bold text-ui-text"
+  const tooltipLabelClasses = "font-bold text-ui-text"
+  const tooltipMetricLabelClasses = "font-semibold text-ui-text"
   const addedMarginSize = Math.max(linkNodeSize, 10)
   const tooltipOffset = 16
   const tooltipPadding = 8
@@ -1152,9 +1152,11 @@
 />
 <main class="relative flex h-full w-full flex-col items-center justify-center" data-svelte-lib-tooltip-root>
   <div class="box-border flex w-full flex-col gap-4 px-3 py-4 min-[1300px]:w-[70%] min-[1300px]:px-0 min-[1300px]:py-5">
-    <section class="network-filter-panel grid min-w-0 gap-3 border border-[#d8d3c4] bg-white p-3 min-[1300px]:p-4">
+    <section
+      class="network-filter-panel grid min-w-0 gap-3 border border-solid border-chart-line bg-ui-surface p-3 min-[1300px]:p-4"
+    >
       <div>
-        <div class="mb-1 text-sm font-bold text-[#596b64]">War Types</div>
+        <div class="mb-1 text-sm font-bold text-ui-text">War Types</div>
         <div class="grid gap-x-2 text-sm sm:flex sm:flex-wrap sm:gap-x-5 sm:gap-y-2">
           {#each warTypeItems as warTypeItem (warTypeItem.value)}
             <CheckboxFilter
@@ -1204,9 +1206,9 @@
         />
       </div>
     </section>
-    <div class="relative w-full overflow-x-auto overflow-y-hidden border border-chart-line">
+    <div class="relative w-full overflow-x-auto overflow-y-hidden border border-solid border-chart-line">
       <section class="bg-[#fbfcf9]">
-        <div class="flex flex-col gap-4 border-b border-[#d2d7d3] bg-white px-4 py-3">
+        <div class="flex flex-col gap-4 border-b border-chart-line bg-ui-surface px-4 py-3">
           {#if selectedWar}
             {@const selectedWarDates = selectedWar.ongoing_war
               ? `${selectedWar.start_year}-Present`
@@ -1237,7 +1239,7 @@
                   <span class={summaryLabelClasses}>War:</span>
                   {selectedWar.war_name}
                 </div>
-                <div class="mt-1 font-semibold text-[#60706a]">
+                <div class="mt-1 font-semibold text-ui-text">
                   <span class={summaryLabelClasses}>Dates:</span>
                   {selectedWarDates}
                 </div>
@@ -1394,13 +1396,13 @@
             {#if tooltip}
               {@const metricRows = nodeMetricRows(tooltip.node)}
               <div
-                class="pointer-events-none absolute z-20 max-w-sm border border-[#c4cec8] bg-white px-3 py-2 text-xs shadow-sm"
+                class="pointer-events-none absolute z-20 max-w-sm border border-solid border-ui-border bg-ui-surface px-3 py-2 text-xs text-ui-text shadow-sm"
                 style="left: {tooltip.x}px; top: {tooltip.y}px;"
                 bind:clientWidth={tooltipWidth}
                 bind:clientHeight={tooltipHeight}
               >
                 <div class="text-sm font-extrabold">{tooltip.node.participant}</div>
-                <div class="mt-1 space-y-0.5 text-[#50615b]">
+                <div class="mt-1 space-y-0.5 text-ui-text">
                   <div>
                     <span class={tooltipLabelClasses}>Start Date:</span>
                     {displayDate(tooltip.node.start_date, tooltip.node.start_date_estimated)}
@@ -1417,11 +1419,11 @@
                   </div>
                 </div>
                 {#if metricRows.length}
-                  <div class="mt-2 border-t border-[#dfe5e1] pt-1.5">
-                    <div class="mb-1 font-extrabold text-[#33413c]">
+                  <div class="mt-2 border-t border-ui-border pt-1.5">
+                    <div class="mb-1 font-extrabold text-ui-text">
                       Timeframe: {selectValue.timeframe?.label || "All Years"}
                     </div>
-                    <div class="space-y-0.5 text-[#50615b]">
+                    <div class="space-y-0.5 text-ui-text">
                       {#each metricRows as row (row.field)}
                         <div>
                           <span class={tooltipMetricLabelClasses}>{row.label}:</span>
@@ -1435,7 +1437,7 @@
             {/if}
           {:else}
             <div
-              class="flex items-center justify-center px-6 text-center text-[#60706a]"
+              class="flex items-center justify-center px-6 text-center text-ui-muted"
               style="height:{graphLayout.height}px;"
             >
               No graph rows are available for the current selection.
