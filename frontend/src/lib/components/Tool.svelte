@@ -1192,6 +1192,7 @@
           <InfoIcon title={controlTooltips.war} tooltipClasses="max-w-80" />
         </div>
         <Select
+          wrapperClasses="[&_[data-select-lib-list]>div>div[role=presentation]]:font-bold"
           items={selectItems.war}
           value={selectValue.war}
           groupBy="war_type"
