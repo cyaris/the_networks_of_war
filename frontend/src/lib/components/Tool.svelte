@@ -1013,6 +1013,28 @@
     }
   }
 
+  function hasTimeframeDescriptor(row, timeframe) {
+    return Object.values(row[timeframe] || {}).some(value => numberValue(value) != null)
+  }
+
+  function hasNodeTimeframeData(node, timeframe) {
+    return (
+      hasTimeframeDescriptor(node, timeframe) ||
+      Object.values(node.metrics?.[timeframe] || {}).some(value => numberValue(value) != null)
+    )
+  }
+
+  function syncTimeframeItems() {
+    let nextTimeframeItems = timeframeItems.filter(
+      item =>
+        descriptorNodes.some(node => hasNodeTimeframeData(node, item.value)) ||
+        descriptorLinks.some(link => hasTimeframeDescriptor(link, item.value))
+    )
+
+    selectItems.timeframe = nextTimeframeItems
+    syncSelectValue("timeframe", nextTimeframeItems, nextTimeframeItems[nextTimeframeItems.length - 1])
+  }
+
   function resetSimulation() {
     stopSimulation()
 
@@ -1026,6 +1048,8 @@
     dragNode = null
     currentSizingSignature = null
     currentLinkDescriptorSignature = null
+
+    syncTimeframeItems()
   }
 
   function resetLinkDashStrokeWidth() {
@@ -1044,17 +1068,6 @@
     refreshGraph()
   }
 
-  function hasTimeframeDescriptor(row, timeframe) {
-    return Object.values(row[timeframe] || {}).some(value => numberValue(value) != null)
-  }
-
-  function hasNodeTimeframeData(node, timeframe) {
-    return (
-      hasTimeframeDescriptor(node, timeframe) ||
-      Object.values(node.metrics?.[timeframe] || {}).some(value => numberValue(value) != null)
-    )
-  }
-
   $: if (graph !== currentGraph) {
     currentGraph = graph
     currentWidth = width
@@ -1063,23 +1076,6 @@
     currentWidth = width
   }
 
-  $: {
-    let nextTimeframeItems = timeframeItems.filter(
-      item =>
-        descriptorNodes.some(node => hasNodeTimeframeData(node, item.value)) ||
-        descriptorLinks.some(link => hasTimeframeDescriptor(link, item.value))
-    )
-
-    selectItems.timeframe = nextTimeframeItems
-
-    if (!nextTimeframeItems.length) {
-      selectValue.timeframe = null
-    } else if (nextTimeframeItems.length == 1 && selectValue.timeframe?.value != nextTimeframeItems[0].value) {
-      selectValue.timeframe = nextTimeframeItems[0]
-    } else if (!nextTimeframeItems.some(item => item.value == selectValue.timeframe?.value)) {
-      selectValue.timeframe = nextTimeframeItems[nextTimeframeItems.length - 1]
-    }
-  }
   $: {
     let nextNodeDescriptorItems = nodeFieldItems(descriptorNodes, selectValue.timeframe?.value || "all_years")
     let nextLinkDescriptorItems = linkFieldItems(descriptorLinks, selectValue.timeframe?.value || "all_years")
@@ -1210,15 +1206,20 @@
       <section class="bg-[#fbfcf9]">
         <div class="flex flex-col gap-4 border-b border-chart-line bg-ui-surface px-4 py-3">
           {#if selectedWar}
-            {@const selectedWarDates = selectedWar.ongoing_war
-              ? `${selectedWar.start_year}-Present`
-              : selectedWar.start_year == selectedWar.end_year
-                ? String(selectedWar.start_year)
-                : `${selectedWar.start_year}-${selectedWar.end_year}`}
-            <div class="grid min-w-0 gap-3 text-sm min-[1300px]:grid-cols-3 min-[1300px]:items-start">
+            {@const selectedWarTimeframe = `${selectedWar.start_year}–${
+              selectedWar.ongoing_war ? "Present" : selectedWar.end_year
+            } (${Number(selectedWar.total_days_in_war || 0).toLocaleString()} Days)`}
+            <div class="min-w-0 text-left text-sm min-[1300px]:text-center">
               <div
-                class="order-2 mt-1 grid min-w-0 gap-1 text-center font-semibold min-[1300px]:order-1 min-[1300px]:mt-0 min-[1300px]:text-left"
+                class="max-w-full break-words text-sm font-extrabold leading-snug min-[1300px]:text-base min-[1300px]:leading-normal"
               >
+                {selectedWar.war_name}
+              </div>
+              <div class="mt-1 grid min-w-0 gap-1 font-semibold text-ui-text">
+                <div>
+                  <span class={summaryLabelClasses}>Timeframe:</span>
+                  {selectedWarTimeframe}
+                </div>
                 {#if selectedWar.war_type}
                   <div>
                     <span class={summaryLabelClasses}>Type:</span>
@@ -1231,22 +1232,6 @@
                     {selectedWar.war_subtype}
                   </div>
                 {/if}
-              </div>
-              <div class="order-1 min-w-0 self-center text-center min-[1300px]:order-2">
-                <div
-                  class="mx-auto max-w-full break-words px-2 text-sm font-extrabold leading-snug min-[1300px]:px-0 min-[1300px]:text-base min-[1300px]:leading-normal"
-                >
-                  <span class={summaryLabelClasses}>War:</span>
-                  {selectedWar.war_name}
-                </div>
-                <div class="mt-1 font-semibold text-ui-text">
-                  <span class={summaryLabelClasses}>Dates:</span>
-                  {selectedWarDates}
-                </div>
-              </div>
-              <div class="order-3 self-center text-center font-semibold min-[1300px]:text-right">
-                <span class={summaryLabelClasses}>Days At War:</span>
-                {Number(selectedWar.total_days_in_war || 0).toLocaleString()}
               </div>
             </div>
           {/if}
