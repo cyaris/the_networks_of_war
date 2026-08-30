@@ -636,7 +636,7 @@ Derived replacements:
 - Missing participant sides are inferred from the opposite participant in dyadic data when that inference is unambiguous.
 - `source_participant_side_adjustments` stores remaining version-specific participant side assignments; participant
   creation joins them. These adjustments store source facts that participant and dyadic
-  rows alone.
+  rows alone do not contain.
 - Interstate war participant sides are taken from `source_interstate_wars`, either directly in `war_participants` or
   through semantic side values on `war_dyads`.
 - The directed dyadic source can include reciprocal rows where the same state appears as both `c_code_a` and `c_code_b`
