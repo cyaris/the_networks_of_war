@@ -1218,9 +1218,11 @@
               <div class="mt-1 grid min-w-0 gap-1 font-semibold text-ui-text min-[1300px]:grid-cols-3">
                 <div class="min-[1300px]:col-start-2 min-[1300px]:row-start-1 min-[1300px]:text-center">
                   {selectedWarTimeframe}
+                  <br class="min-[1300px]:hidden" />
+                  <br class="min-[1300px]:hidden" />
                 </div>
                 <div
-                  class="grid min-w-0 gap-1 min-[1300px]:col-start-1 min-[1300px]:row-start-1 min-[1300px]:text-left"
+                  class="grid min-w-0 gap-1 text-center min-[1300px]:col-start-1 min-[1300px]:row-start-1 min-[1300px]:text-left"
                 >
                   {#if selectedWar.war_type}
                     <div>
