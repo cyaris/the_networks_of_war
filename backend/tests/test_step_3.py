@@ -163,6 +163,15 @@ def test_step_3_exports_frontend_graph_data(step_3_outputs: tuple[Path, Path]):
     with duckdb.connect(str(db_path), read_only=True) as conn:
         assert scalar(conn, "select count(*) from final_wars where graph_json is not null") > 0
 
+        placeholder_war_labels_sql = """
+        select war_id, war_type, war_subtype
+        from final_wars
+        where
+            lower(coalesce(war_type, '')) = 'unspecified'
+            or lower(coalesce(war_subtype, '')) = 'unspecified'
+        """
+        assert conn.execute(placeholder_war_labels_sql).fetchall() == []
+
 
 def test_step_3_frontend_graph_data_prunes_unavailable_descriptor_fields(step_3_outputs: tuple[Path, Path]):
     _, frontend_data_path = step_3_outputs

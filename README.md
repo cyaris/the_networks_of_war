@@ -116,7 +116,7 @@ The backend build runs three ordered steps:
 - In Vite development, routes are mirrored for the local root and the simulated GitHub Pages base:
   - `/` and `/the_networks_of_war` render the menu.
   - `/tool` and `/the_networks_of_war/tool` render the network analysis tool.
-- Generated frontend data is written to `frontend/src/lib/static/graphData.json`.
+- The pipeline writes generated frontend data to `frontend/src/lib/static/graphData.json`.
   - The export query lives at `backend/src/sql/step_3/04_export_frontend_graph_data.sql`.
   - TODO: Replace the current committed `graphData.json` CI unblock with a cleaner generated-data path, such as a
     release asset, S3/R2 download, Git LFS, or a CI prebuild step that can reliably recreate the file from source data.
@@ -126,7 +126,7 @@ The backend build runs three ordered steps:
     for node-size controls.
 - The graph metric data dictionary lives at
   [`frontend/src/lib/static/metricDataDictionary.json`](frontend/src/lib/static/metricDataDictionary.json).
-  - The dictionary is written for non-technical users.
+  - The dictionary explains metrics for non-technical users.
   - The dictionary records each graph metric's source organization or study, high-level calculation, and display unit.
 
 ## Data Layout
@@ -359,8 +359,8 @@ Step 3 materializes the final merge and graph-export tables:
   fields.
 - `final_wars`: war-level rows, including one `graph_json` payload per `war_id`.
 
-Node and link descriptor values are stored in `descriptor_timeframes` JSON; in the frontend payload, the same timeframe
-keys appear as top-level JSON properties on each node or link:
+The pipeline stores node and link descriptor values in `descriptor_timeframes` JSON. The frontend payload exposes the
+same timeframe keys as top-level JSON properties on each node or link:
 
 - `first_year`
 - `last_year`
@@ -438,11 +438,11 @@ Tooltip number formatting:
   - Encoding normalization
   - The data-entry fixes documented below
 - Source CSV headers are aliased to canonical pipeline names as early as possible:
-  - COW `WarNum` and `war_num` fields are loaded as `war_id`.
-  - Numeric war-type fields are loaded as `war_type_id`.
-- Fields derived during ingestion or populated by lookup tables use canonical names:
+  - The pipeline maps COW `WarNum` and `war_num` fields to `war_id`.
+  - The pipeline maps numeric war-type fields to `war_type_id`.
+- Ingestion calculations and lookup tables populate canonical field names:
   - `war_type` comes from `war_types.war_type`.
-  - Ongoing-war markers are stored as `ongoing_war` columns in backend tables and frontend payload rows.
+  - The pipeline stores ongoing-war markers in `ongoing_war` columns in backend tables and frontend payload rows.
 - `source_global_terrorism_database` stacks two prepared GTD CSVs with `union all` after confirming distinct `eventid`
   coverage across the files.
 - Source CSV schemas are compared when source versions change. Ingestion keeps relevant columns that remain available,
@@ -453,7 +453,7 @@ Tooltip number formatting:
   - The adjustment-row SQL inserts release metadata and adjustment rows for source facts that are not present in the
     source CSVs.
 - Downstream transformations join adjustment tables to `source_file_versions` when an assignment is version-scoped.
-- Data-entry fixes applied while reading source CSVs are documented below.
+- The sections below document data-entry fixes that ingestion applies while reading source CSVs.
 
 ### Excluded Calculated Columns
 
@@ -474,16 +474,16 @@ Derived replacements:
 - Duration and day-count fields are calculated from the pipeline's resolved start and end dates, after applying the date
   assumptions below.
   - Example: the pipeline uses the last day of the year when only the end year is known.
-- The source's calculated `total_use` column is replaced by `arms_technologies_used`; the calculation is described in
-  the [Metric And Descriptor Notes](#metric-and-descriptor-notes) section.
-- The source's calculated `cinc` column is replaced by `cinc_score`; the calculation is described in the
-  [Metric And Descriptor Notes](#metric-and-descriptor-notes) section.
+- The pipeline replaces the source's calculated `total_use` column with `arms_technologies_used`; the
+  [Metric And Descriptor Notes](#metric-and-descriptor-notes) section describes the calculation.
+- The pipeline replaces the source's calculated `cinc` column with `cinc_score`; the
+  [Metric And Descriptor Notes](#metric-and-descriptor-notes) section describes the calculation.
 
 ### Date Values
 
 #### General Date Cleaning
 
-- Blank strings are loaded as `null`.
+- The pipeline loads blank strings as `null`.
 - COW special codes allowed before cleaning are `-7`, `-8`, and `-9`.
 - Month fields, day fields, and start-year fields load those special codes as `null` because the COW codebooks use
   negative values for ongoing, not applicable, or unknown values.
@@ -491,19 +491,20 @@ Derived replacements:
   - Months: `1-12`
   - Days: `1-31`
   - Years: `1500-2100`
-- Values outside these domains are treated as data-entry issues and documented below when accepted by the pipeline.
+- The pipeline treats values outside these domains as data-entry issues; the sections below document accepted values.
 
 #### Start Dates
 
-- Negative start-year values are loaded as `null`.
+- The pipeline loads negative start-year values as `null`.
 - Missing, invalid, unknown, or not-applicable start months are interpreted as January.
 - Missing, invalid, unknown, or not-applicable start days are interpreted as day `1` of the resolved month.
 
 #### End Dates
 
-- Negative end-year values are loaded as `null` except for `-7`, which the COW codebooks document as the ongoing-war
+- The pipeline loads negative end-year values as `null` except for `-7`, which the COW codebooks document as the ongoing-war
   marker.
-- End year `-7` is resolved to the source file's release date from `source_file_versions.source_release_date`. The
+- The pipeline resolves end year `-7` to the source file's release date from
+  `source_file_versions.source_release_date`. The
   source-release cap keeps ongoing rows reproducible and prevents Step 2 `Last Year` and `All Years` descriptors from
   expanding beyond the years covered by the released source data.
 - Missing, invalid, unknown, or not-applicable end months are interpreted as December.
@@ -519,10 +520,10 @@ Derived replacements:
 
 ### Encoding And Deduplication
 
-- `COW-country-codes.csv` is deduplicated by `c_code`; the first row per code is retained.
+- The preparation step deduplicates `COW-country-codes.csv` by `c_code` and retains the first row per code.
 - Source CSVs that need explicit encoding handling use `latin-1` by default; `Extra-StateWarData_v4.0.csv` is the
   exception and uses `cp1252`.
-- Prepared copies are written as UTF-8 under `backend/.work/` before DuckDB reads them.
+- The preparation step writes UTF-8 copies under `backend/.work/` before DuckDB reads them.
 
 ### Field Normalization
 
@@ -577,7 +578,7 @@ Derived replacements:
   - `outcome_a`
   - `outcome_b`
   - `outcome`
-- After source date components are resolved, transformed tables carry:
+- After resolving source date components, transformed tables carry:
   - `start_date`
   - `end_date`
   - `start_date_estimated` and `end_date_estimated` flags, which mark dates resolved from an ongoing marker or from a
@@ -588,15 +589,15 @@ Derived replacements:
 
 - Extra-state and intra-state war dyads are treated as side A versus side B rows, with side A assigned side `1` and
   side B assigned side `2`.
-- Extra-state and intra-state participant rows are derived from both sides of the corresponding dyad rows.
+- The pipeline derives extra-state and intra-state participant rows from both sides of the corresponding dyad rows.
 - Directed dyadic interstate source rows represent row position with `c_code_a` and `c_code_b`.
-- The original directed dyadic role fields are retained as:
+- Transformed tables retain the original directed dyadic role fields as:
   - `role_a`
   - `role_b`
   - `dyad_role_a`
   - `dyad_role_b`
-- In the transformed `war_dyads` view, interstate side fields `side_a` and `side_b` are resolved back to substantive
-  participant sides from `source_interstate_wars`.
+- The transformed `war_dyads` view resolves interstate fields `side_a` and `side_b` back to substantive participant
+  sides from `source_interstate_wars`.
 - Extra-state and intra-state dyads keep their source side A versus side B convention.
 
 ### Date Spans
@@ -613,17 +614,17 @@ Derived replacements:
 - Participants that appear on both side 1 and side 2 in dyadic data are assigned side `3` programmatically.
 - Only dyadic MID records with `war = 1` are incorporated.
 - MID dyads are incorporated only when the same directed dyad in the same war has no overlapping source war-dyad row.
-- Existing battle-death values take precedence over MID fatality estimates after source and MID dyads are merged. MID
-  estimates are used when summed source battle deaths are `null` or zero and summed estimates are positive.
-- MID dyads are assigned to known wars by `disno` from `source_interstate_war_dyads` and version-scoped rows in
+- Existing battle-death values take precedence after the pipeline merges source and MID dyads. The pipeline uses MID
+  fatality estimates when summed source battle deaths are `null` or zero and summed estimates are positive.
+- The pipeline assigns MID dyads to known wars by `disno` from `source_interstate_war_dyads` and version-scoped rows in
   `source_interstate_mid_war_id_adjustments`.
-- Missing MID `disno` to `war_id` relationships are stored in the Step 1 source adjustment tables when those
+- Step 1 source adjustment tables store missing MID `disno` to `war_id` relationships when those
   relationships are absent from the current CSV version. If a future CSV version introduces a new unmatched MID war,
   `test_mid_dyads_resolve_all_mid_war_ids` is expected to fail until the source adjustment file is updated or the new
   source data is accepted as authoritative.
-- Manual interstate war-dyad additions that are missing from `directed_dyadic_war.csv` are stored in
-  `source_interstate_war_dyad_adjustments` and merged after source and MID dyads.
-- Synthetic war metadata is stored in `source_interstate_war_metadata_adjustments` and joined during transformation
+- `source_interstate_war_dyad_adjustments` stores manual interstate war-dyad additions missing from
+  `directed_dyadic_war.csv`; the pipeline merges them after source and MID dyads.
+- `source_interstate_war_metadata_adjustments` stores synthetic war metadata; the transformation joins it
   without adding partial rows to `source_interstate_wars`.
   - Example: the Lebanon-Israel MID conflict (`disno = 4182`) named
     `Israeli–Hezbollah Conflict (South Lebanon)`.
@@ -633,26 +634,26 @@ Derived replacements:
 - Participants found in dyadic data but missing from `war_participants` are added to `participants` from the
   dyadic side A records.
 - Missing participant sides are inferred from the opposite participant in dyadic data when that inference is unambiguous.
-- Remaining version-specific participant side assignments are stored in `source_participant_side_adjustments` and joined
-  during participant creation. These adjustments store source facts that cannot be recovered from participant and dyadic
-  rows alone.
+- `source_participant_side_adjustments` stores remaining version-specific participant side assignments; participant
+  creation joins them. These adjustments store source facts that participant and dyadic
+  rows alone do not contain.
 - Interstate war participant sides are taken from `source_interstate_wars`, either directly in `war_participants` or
   through semantic side values on `war_dyads`.
 - The directed dyadic source can include reciprocal rows where the same state appears as both `c_code_a` and `c_code_b`
   for the same war or dispute.
-- Inferred dyads are created by choosing anchor participants for each war. An anchor is a participant that is treated as
-  a known adversary for all overlapping participants on the opposite side when source dyadic records are incomplete.
-- Anchor selection is independent by side and participant type. A participant is selected as an anchor when any one of
-  these conditions is true for its side:
+- The pipeline creates inferred dyads by choosing anchor participants for each war. It treats an anchor as a known
+  adversary for all overlapping participants on the opposite side when source dyadic records are incomplete.
+- Anchor selection operates independently by side and participant type. The pipeline selects a participant as an anchor
+  when any one of these conditions holds for its side:
   - Exactly one total participant
   - Exactly one named non-state participant
   - Exactly one state participant
-- More than one anchor can be selected for the same war, including anchors on both sides.
+- The pipeline can select more than one anchor for the same war, including anchors on both sides.
   - Example: in the Third Somalia War (`war_id = 940.8`), the source intra-state participant file lists six side 1
     states and two side 2 participants. Side 2 has exactly one named non-state participant, ICU (`c_code = -8`), and
     exactly one state participant, Eritrea (`c_code = 531`), so both become anchors.
-- Named non-state participants with COW code `-8` are retained in `dyads`. Unnamed or literal aggregate
-  placeholders are excluded.
+- `dyads` retains named non-state participants with COW code `-8`. The pipeline excludes unnamed or literal aggregate
+  placeholders.
 
 | Side | Source participants | Anchor rule | Selected anchors |
 | --- | --- | --- | --- |
@@ -670,7 +671,8 @@ The selected anchors are then linked to every overlapping participant on the opp
 
 - Source dyads with COW code `-8` on one side are expanded against every actual participant on that side.
   - Example: if `c_code_a = -8`, side B is treated as having fought each source participant on side A for that conflict.
-- Unnamed aggregate dyads are excluded from `dyads` after the aggregate rows are used for named-participant expansion.
+- The pipeline excludes unnamed aggregate dyads from `dyads` after using the aggregate rows for named-participant
+  expansion.
 - Inferred dyads are only created where the anchor and opposing participant date ranges overlap.
 - Final dyads are deduplicated to one row per `war_id` and unordered participant pair. When duplicate spans exist, the
   final row keeps the earliest start date and latest end date from the unordered dyad pair.
@@ -688,7 +690,7 @@ The selected anchors are then linked to every overlapping participant on the opp
     units
   - Displacement counts: from thousands to people
 - Step 3 keeps graph-control descriptors and tooltip metrics separate.
-  - Node tooltip metrics are stored under each node's `metrics` object and include all non-null participant metrics for
+  - Each node's `metrics` object stores all non-null participant tooltip metrics for
     the timeframe.
   - The tooltip displays:
     - Non-zero metrics
@@ -718,7 +720,7 @@ The selected anchors are then linked to every overlapping participant on the opp
       - Germany: `1914-08-23` through `1918-11-11`
       - Austria-Hungary: `1914-08-23` through `1918-11-03`
     - Added-link date spans use the overlapping participant date spans from `Inter-StateWarData_v4.0.csv`.
-  - The World War II Thailand dyad is loaded with Thailand battle deaths corrected from original blank `batdtha` to
+  - The pipeline loads the World War II Thailand dyad with Thailand battle deaths corrected from original blank `batdtha` to
     `5,569`:
     - Source row:
       - `war_id = 139`
@@ -753,7 +755,7 @@ The selected anchors are then linked to every overlapping participant on the opp
   - End-year handling:
     - Original source values include `-7`, `-8`, and `-9`.
     - Only `-7` is treated as an ongoing end-year marker.
-    - Other negative end-year values are loaded as `null` because the codebooks use them for not applicable or unknown
+    - The pipeline loads other negative end-year values as `null` because the codebooks use them for not applicable or unknown
       values.
     - The pipeline sets `EndYr1` to `-7` for source rows whose war names say `present` or `ongoing`:
       - `942`
@@ -764,9 +766,9 @@ The selected anchors are then linked to every overlapping participant on the opp
 
 ## GitHub Actions Workflows
 
-These local wrappers inherit their reusable implementations from `cyaris/shared-automation`. Shared workflow behavior,
-inputs, and secrets are documented in the
-[shared-automation workflow reference](https://github.com/cyaris/shared-automation#workflows).
+These local wrappers inherit their reusable implementations from `cyaris/shared-automation`. The
+[shared-automation workflow reference](https://github.com/cyaris/shared-automation#workflows) documents shared
+behavior, inputs, and secrets.
 
 ### `.github/workflows/auto-create-dev-pr.yml`
 
@@ -775,21 +777,24 @@ The `Auto-create dev pull request` workflow runs on pushes to `dev` and calls th
 
 ### `.github/workflows/rollup.yml`
 
-The `Rollup` workflow runs on pushes to `dev` and `master` and on manual dispatch, then calls the
-[shared rollup workflow](https://github.com/cyaris/shared-automation#githubworkflowsrollupyml) with
-`working-directory: frontend`. Shared CI runs for every trigger; uploads run on `dev` and `master` pushes or manual
-dispatches to build the frontend rollup bundle and upload it to `s3://cyaris.github.io/the_networks_of_war/`. `master`
-runs upload unprefixed production bundles, and `dev` runs upload staged `test_bundle.*` names. The workflow checks out
-`svelte-lib` at its latest `main` commit as a local dependency. The shared workflow resolves that branch to an exact
-commit SHA before checkout.
+The `Rollup` workflow calls the
+[shared rollup workflow](https://github.com/cyaris/shared-automation#githubworkflowsrollupyml) with these local details:
+
+- triggers: pushes to `dev` and `master`, plus manual dispatch
+- working directory: `frontend`
+- destination: `s3://cyaris.github.io/the_networks_of_war/`
+- production naming: unprefixed bundles from `master`
+- staged naming: `dev_bundle.*` from `dev`
+- local dependency: `svelte-lib` `dev` for staged runs and `main` for production runs, resolved to an exact SHA
 
 ### `.github/workflows/upstream-watch.yml`
 
 The `Upstream Watch` workflow runs daily at 12:53 UTC, 30 minutes before the `cyaris.github.io` Pages build, and on
 manual dispatch, then calls the
 [shared upstream-watch workflow](https://github.com/cyaris/shared-automation#githubworkflowsupstream-watchyml). It
-watches `svelte-lib`'s `main` branch and, when it has moved since the last check, dispatches this repository's own
-`Rollup` workflow on `master` so the build picks up the new upstream commit without waiting for a push here.
+watches `svelte-lib`'s `dev` and `main` branch commits independently. When either branch moves, it dispatches this
+repository's `Rollup` workflow on the matching `dev` or `master` branch so staged and production bundles pick up the
+corresponding upstream code without waiting for a push here.
 
 ### `.github/workflows/auto-release.yml`
 

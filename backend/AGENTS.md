@@ -2,7 +2,9 @@
 
 ## Backend Python
 
-- Format Python from `backend` with the repository's Black and isort settings. Avoid non-functional trailing commas that make Black preserve unnecessary multiline layouts; when an existing tuple, list, call, or assertion would fit under the configured line length, remove the non-functional trailing comma so Black can collapse it. Keep commas that are semantically required or improve readability.
+- Format Python from `backend` with the repository's Black and isort settings. Remove a trailing comma when it only
+  forces an otherwise fitting expression to remain multiline; keep it when syntax requires it or the formatter restores
+  it.
 - Prefer guard-clause early exits with bare `return` when ending a no-op path improves readability. Do not write `return None`; use bare `return` for early no-value exits, and omit blank `return` statements at the natural end of a function.
 - When backend code directly imports a runtime package, declare that package explicitly in `backend/pyproject.toml` rather than relying on transitive dependencies.
 
@@ -24,6 +26,10 @@
 
 ## SQL Style
 
+- Put select-list columns on separate lines when a `select` returns more than one column. Keep `select count(*)` and
+  other single-expression selects on one line when they remain readable.
+- In `where` and `having`, put multiple `and`-joined predicates on separate lines. A single `or` within one readable
+  predicate may remain on one line.
 - For SQL `insert into ... values` statements, omit the target column list when inserting into tables created immediately nearby with an obvious column order, and collapse small inline `values` inserts to one row per tuple when that remains readable.
 - Prefer compact DuckDB SQL idioms: concise aliases without `as` unless the grammar requires it, postfix casts, unquoted identifiers unless required, and `group by`-based row deduplication instead of `select distinct`. Quote aliases that are required by downstream graph semantics or reserved-word handling, such as `year`, `source`, and `target`, without `as` when DuckDB accepts that form, such as `clean_int(year) "year"`. Aggregate forms such as `count(distinct ...)` are acceptable when distinctness belongs inside the aggregate.
 - Do not use a table alias in SQL queries that read from only one relation. Add aliases when the query joins multiple relations or otherwise needs them for disambiguation.
@@ -35,8 +41,6 @@
                       and a.year = b.year
   ```
 - In `where` and `having` boolean predicate lists, keep leading `and` or `or` on the same line as the predicate it introduces. Do not leave a boolean operator alone on its own line.
-- In `where` and `having` clauses, put multiple `and`-joined predicates on separate lines. A single `or` inside one
-  predicate may stay on one line when it remains readable.
 - In numbered pipeline-stage SQL union blocks, order branches by the stage's source/table construction order. When a source or table contributes mirrored A/B branches, put the original non-flipped branch before the flipped branch for that same source or table.
 - Choose `union all` for additive source stacking when later logic handles deduplication or duplicates are meaningful. Use plain `union` only when set semantics are required at that exact point. Do not write `union distinct`.
 - Avoid ordering tables or query results unless deterministic output order is explicitly needed. In tests, compare unordered results in Python unless the query prints or asserts on raw rows, where a deterministic `order by` makes diagnostics stable.
@@ -48,14 +52,14 @@
 
 - Keep raw source A/B, role, and row-position fields distinct from transformed side semantics. Preserve source role columns with clear aliases such as `role_a`, `role_b`, `dyad_role_a`, and `dyad_role_b`; derive transformed fields such as `side_a` and `side_b` only in downstream transformations that explicitly define side membership.
 - When a source row has a COW `c_code` that resolves through `country_codes`, use `country_codes.state_name` as the participant name before applying participant name replacements. Use `participant_name_replacements` only for source names that do not resolve through a COW code, such as non-state participants or uncoded manual rows.
-- Treat `backend/data` as pipeline-owned downloaded source state. Name source subdirectories with the source key directly, such as `backend/data/interstate_mid_dyads/`, without a `source_` prefix; the default data-preparation behavior should create or refresh only missing source subdirectories, and explicit recreate options should be required when deleting and rebuilding the entire data directory.
+- Treat `backend/data` as pipeline-owned downloaded source state. Name source subdirectories with the source key directly, such as `backend/data/interstate_mid_dyads/`, without a `source_` prefix; the default data-preparation behavior should create or refresh only missing source subdirectories. Require explicit recreate options before deleting and rebuilding the entire data directory.
 - Treat source subdirectory names as corresponding to source data table keys without the `source_` prefix; the raw data
   and PDF or JSON source documentation for that table belong in the matching folder.
 - Source ingestion should mirror raw CSVs with explicit schemas and selections: write source table column definitions by hand, avoid `read_csv_auto` in `create table` statements, explicitly select loaded columns in insert files, and ingest all relevant CSV columns unless they are documented as calculated or intentionally excluded. Keep `source_` tables as direct CSV ingestion; cross-source enrichment, metadata, mappings, side overrides, and derived convenience fields belong in later transformation SQL or source adjustment tables.
 - Keep source facts in the layer that owns them: documented data-entry fixes present in CSVs stay in source inserts, absent source facts belong in version-scoped source adjustment tables, and small tightly scoped rows can stay inline in SQL when they are part of transformation logic.
 - Keep source adjustments version-aware and lean: tie them to the applicable CSV/source version, reassess them when replacing a CSV, store only keys and values needed by downstream joins, and document rationale/facts in the README instead of adding narrative columns.
-- Do not add placeholder or convenience values to adjustment tables. Add an adjustment value only when it is used for a
-  join, a source correction, or a downstream transformation; derive defaults in transformation SQL instead.
+- Do not add placeholder or convenience values to adjustment tables. Add an adjustment value only when a join, source
+  correction, or downstream transformation consumes it; derive defaults in transformation SQL instead.
 - When upgrading a source CSV version, compare the previous and new CSV columns before changing ingestion. Keep currently ingested columns that still exist, remove columns that are truly absent instead of fabricating `null` source columns, and document any dropped or newly available columns in the README.
 
 ## Documentation

@@ -4,6 +4,7 @@
   import pluralize from "pluralize"
   import { onDestroy } from "svelte"
   import { CheckboxFilter, InfoIcon, Select } from "svelte-lib/components"
+  import { compareText } from "svelte-lib/functions"
 
   import graphData from "../static/graphData.json"
   import dataDictionary from "../static/metricDataDictionary.json"
@@ -37,8 +38,8 @@
     return `${parsed.toLocaleString()} ${pluralize(noun, parsed)}`
   }
 
-  function warSecondaryLabel(war) {
-    return `${plural(war.total_participants, "participant")}, ${plural(war.total_dyads, "dyad")}`
+  function warTypeLabel(warType) {
+    return warType.replace(/ War$/, "")
   }
 
   function graphForWar(war) {
@@ -56,16 +57,16 @@
     ).length
   }
 
-  function preferredWarItem(items) {
-    return items.find(item => item.linkDashFieldCount > 0) || items[0]
-  }
-
   function warLabelForViewport(viewportWidth) {
     return viewportWidth < 640 ? "World War I" : "World War II"
   }
 
   function defaultWarItem(items, viewportWidth) {
-    return items.find(item => item.label === warLabelForViewport(viewportWidth)) ?? preferredWarItem(items)
+    return (
+      items.find(item => item.label === warLabelForViewport(viewportWidth)) ??
+      items.find(item => item.linkDashFieldCount > 0) ??
+      items[0]
+    )
   }
 
   function syncSelectValue(key, items, fallbackItem = null) {
@@ -96,7 +97,7 @@
       value: String(war.war_id),
       label: war.war_name,
       selectedLabel: war.war_name,
-      secondaryLabel: warSecondaryLabel(war),
+      secondaryLabel: `${plural(war.total_participants, "participant")}, ${plural(war.total_dyads, "dyad")}`,
       war_type: war.war_type,
       linkDashFieldCount: linkDashFieldCountsByWarId[String(war.war_id)] || 0,
       war
@@ -113,7 +114,7 @@
         return availableWarCount ? { ...country, secondaryLabel: plural(availableWarCount, "war") } : null
       })
       .filter(Boolean)
-      .sort((a, b) => a.label.localeCompare(b.label))
+      .sort((a, b) => compareText(a.label, b.label))
   }
 
   function updateCountryValue(event) {
@@ -164,12 +165,12 @@
   })
 
   let linkDashFieldCountsByWarId = Object.fromEntries(wars.map(war => [String(war.war_id), linkDashFieldCount(war)]))
-  let warTypeItems = Array.from(new Set(wars.map(war => war.war_type)))
-    .sort()
-    .map(warType => ({ value: warType, label: warType }))
+  let warTypeItems = Array.from(new Set(wars.map(war => war.war_type).filter(Boolean)))
+    .sort(compareText)
+    .map(warType => ({ value: warType, label: warTypeLabel(warType) }))
   let allCountryItems = Object.values(countryFiltersByCCode)
     .map(country => {
-      let label = Array.from(country.names).sort((a, b) => a.localeCompare(b))[0]
+      let label = Array.from(country.names).sort(compareText)[0]
 
       return {
         value: String(country.c_code),
@@ -180,7 +181,7 @@
         warIds: country.warIds
       }
     })
-    .sort((a, b) => a.label.localeCompare(b.label))
+    .sort((a, b) => compareText(a.label, b.label))
   let initialWarItems = wars.map(warItem)
   let selectItems = {
     country: [],
@@ -220,7 +221,6 @@
   let tooltipWidth = 320
   let tooltipHeight = 96
   let currentGraph = null
-  let currentWidth = null
   let currentSizingSignature = null
   let currentLinkDescriptorSignature = null
   let linkDashPulseTimer = null
@@ -252,10 +252,12 @@
   const nodeSizeWarningLabelGap = 14
   const maxVisibleNodeSizeWarnings = 6
   const denseGraphReferenceSize = 40
-  const controlLabelClasses = "mb-1 flex items-center gap-2 text-sm font-extrabold text-[#596b64]"
-  const summaryLabelClasses = "font-bold text-[#60706a]"
-  const tooltipLabelClasses = "font-bold text-[#33413c]"
-  const tooltipMetricLabelClasses = "font-semibold text-[#33413c]"
+  const graphMinWidth = 640
+  const mobileGraphHeightScale = 0.63
+  const controlLabelClasses = "mb-1 flex items-center gap-2 text-sm font-bold text-ui-text"
+  const summaryLabelClasses = "font-bold text-ui-text"
+  const tooltipLabelClasses = "font-bold text-ui-text"
+  const tooltipMetricLabelClasses = "font-semibold text-ui-text"
   const addedMarginSize = Math.max(linkNodeSize, 10)
   const tooltipOffset = 16
   const tooltipPadding = 8
@@ -301,8 +303,8 @@
   $: mobileSecondaryLabelIdentifier = viewportWidth < 640 ? "" : "secondaryLabel"
 
   $: {
-    let mobileHeight = Math.min(480, Math.max(280, stableViewportHeight * 0.42))
-    let height = width < 640 ? mobileHeight : width < 900 ? 600 : 700
+    let mobileHeight = Math.min(720, Math.max(420, stableViewportHeight * mobileGraphHeightScale))
+    let height = viewportWidth < 640 ? mobileHeight : width < 900 ? 600 : 700
     let widthPressure = width < 900 ? Math.min(1, (900 - width) / 520) : 0
     let densityPressure = Math.min(1, (nodes.length + links.length * 0.35) / denseGraphReferenceSize)
     let pressure = widthPressure * densityPressure
@@ -441,7 +443,7 @@
 
   function descriptorItems(fields) {
     return fields
-      .sort((a, b) => fieldLabel(a).localeCompare(fieldLabel(b)))
+      .sort((a, b) => compareText(fieldLabel(a), fieldLabel(b)))
       .map(field => ({
         value: field,
         label: fieldLabel(field),
@@ -807,7 +809,7 @@
 
         return field == selectValue.nodeDescriptor?.value
       })
-      .sort((a, b) => fieldLabel(a).localeCompare(fieldLabel(b)))
+      .sort((a, b) => compareText(fieldLabel(a), fieldLabel(b)))
       .map(field => ({ field, label: fieldLabel(field), value: nodeMetricValue(node, metrics, field) }))
   }
 
@@ -1010,6 +1012,28 @@
     }
   }
 
+  function hasTimeframeDescriptor(row, timeframe) {
+    return Object.values(row[timeframe] || {}).some(value => numberValue(value) != null)
+  }
+
+  function hasNodeTimeframeData(node, timeframe) {
+    return (
+      hasTimeframeDescriptor(node, timeframe) ||
+      Object.values(node.metrics?.[timeframe] || {}).some(value => numberValue(value) != null)
+    )
+  }
+
+  function syncTimeframeItems() {
+    let nextTimeframeItems = timeframeItems.filter(
+      item =>
+        descriptorNodes.some(node => hasNodeTimeframeData(node, item.value)) ||
+        descriptorLinks.some(link => hasTimeframeDescriptor(link, item.value))
+    )
+
+    selectItems.timeframe = nextTimeframeItems
+    syncSelectValue("timeframe", nextTimeframeItems, nextTimeframeItems[nextTimeframeItems.length - 1])
+  }
+
   function resetSimulation() {
     stopSimulation()
 
@@ -1021,9 +1045,10 @@
     tooltip = null
     hoverNode = null
     dragNode = null
-    selectValue.timeframe = timeframeItems[2]
     currentSizingSignature = null
     currentLinkDescriptorSignature = null
+
+    syncTimeframeItems()
   }
 
   function resetLinkDashStrokeWidth() {
@@ -1042,42 +1067,11 @@
     refreshGraph()
   }
 
-  function hasTimeframeDescriptor(row, timeframe) {
-    return Object.values(row[timeframe] || {}).some(value => numberValue(value) != null)
-  }
-
-  function hasNodeTimeframeData(node, timeframe) {
-    return (
-      hasTimeframeDescriptor(node, timeframe) ||
-      Object.values(node.metrics?.[timeframe] || {}).some(value => numberValue(value) != null)
-    )
-  }
-
   $: if (graph !== currentGraph) {
     currentGraph = graph
-    currentWidth = width
     resetSimulation()
-  } else if (width !== currentWidth) {
-    currentWidth = width
   }
 
-  $: {
-    let nextTimeframeItems = timeframeItems.filter(
-      item =>
-        descriptorNodes.some(node => hasNodeTimeframeData(node, item.value)) ||
-        descriptorLinks.some(link => hasTimeframeDescriptor(link, item.value))
-    )
-
-    selectItems.timeframe = nextTimeframeItems
-
-    if (!nextTimeframeItems.length) {
-      selectValue.timeframe = null
-    } else if (nextTimeframeItems.length == 1 && selectValue.timeframe?.value != nextTimeframeItems[0].value) {
-      selectValue.timeframe = nextTimeframeItems[0]
-    } else if (!nextTimeframeItems.some(item => item.value == selectValue.timeframe?.value)) {
-      selectValue.timeframe = nextTimeframeItems[nextTimeframeItems.length - 1]
-    }
-  }
   $: {
     let nextNodeDescriptorItems = nodeFieldItems(descriptorNodes, selectValue.timeframe?.value || "all_years")
     let nextLinkDescriptorItems = linkFieldItems(descriptorLinks, selectValue.timeframe?.value || "all_years")
@@ -1150,13 +1144,15 @@
 />
 <main class="relative flex h-full w-full flex-col items-center justify-center" data-svelte-lib-tooltip-root>
   <div class="box-border flex w-full flex-col gap-4 px-3 py-4 min-[1300px]:w-[70%] min-[1300px]:px-0 min-[1300px]:py-5">
-    <section class="network-filter-panel grid min-w-0 gap-3 border border-[#d8d3c4] bg-white p-3 min-[1300px]:p-4">
+    <section
+      class="network-filter-panel grid min-w-0 gap-3 border border-solid border-chart-line bg-ui-surface p-3 min-[1300px]:p-4"
+    >
       <div>
-        <div class="mb-2 text-sm font-extrabold text-[#596b64]">War Types</div>
-        <div class="grid gap-x-2 text-sm sm:flex sm:flex-wrap sm:gap-x-5 sm:gap-y-2">
+        <div class="mb-1 text-sm font-bold text-ui-text">War Types</div>
+        <div class="grid gap-x-2 text-sm">
           {#each warTypeItems as warTypeItem (warTypeItem.value)}
             <CheckboxFilter
-              labelClasses="mb-0 font-medium"
+              labelClasses="mb-0 font-normal"
               label={warTypeItem.label}
               value={warTypeItem.value}
               selection={selectedWarTypes}
@@ -1190,6 +1186,7 @@
           <InfoIcon title={controlTooltips.war} tooltipClasses="max-w-80" />
         </div>
         <Select
+          wrapperClasses="[&_[data-select-lib-list]>div>div[role=presentation]]:font-bold"
           items={selectItems.war}
           value={selectValue.war}
           groupBy="war_type"
@@ -1201,36 +1198,40 @@
         />
       </div>
     </section>
-    <div class="relative w-full overflow-hidden border border-black">
+    <div class="relative w-full overflow-x-auto overflow-y-hidden border border-solid border-chart-line">
       <section class="bg-[#fbfcf9]">
-        <div class="flex flex-col gap-4 border-b border-[#d2d7d3] bg-white px-4 py-3">
+        <div class="flex flex-col gap-4 border-b border-chart-line bg-ui-surface px-4 py-3">
           {#if selectedWar}
-            <div class="grid min-w-0 gap-3 text-sm min-[1300px]:grid-cols-3 min-[1300px]:items-start">
+            <div class="min-w-0 text-center text-sm">
               <div
-                class="order-2 mt-1 grid min-w-0 gap-1 text-center font-semibold min-[1300px]:order-1 min-[1300px]:mt-0 min-[1300px]:text-left"
+                class="max-w-full break-words text-sm font-extrabold leading-snug min-[1300px]:text-base min-[1300px]:leading-normal"
               >
-                <div>
-                  <span class={summaryLabelClasses}>Type:</span>
-                  {selectedWar.war_type}
-                </div>
-                <div>
-                  <span class={summaryLabelClasses}>Subtype:</span>
-                  {selectedWar.war_subtype || "Unspecified"}
-                </div>
+                {selectedWar.war_name}
               </div>
-              <div class="order-1 min-w-0 self-center text-center min-[1300px]:order-2">
-                <div
-                  class="mx-auto max-w-full break-words px-2 text-sm font-extrabold leading-snug min-[1300px]:px-0 min-[1300px]:text-base min-[1300px]:leading-normal"
-                >
-                  {selectedWar.war_name}
+              <div class="mt-1 grid min-w-0 gap-1 font-semibold text-ui-text min-[1300px]:grid-cols-3">
+                <div class="min-[1300px]:col-start-2 min-[1300px]:row-start-1 min-[1300px]:text-center">
+                  {selectedWar.start_year}–{selectedWar.ongoing_war ? "Present" : selectedWar.end_year}
+                  {#if selectedWar.total_days_in_war != null}
+                    ({Number(selectedWar.total_days_in_war).toLocaleString()} Days)
+                  {/if}
+                  <br class="min-[1300px]:hidden" />
+                  <br class="min-[1300px]:hidden" />
                 </div>
-                <div class="mt-1 font-semibold text-[#60706a]">
-                  {selectedWar.ongoing_war
-                    ? `${selectedWar.start_year}-Present`
-                    : selectedWar.start_year == selectedWar.end_year
-                      ? String(selectedWar.start_year)
-                      : `${selectedWar.start_year}-${selectedWar.end_year}`}
-                  ({Number(selectedWar.total_days_in_war || 0).toLocaleString()} days)
+                <div
+                  class="grid min-w-0 gap-1 text-center min-[1300px]:col-start-1 min-[1300px]:row-start-1 min-[1300px]:text-left"
+                >
+                  {#if selectedWar.war_type}
+                    <div>
+                      <span class={summaryLabelClasses}>War Type:</span>
+                      {warTypeLabel(selectedWar.war_type)}
+                    </div>
+                  {/if}
+                  {#if selectedWar.war_subtype}
+                    <div>
+                      <span class={summaryLabelClasses}>War Subtype:</span>
+                      {selectedWar.war_subtype}
+                    </div>
+                  {/if}
                 </div>
               </div>
             </div>
@@ -1285,7 +1286,7 @@
             </div>
           {/if}
         </div>
-        <div class="relative min-w-0" bind:clientWidth={width}>
+        <div class="relative min-w-0" style="min-width:{graphMinWidth}px;" bind:clientWidth={width}>
           {#if nodes.length}
             <svg
               class="no-highlight block w-full touch-none"
@@ -1296,6 +1297,7 @@
               on:pointermove={moveTooltip}
               on:pointerleave={clearTooltip}
             >
+              <rect {width} height={graphLayout.height} fill="#fbfcf9" />
               <g>
                 {#each links as link, i (i)}
                   <line
@@ -1334,9 +1336,9 @@
                     on:pointerleave={clearTooltip}
                   >
                     <circle
+                      class="stroke-chart-line"
                       r={nodeRadius(node)}
                       fill={sideColors[node.side]}
-                      stroke="black"
                       stroke-width={hoverNode?.id == node.id ? nodeStrokeWidth + 0.75 : nodeStrokeWidth}
                       style="transition: r 3000ms ease 500ms, stroke-width 150ms ease;"
                     />
@@ -1346,11 +1348,11 @@
                       <text
                         class="text-[12px] font-bold"
                         text-anchor={label.anchor}
-                        fill={label.inside ? "white" : "var(--chart-1, #111827)"}
+                        fill={label.inside ? "white" : "var(--ui-text, #33413f)"}
                         stroke={label.inside ? "none" : "white"}
                         stroke-width={label.inside ? 0 : 3}
                         paint-order="stroke"
-                        style="transition: fill 2000ms ease 1500ms, stroke 2000ms ease 1500ms;"
+                        style="transition: fill 2000ms ease 1500ms;"
                       >
                         {node.participant}
                       </text>
@@ -1364,7 +1366,7 @@
                           class="text-[10px] font-extrabold"
                           text-anchor="middle"
                           dominant-baseline="central"
-                          fill="var(--chart-1, #111827)"
+                          fill="var(--ui-text, #33413f)"
                           stroke="white"
                           stroke-width={2.5}
                           paint-order="stroke"
@@ -1380,13 +1382,13 @@
             {#if tooltip}
               {@const metricRows = nodeMetricRows(tooltip.node)}
               <div
-                class="pointer-events-none absolute z-20 max-w-sm border border-[#c4cec8] bg-white px-3 py-2 text-xs shadow-sm"
+                class="pointer-events-none absolute z-20 max-w-sm border border-solid border-ui-border bg-ui-surface px-3 py-2 text-xs text-ui-text shadow-sm"
                 style="left: {tooltip.x}px; top: {tooltip.y}px;"
                 bind:clientWidth={tooltipWidth}
                 bind:clientHeight={tooltipHeight}
               >
                 <div class="text-sm font-extrabold">{tooltip.node.participant}</div>
-                <div class="mt-1 space-y-0.5 text-[#50615b]">
+                <div class="mt-1 space-y-0.5 text-ui-text">
                   <div>
                     <span class={tooltipLabelClasses}>Start Date:</span>
                     {displayDate(tooltip.node.start_date, tooltip.node.start_date_estimated)}
@@ -1403,11 +1405,11 @@
                   </div>
                 </div>
                 {#if metricRows.length}
-                  <div class="mt-2 border-t border-[#dfe5e1] pt-1.5">
-                    <div class="mb-1 font-extrabold text-[#33413c]">
+                  <div class="mt-2 border-t border-ui-border pt-1.5">
+                    <div class="mb-1 font-extrabold text-ui-text">
                       Timeframe: {selectValue.timeframe?.label || "All Years"}
                     </div>
-                    <div class="space-y-0.5 text-[#50615b]">
+                    <div class="space-y-0.5 text-ui-text">
                       {#each metricRows as row (row.field)}
                         <div>
                           <span class={tooltipMetricLabelClasses}>{row.label}:</span>
@@ -1421,7 +1423,7 @@
             {/if}
           {:else}
             <div
-              class="flex items-center justify-center px-6 text-center text-[#60706a]"
+              class="flex items-center justify-center px-6 text-center text-ui-muted"
               style="height:{graphLayout.height}px;"
             >
               No graph rows are available for the current selection.
