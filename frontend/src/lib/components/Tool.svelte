@@ -38,10 +38,6 @@
     return `${parsed.toLocaleString()} ${pluralize(noun, parsed)}`
   }
 
-  function warSecondaryLabel(war) {
-    return `${plural(war.total_participants, "participant")}, ${plural(war.total_dyads, "dyad")}`
-  }
-
   function graphForWar(war) {
     return graphsByWarId[String(war?.war_id)] || { nodes: [], links: [] }
   }
@@ -57,16 +53,16 @@
     ).length
   }
 
-  function preferredWarItem(items) {
-    return items.find(item => item.linkDashFieldCount > 0) || items[0]
-  }
-
   function warLabelForViewport(viewportWidth) {
     return viewportWidth < 640 ? "World War I" : "World War II"
   }
 
   function defaultWarItem(items, viewportWidth) {
-    return items.find(item => item.label === warLabelForViewport(viewportWidth)) ?? preferredWarItem(items)
+    return (
+      items.find(item => item.label === warLabelForViewport(viewportWidth)) ??
+      items.find(item => item.linkDashFieldCount > 0) ??
+      items[0]
+    )
   }
 
   function syncSelectValue(key, items, fallbackItem = null) {
@@ -97,7 +93,7 @@
       value: String(war.war_id),
       label: war.war_name,
       selectedLabel: war.war_name,
-      secondaryLabel: warSecondaryLabel(war),
+      secondaryLabel: `${plural(war.total_participants, "participant")}, ${plural(war.total_dyads, "dyad")}`,
       war_type: war.war_type,
       linkDashFieldCount: linkDashFieldCountsByWarId[String(war.war_id)] || 0,
       war
@@ -221,7 +217,6 @@
   let tooltipWidth = 320
   let tooltipHeight = 96
   let currentGraph = null
-  let currentWidth = null
   let currentSizingSignature = null
   let currentLinkDescriptorSignature = null
   let linkDashPulseTimer = null
@@ -1070,10 +1065,7 @@
 
   $: if (graph !== currentGraph) {
     currentGraph = graph
-    currentWidth = width
     resetSimulation()
-  } else if (width !== currentWidth) {
-    currentWidth = width
   }
 
   $: {
@@ -1206,9 +1198,6 @@
       <section class="bg-[#fbfcf9]">
         <div class="flex flex-col gap-4 border-b border-chart-line bg-ui-surface px-4 py-3">
           {#if selectedWar}
-            {@const selectedWarTimeframe = `${selectedWar.start_year}–${
-              selectedWar.ongoing_war ? "Present" : selectedWar.end_year
-            } (${Number(selectedWar.total_days_in_war || 0).toLocaleString()} Days)`}
             <div class="min-w-0 text-left text-sm min-[1300px]:text-center">
               <div
                 class="max-w-full break-words text-sm font-extrabold leading-snug min-[1300px]:text-base min-[1300px]:leading-normal"
@@ -1217,7 +1206,8 @@
               </div>
               <div class="mt-1 grid min-w-0 gap-1 font-semibold text-ui-text min-[1300px]:grid-cols-3">
                 <div class="min-[1300px]:col-start-2 min-[1300px]:row-start-1 min-[1300px]:text-center">
-                  {selectedWarTimeframe}
+                  {selectedWar.start_year}–{selectedWar.ongoing_war ? "Present" : selectedWar.end_year}
+                  ({Number(selectedWar.total_days_in_war || 0).toLocaleString()} Days)
                   <br class="min-[1300px]:hidden" />
                   <br class="min-[1300px]:hidden" />
                 </div>
