@@ -38,6 +38,10 @@
     return `${parsed.toLocaleString()} ${pluralize(noun, parsed)}`
   }
 
+  function warTypeLabel(warType) {
+    return warType.replace(/ War$/, "")
+  }
+
   function graphForWar(war) {
     return graphsByWarId[String(war?.war_id)] || { nodes: [], links: [] }
   }
@@ -163,7 +167,7 @@
   let linkDashFieldCountsByWarId = Object.fromEntries(wars.map(war => [String(war.war_id), linkDashFieldCount(war)]))
   let warTypeItems = Array.from(new Set(wars.map(war => war.war_type).filter(Boolean)))
     .sort(compareText)
-    .map(warType => ({ value: warType, label: warType }))
+    .map(warType => ({ value: warType, label: warTypeLabel(warType) }))
   let allCountryItems = Object.values(countryFiltersByCCode)
     .map(country => {
       let label = Array.from(country.names).sort(compareText)[0]
@@ -1198,7 +1202,7 @@
       <section class="bg-[#fbfcf9]">
         <div class="flex flex-col gap-4 border-b border-chart-line bg-ui-surface px-4 py-3">
           {#if selectedWar}
-            <div class="min-w-0 text-left text-sm min-[1300px]:text-center">
+            <div class="min-w-0 text-center text-sm">
               <div
                 class="max-w-full break-words text-sm font-extrabold leading-snug min-[1300px]:text-base min-[1300px]:leading-normal"
               >
@@ -1216,13 +1220,13 @@
                 >
                   {#if selectedWar.war_type}
                     <div>
-                      <span class={summaryLabelClasses}>Type:</span>
-                      {selectedWar.war_type}
+                      <span class={summaryLabelClasses}>War Type:</span>
+                      {warTypeLabel(selectedWar.war_type)}
                     </div>
                   {/if}
                   {#if selectedWar.war_subtype}
                     <div>
-                      <span class={summaryLabelClasses}>Subtype:</span>
+                      <span class={summaryLabelClasses}>War Subtype:</span>
                       {selectedWar.war_subtype}
                     </div>
                   {/if}
