@@ -1211,7 +1211,9 @@
               <div class="mt-1 grid min-w-0 gap-1 font-semibold text-ui-text min-[1300px]:grid-cols-3">
                 <div class="min-[1300px]:col-start-2 min-[1300px]:row-start-1 min-[1300px]:text-center">
                   {selectedWar.start_year}–{selectedWar.ongoing_war ? "Present" : selectedWar.end_year}
-                  ({Number(selectedWar.total_days_in_war || 0).toLocaleString()} Days)
+                  {#if selectedWar.total_days_in_war != null}
+                    ({Number(selectedWar.total_days_in_war).toLocaleString()} Days)
+                  {/if}
                   <br class="min-[1300px]:hidden" />
                   <br class="min-[1300px]:hidden" />
                 </div>
