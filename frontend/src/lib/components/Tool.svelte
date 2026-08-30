@@ -1153,7 +1153,7 @@
     >
       <div>
         <div class="mb-1 text-sm font-bold text-ui-text">War Types</div>
-        <div class="grid gap-x-2 text-sm sm:flex sm:flex-wrap sm:gap-x-5 sm:gap-y-2">
+        <div class="grid gap-x-2 text-sm">
           {#each warTypeItems as warTypeItem (warTypeItem.value)}
             <CheckboxFilter
               labelClasses="mb-0 font-normal"
