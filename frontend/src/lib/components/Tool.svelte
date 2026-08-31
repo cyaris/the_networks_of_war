@@ -2,15 +2,17 @@
   import { forceCenter, forceCollide, forceLink, forceManyBody, forceSimulation, forceX, forceY } from "d3-force"
   import { scaleLinear } from "d3-scale"
   import pluralize from "pluralize"
-  import { onDestroy } from "svelte"
+  import { onDestroy, onMount } from "svelte"
   import { CheckboxFilter, InfoIcon, Select } from "svelte-lib/components"
-  import { compareText } from "svelte-lib/functions"
+  import { compareText, getContrastingTextColor, getDataPalette } from "svelte-lib/functions"
 
   import graphData from "../static/graphData.json"
   import dataDictionary from "../static/metricDataDictionary.json"
 
   let wars = graphData.wars
   let graphsByWarId = graphData.graphsByWarId
+  let toolRoot
+  let dataPalette = { categories: [], neutral: "", surface: "" }
 
   const timeframeItems = [
     { value: "first_year", label: "First Year" },
@@ -294,7 +296,19 @@
     "tons",
     "wars"
   ])
-  const sideColors = { 1: "#2f7f66", 2: "#b54f72", 3: "#5f70b8", null: "#71717a", undefined: "#71717a" }
+  $: sideColors = {
+    1: dataPalette.categories[0] || "var(--data-category-1)",
+    2: dataPalette.categories[4] || "var(--data-category-5)",
+    3: dataPalette.categories[2] || "var(--data-category-3)",
+    null: dataPalette.neutral || "var(--data-neutral)",
+    undefined: dataPalette.neutral || "var(--data-neutral)"
+  }
+
+  function nodeTextColor(side) {
+    return dataPalette.surface && !sideColors[side].startsWith("var(")
+      ? getContrastingTextColor(sideColors[side], dataPalette.surface)
+      : "var(--ui-text)"
+  }
 
   $: if (viewportWidth !== lastViewportWidthForHeight) {
     lastViewportWidthForHeight = viewportWidth
@@ -1134,15 +1148,22 @@
     stopSimulation()
     clearTimeout(linkDashPulseTimer)
   })
+
+  onMount(() => (dataPalette = getDataPalette(toolRoot)))
 </script>
 
 <svelte:window
   bind:innerWidth={viewportWidth}
   bind:innerHeight={viewportHeight}
+  on:palettechange={() => (dataPalette = getDataPalette(toolRoot))}
   on:pointermove={drag}
   on:pointerup={endDrag}
 />
-<main class="relative flex h-full w-full flex-col items-center justify-center" data-svelte-lib-tooltip-root>
+<main
+  class="relative flex h-full w-full flex-col items-center justify-center"
+  data-svelte-lib-tooltip-root
+  bind:this={toolRoot}
+>
   <div class="box-border flex w-full flex-col gap-4 px-3 py-4 min-[1300px]:w-[70%] min-[1300px]:px-0 min-[1300px]:py-5">
     <section
       class="network-filter-panel grid min-w-0 gap-3 border border-solid border-chart-line bg-ui-surface p-3 min-[1300px]:p-4"
@@ -1199,7 +1220,7 @@
       </div>
     </section>
     <div class="relative w-full overflow-x-auto overflow-y-hidden border border-solid border-chart-line">
-      <section class="bg-[#fbfcf9]">
+      <section class="bg-ui-surface">
         <div class="flex flex-col gap-4 border-b border-chart-line bg-ui-surface px-4 py-3">
           {#if selectedWar}
             <div class="min-w-0 text-center text-sm">
@@ -1297,7 +1318,7 @@
               on:pointermove={moveTooltip}
               on:pointerleave={clearTooltip}
             >
-              <rect {width} height={graphLayout.height} fill="#fbfcf9" />
+              <rect class="fill-ui-surface" {width} height={graphLayout.height} />
               <g>
                 {#each links as link, i (i)}
                   <line
@@ -1305,8 +1326,7 @@
                     y1={linkY(link, "source")}
                     x2={linkX(link, "target")}
                     y2={linkY(link, "target")}
-                    stroke="#8a948f"
-                    stroke-opacity={0.45}
+                    class="stroke-chart-line-subtle"
                     stroke-width={1}
                   />
                   <line
@@ -1314,8 +1334,7 @@
                     y1={linkY(link, "source")}
                     x2={linkX(link, "target")}
                     y2={linkY(link, "target")}
-                    stroke={linkHasDescriptor(link) ? "blue" : "transparent"}
-                    stroke-opacity={0.9}
+                    stroke={linkHasDescriptor(link) ? "var(--data-category-3)" : "transparent"}
                     stroke-width={linkDashStrokeWidth}
                     stroke-dasharray="2.5 15"
                     stroke-dashoffset={-7.5}
@@ -1348,7 +1367,7 @@
                       <text
                         class="text-[12px] font-bold"
                         text-anchor={label.anchor}
-                        fill={label.inside ? "white" : "var(--ui-text, #33413f)"}
+                        fill={label.inside ? nodeTextColor(node.side) : "var(--ui-text, #33413f)"}
                         stroke={label.inside ? "none" : "var(--ui-surface, #ffffff)"}
                         stroke-width={label.inside ? 0 : 3}
                         paint-order="stroke"
