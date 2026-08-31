@@ -1349,7 +1349,7 @@
                         class="text-[12px] font-bold"
                         text-anchor={label.anchor}
                         fill={label.inside ? "white" : "var(--ui-text, #33413f)"}
-                        stroke={label.inside ? "none" : "white"}
+                        stroke={label.inside ? "none" : "var(--ui-surface, #ffffff)"}
                         stroke-width={label.inside ? 0 : 3}
                         paint-order="stroke"
                         style="transition: fill 2000ms ease 1500ms;"
@@ -1367,7 +1367,7 @@
                           text-anchor="middle"
                           dominant-baseline="central"
                           fill="var(--ui-text, #33413f)"
-                          stroke="white"
+                          stroke="var(--ui-surface, #ffffff)"
                           stroke-width={2.5}
                           paint-order="stroke"
                         >
