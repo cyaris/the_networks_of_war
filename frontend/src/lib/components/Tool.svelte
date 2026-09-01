@@ -4,7 +4,7 @@
   import pluralize from "pluralize"
   import { onDestroy, onMount } from "svelte"
   import { CheckboxFilter, InfoIcon, Select } from "svelte-lib/components"
-  import { compareText, getContrastingTextColor, getDataPalette } from "svelte-lib/functions"
+  import { compareText, getContrastingTextColor, getCSSColors } from "svelte-lib/functions"
 
   import graphData from "../static/graphData.json"
   import dataDictionary from "../static/metricDataDictionary.json"
@@ -12,7 +12,9 @@
   let wars = graphData.wars
   let graphsByWarId = graphData.graphsByWarId
   let toolRoot
-  let dataPalette = { categories: [], neutral: "", surface: "" }
+  let dataPaletteColors = []
+
+  const dataPaletteProperties = ["--data-color-1", "--data-color-2", "--data-color-3", "--data-neutral", "--ui-surface"]
 
   const timeframeItems = [
     { value: "first_year", label: "First Year" },
@@ -297,16 +299,16 @@
     "wars"
   ])
   $: sideColors = {
-    1: dataPalette.categories[0] || "var(--data-category-1)",
-    2: dataPalette.categories[4] || "var(--data-category-5)",
-    3: dataPalette.categories[2] || "var(--data-category-3)",
-    null: dataPalette.neutral || "var(--data-neutral)",
-    undefined: dataPalette.neutral || "var(--data-neutral)"
+    1: dataPaletteColors[0] || "var(--data-color-1)",
+    2: dataPaletteColors[1] || "var(--data-color-2)",
+    3: dataPaletteColors[2] || "var(--data-color-3)",
+    null: dataPaletteColors[3] || "var(--data-neutral)",
+    undefined: dataPaletteColors[3] || "var(--data-neutral)"
   }
 
   function nodeTextColor(side) {
-    return dataPalette.surface && !sideColors[side].startsWith("var(")
-      ? getContrastingTextColor(sideColors[side], dataPalette.surface)
+    return dataPaletteColors[4] && !sideColors[side].startsWith("var(")
+      ? getContrastingTextColor(sideColors[side], dataPaletteColors[4])
       : "var(--ui-text)"
   }
 
@@ -1149,18 +1151,18 @@
     clearTimeout(linkDashPulseTimer)
   })
 
-  onMount(() => (dataPalette = getDataPalette(toolRoot)))
+  onMount(() => (dataPaletteColors = getCSSColors(dataPaletteProperties, toolRoot)))
 </script>
 
 <svelte:window
   bind:innerWidth={viewportWidth}
   bind:innerHeight={viewportHeight}
-  on:palettechange={() => (dataPalette = getDataPalette(toolRoot))}
+  on:palettechange={() => (dataPaletteColors = getCSSColors(dataPaletteProperties, toolRoot))}
   on:pointermove={drag}
   on:pointerup={endDrag}
 />
 <main
-  class="relative flex h-full w-full flex-col items-center justify-center"
+  class="data-palette relative flex h-full w-full flex-col items-center justify-center"
   data-svelte-lib-tooltip-root
   bind:this={toolRoot}
 >
@@ -1334,7 +1336,7 @@
                     y1={linkY(link, "source")}
                     x2={linkX(link, "target")}
                     y2={linkY(link, "target")}
-                    stroke={linkHasDescriptor(link) ? "var(--data-category-3)" : "transparent"}
+                    stroke={linkHasDescriptor(link) ? "var(--data-color-3)" : "transparent"}
                     stroke-width={linkDashStrokeWidth}
                     stroke-dasharray="2.5 15"
                     stroke-dashoffset={-7.5}
@@ -1401,7 +1403,7 @@
             {#if tooltip}
               {@const metricRows = nodeMetricRows(tooltip.node)}
               <div
-                class="pointer-events-none absolute z-20 max-w-sm border border-solid border-ui-border bg-ui-surface px-3 py-2 text-xs text-ui-text shadow-sm"
+                class="pointer-events-none absolute z-20 max-w-sm whitespace-pre-wrap rounded border border-solid border-ui-border bg-ui-surface p-3 text-sm text-ui-text shadow-[1px_1px_1px_var(--ui-border)]"
                 style="left: {tooltip.x}px; top: {tooltip.y}px;"
                 bind:clientWidth={tooltipWidth}
                 bind:clientHeight={tooltipHeight}
@@ -1453,3 +1455,12 @@
     </div>
   </div>
 </main>
+
+<style>
+  .data-palette {
+    --data-color-1: oklch(from var(--data-palette-reference) 65% 0.14 calc(h - 120));
+    --data-color-2: oklch(from var(--data-palette-reference) 65% 0.14 calc(h + 120));
+    --data-color-3: oklch(from var(--data-palette-reference) 65% 0.14 h);
+    --data-neutral: color-mix(in srgb, var(--ui-text) 70%, var(--ui-surface));
+  }
+</style>
