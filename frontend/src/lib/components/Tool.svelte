@@ -1445,10 +1445,16 @@
                   >
                     <circle
                       r={nodeRadius(node)}
-                      fill={nodeDisplayColor(node, sideColors[node.side], activeNetworkIds)}
-                      stroke={nodeDisplayColor(node, "var(--chart-line)", activeNetworkIds)}
                       stroke-width={hoverNode?.id == node.id ? nodeStrokeWidth + 0.75 : nodeStrokeWidth}
-                      style="transition: r 3000ms ease 500ms, fill 150ms ease, stroke 150ms ease, stroke-width 150ms ease;"
+                      style="fill: {nodeDisplayColor(
+                        node,
+                        sideColors[node.side],
+                        activeNetworkIds
+                      )}; stroke: {nodeDisplayColor(
+                        node,
+                        'var(--chart-line)',
+                        activeNetworkIds
+                      )}; transition: r 3000ms ease 500ms, stroke-width 150ms ease;"
                     />
                     <g
                       style="transform: translate({label.x}px, {label.y}px); transition: transform 2000ms ease 1500ms;"
@@ -1456,15 +1462,14 @@
                       <text
                         class="text-[12px] font-bold"
                         text-anchor={label.anchor}
-                        fill={nodeDisplayColor(
-                          node,
-                          label.inside ? nodeTextColor(node.side) : "var(--ui-text, #33413f)",
-                          activeNetworkIds
-                        )}
                         stroke={label.inside ? "none" : "var(--ui-surface, #ffffff)"}
                         stroke-width={label.inside ? 0 : 3}
                         paint-order="stroke"
-                        style="transition: fill 150ms ease;"
+                        style="fill: {nodeDisplayColor(
+                          node,
+                          label.inside ? nodeTextColor(node.side) : 'var(--ui-text, #33413f)',
+                          activeNetworkIds
+                        )};"
                       >
                         {node.participant}
                       </text>
@@ -1478,11 +1483,10 @@
                           class="text-[10px] font-extrabold"
                           text-anchor="middle"
                           dominant-baseline="central"
-                          fill={nodeDisplayColor(node, "var(--ui-text, #33413f)", activeNetworkIds)}
                           stroke="var(--ui-surface, #ffffff)"
                           stroke-width={2.5}
                           paint-order="stroke"
-                          style="transition: fill 150ms ease;"
+                          style="fill: {nodeDisplayColor(node, 'var(--ui-text, #33413f)', activeNetworkIds)};"
                         >
                           ?
                         </text>
