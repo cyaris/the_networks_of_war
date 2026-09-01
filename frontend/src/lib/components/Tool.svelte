@@ -3,7 +3,7 @@
   import { scaleLinear } from "d3-scale"
   import pluralize from "pluralize"
   import { onDestroy, onMount } from "svelte"
-  import { CheckboxFilter, InfoIcon, Select } from "svelte-lib/components"
+  import { CheckboxFilter, InfoIcon, Select, Toggle } from "svelte-lib/components"
   import { compareText, getContrastingTextColor, getCSSColors } from "svelte-lib/functions"
 
   import graphData from "../static/graphData.json"
@@ -229,6 +229,7 @@
   let hoverNode = null
   let hoverLink = null
   let dragNode = null
+  let tooltipsEnabled = true
   let tooltip = null
   let tooltipWidth = 320
   let tooltipHeight = 96
@@ -482,30 +483,16 @@
   function dateDays(startDate, endDate) {
     let start = new Date(`${startDate}T00:00:00`)
     let end = endDate ? new Date(`${endDate}T00:00:00`) : new Date()
+
+    if (!endDate) end.setHours(0, 0, 0, 0)
+
     let days = Math.round((end - start) / 86400000) + 1
 
     return Number.isFinite(days) ? Math.max(1, days) : null
   }
 
   function nodeDescriptorNumericValue(node, field) {
-    if (field == "days_at_war") {
-      let totalDays = dateDays(node.start_date, Number(node.ongoing_war) == 1 ? null : node.end_date)
-
-      return totalDays == null ? null : totalDays - (numberValue(descriptorValue(node, "days_not_at_war")) ?? 0)
-    }
-
     if (field == "battle_deaths") return numberValue(node.battle_deaths)
-
-    if (field == "battle_deaths_per_day") {
-      let totalDays = dateDays(node.start_date, Number(node.ongoing_war) == 1 ? null : node.end_date)
-      let daysAtWar =
-        totalDays == null ? null : totalDays - (numberValue(descriptorValue(node, "days_not_at_war")) ?? 0)
-      let battleDeaths = numberValue(descriptorValue(node, "battle_deaths")) ?? numberValue(node.battle_deaths)
-
-      return Number.isFinite(daysAtWar) && battleDeaths != null
-        ? Math.round((battleDeaths / daysAtWar) * 100) / 100
-        : null
-    }
 
     return numberValue(descriptorValue(node, field))
   }
@@ -714,15 +701,17 @@
   }
 
   $: activeNodeId = (dragNode || hoverNode)?.id ?? null
-  $: activeNodeNetworkIds =
-    activeNodeId == null
-      ? null
-      : new Set([
+  $: activeNetworkIds =
+    activeNodeId != null
+      ? new Set([
           activeNodeId,
           ...links
             .filter(link => [linkEndpointId(link, "source"), linkEndpointId(link, "target")].includes(activeNodeId))
             .flatMap(link => [linkEndpointId(link, "source"), linkEndpointId(link, "target")])
         ])
+      : hoverLink
+        ? new Set([linkEndpointId(hoverLink, "source"), linkEndpointId(hoverLink, "target")])
+        : null
 
   function identifyPrimaryNode() {
     if (links.length <= 1) return null
@@ -868,6 +857,13 @@
       : color
   }
 
+  function linkDisplayColor(link, color, activeNetworkIds) {
+    return activeNetworkIds &&
+      [linkEndpointId(link, "source"), linkEndpointId(link, "target")].every(id => !activeNetworkIds.has(id))
+      ? `color-mix(in srgb, ${color} 50%, var(--ui-surface))`
+      : color
+  }
+
   function refreshGraph() {
     nodes = nodes
     links = links
@@ -976,31 +972,42 @@
   }
 
   function tooltipBounds() {
-    let rect = svg.parentElement.getBoundingClientRect()
-
-    return { width: rect.width || width, height: rect.height || graphLayout.height }
+    return { width: viewportWidth, height: viewportHeight }
   }
 
-  function clampTooltipCoordinates(x, y, bounds) {
+  function measureTooltip(element) {
+    function updateSize() {
+      let bounds = element.getBoundingClientRect()
+      tooltipWidth = bounds.width
+      tooltipHeight = bounds.height
+    }
+
+    let observer = new ResizeObserver(updateSize)
+    observer.observe(element)
+    updateSize()
+
+    return { destroy: () => observer.disconnect() }
+  }
+
+  function clampTooltipCoordinates(x, y, bounds, currentTooltipWidth, currentTooltipHeight) {
     return {
-      x: clampToBounds(tooltipPadding, bounds.width - tooltipWidth - tooltipPadding, x),
-      y: clampToBounds(tooltipPadding, bounds.height - tooltipHeight - tooltipPadding, y)
+      x: clampToBounds(tooltipPadding, bounds.width - currentTooltipWidth - tooltipPadding, x),
+      y: clampToBounds(tooltipPadding, bounds.height - currentTooltipHeight - tooltipPadding, y)
     }
   }
 
   function tooltipPoint(event) {
-    let rect = svg.parentElement.getBoundingClientRect()
-    let x = event.clientX - rect.left + tooltipOffset
-    let y = event.clientY - rect.top + tooltipOffset
+    let x = event.clientX + tooltipOffset
+    let y = event.clientY + tooltipOffset
 
-    return clampTooltipCoordinates(x, y, { width: rect.width || width, height: rect.height || graphLayout.height })
+    return clampTooltipCoordinates(x, y, tooltipBounds(), tooltipWidth, tooltipHeight)
   }
 
   function showTooltip(node, event) {
     if (dragNode) return
 
     hoverNode = node
-    tooltip = { node, ...tooltipPoint(event) }
+    tooltip = tooltipsEnabled ? { node, ...tooltipPoint(event) } : null
   }
 
   function clearTooltip() {
@@ -1011,7 +1018,7 @@
   }
 
   function moveTooltip(event) {
-    if (hoverNode && !dragNode) {
+    if (tooltipsEnabled && hoverNode && !dragNode) {
       tooltip = { node: hoverNode, ...tooltipPoint(event) }
     }
   }
@@ -1171,8 +1178,14 @@
     unknownNodeSizeCount > 0 &&
     unknownNodeSizeCount <= maxVisibleNodeSizeWarnings
   )
-  $: if (tooltip) {
-    let point = clampTooltipCoordinates(tooltip.x, tooltip.y, tooltipBounds())
+  $: if (tooltip && viewportWidth && viewportHeight) {
+    let point = clampTooltipCoordinates(
+      tooltip.x,
+      tooltip.y,
+      { width: viewportWidth, height: viewportHeight },
+      tooltipWidth,
+      tooltipHeight
+    )
 
     if (point.x != tooltip.x || point.y != tooltip.y) {
       tooltip = { ...tooltip, ...point }
@@ -1203,23 +1216,34 @@
     <section
       class="network-filter-panel grid min-w-0 gap-3 border border-solid border-chart-line bg-ui-surface p-3 min-[1300px]:p-4"
     >
-      <div>
-        <div class="mb-1 text-sm font-bold text-ui-text">War Types</div>
-        <div class="grid gap-x-2 text-sm">
-          {#each warTypeItems as warTypeItem (warTypeItem.value)}
-            <CheckboxFilter
-              labelClasses="mb-0 font-normal"
-              label={warTypeItem.label}
-              value={warTypeItem.value}
-              selection={selectedWarTypes}
-              deselection={deselectedWarTypes}
-              on:update={({ detail }) => {
-                selectedWarTypes = detail.selection
-                deselectedWarTypes = detail.deselection
-              }}
-            />
-          {/each}
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <div class="mb-1 text-sm font-bold text-ui-text">War Types</div>
+          <div class="grid gap-x-2 text-sm">
+            {#each warTypeItems as warTypeItem (warTypeItem.value)}
+              <CheckboxFilter
+                labelClasses="mb-0 font-normal"
+                label={warTypeItem.label}
+                value={warTypeItem.value}
+                selection={selectedWarTypes}
+                deselection={deselectedWarTypes}
+                on:update={({ detail }) => {
+                  selectedWarTypes = detail.selection
+                  deselectedWarTypes = detail.deselection
+                }}
+              />
+            {/each}
+          </div>
         </div>
+        <Toggle
+          checked={tooltipsEnabled}
+          label="Tooltips"
+          labelClasses="font-bold text-ui-text"
+          on:change={({ detail }) => {
+            tooltipsEnabled = detail.checked
+            if (!tooltipsEnabled) tooltip = null
+          }}
+        />
       </div>
       <div>
         <div class={controlLabelClasses}>
@@ -1258,6 +1282,10 @@
       <section class="bg-ui-surface">
         <div class="flex flex-col gap-4 border-b border-chart-line bg-ui-surface px-4 py-3">
           {#if selectedWar}
+            {@const selectedWarDays = dateDays(
+              selectedWar.start_date,
+              selectedWar.ongoing_war ? null : selectedWar.end_date
+            )}
             <div class="min-w-0 text-center text-sm">
               <div
                 class="max-w-full break-words text-sm font-extrabold leading-snug min-[1300px]:text-base min-[1300px]:leading-normal"
@@ -1266,9 +1294,9 @@
               </div>
               <div class="mt-1 grid min-w-0 gap-1 font-semibold text-ui-text min-[1300px]:grid-cols-3">
                 <div class="min-[1300px]:col-start-2 min-[1300px]:row-start-1 min-[1300px]:text-center">
-                  {selectedWar.start_year}–{selectedWar.ongoing_war ? "Present" : selectedWar.end_year}
-                  {#if selectedWar.total_days_in_war != null}
-                    ({Number(selectedWar.total_days_in_war).toLocaleString()} Days)
+                  {selectedWar.start_year}{#if selectedWar.ongoing_war}–Present{:else if selectedWar.end_year != selectedWar.start_year}–{selectedWar.end_year}{/if}
+                  {#if selectedWarDays != null}
+                    ({plural(selectedWarDays, "Day")})
                   {/if}
                   <br class="min-[1300px]:hidden" />
                   <br class="min-[1300px]:hidden" />
@@ -1371,9 +1399,13 @@
                     y1={linkY(link, "source")}
                     x2={linkX(link, "target")}
                     y2={linkY(link, "target")}
-                    class={linkIsHighlighted(link, activeNodeId, hoverLink)
-                      ? "stroke-chart-line"
-                      : "stroke-chart-line-subtle"}
+                    stroke={linkDisplayColor(
+                      link,
+                      linkIsHighlighted(link, activeNodeId, hoverLink)
+                        ? "var(--chart-line)"
+                        : "var(--chart-line-subtle)",
+                      activeNetworkIds
+                    )}
                     stroke-width={1}
                     pointer-events="none"
                   />
@@ -1382,11 +1414,15 @@
                     y1={linkY(link, "source")}
                     x2={linkX(link, "target")}
                     y2={linkY(link, "target")}
-                    stroke={linkIsHighlighted(link, activeNodeId, hoverLink)
-                      ? "var(--chart-line)"
-                      : linkHasDescriptor(link)
-                        ? "var(--data-color-3)"
-                        : "transparent"}
+                    stroke={linkHasDescriptor(link)
+                      ? linkDisplayColor(
+                          link,
+                          linkIsHighlighted(link, activeNodeId, hoverLink)
+                            ? "var(--chart-line)"
+                            : "var(--data-color-3)",
+                          activeNetworkIds
+                        )
+                      : "transparent"}
                     stroke-width={linkDashStrokeWidth}
                     stroke-dasharray="2.5 15"
                     stroke-dashoffset={-7.5}
@@ -1409,8 +1445,8 @@
                   >
                     <circle
                       r={nodeRadius(node)}
-                      fill={nodeDisplayColor(node, sideColors[node.side], activeNodeNetworkIds)}
-                      stroke={nodeDisplayColor(node, "var(--chart-line)", activeNodeNetworkIds)}
+                      fill={nodeDisplayColor(node, sideColors[node.side], activeNetworkIds)}
+                      stroke={nodeDisplayColor(node, "var(--chart-line)", activeNetworkIds)}
                       stroke-width={hoverNode?.id == node.id ? nodeStrokeWidth + 0.75 : nodeStrokeWidth}
                       style="transition: r 3000ms ease 500ms, fill 150ms ease, stroke 150ms ease, stroke-width 150ms ease;"
                     />
@@ -1423,7 +1459,7 @@
                         fill={nodeDisplayColor(
                           node,
                           label.inside ? nodeTextColor(node.side) : "var(--ui-text, #33413f)",
-                          activeNodeNetworkIds
+                          activeNetworkIds
                         )}
                         stroke={label.inside ? "none" : "var(--ui-surface, #ffffff)"}
                         stroke-width={label.inside ? 0 : 3}
@@ -1442,7 +1478,7 @@
                           class="text-[10px] font-extrabold"
                           text-anchor="middle"
                           dominant-baseline="central"
-                          fill={nodeDisplayColor(node, "var(--ui-text, #33413f)", activeNodeNetworkIds)}
+                          fill={nodeDisplayColor(node, "var(--ui-text, #33413f)", activeNetworkIds)}
                           stroke="var(--ui-surface, #ffffff)"
                           stroke-width={2.5}
                           paint-order="stroke"
@@ -1459,10 +1495,9 @@
             {#if tooltip}
               {@const metricRows = nodeMetricRows(tooltip.node)}
               <div
-                class="pointer-events-none absolute z-20 max-w-sm rounded border border-solid border-ui-border bg-ui-surface p-3 text-sm text-ui-text shadow-[1px_1px_1px_var(--ui-border)]"
-                style="left: {tooltip.x}px; top: {tooltip.y}px;"
-                bind:clientWidth={tooltipWidth}
-                bind:clientHeight={tooltipHeight}
+                class="pointer-events-none fixed z-50 w-max max-w-sm overflow-y-auto rounded border border-solid border-ui-border bg-ui-surface p-3 text-sm text-ui-text shadow-[1px_1px_1px_var(--ui-border)]"
+                style="left: {tooltip.x}px; top: {tooltip.y}px; max-height: calc(100vh - {tooltipPadding * 2}px);"
+                use:measureTooltip
               >
                 <div class="text-sm font-extrabold">{tooltip.node.participant}</div>
                 <div class="mt-1 space-y-0.5 text-ui-text">

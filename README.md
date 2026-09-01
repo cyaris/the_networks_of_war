@@ -404,6 +404,10 @@ Node tooltip behavior:
 
 - Tooltips show participant start date, end date, days at war, and every non-null participant metric present for the
   selected timeframe.
+- The Tooltips toggle enables tooltips by default and can hide them without disabling graph hover emphasis.
+- Tooltips can extend beyond the chart and stay within the browser viewport padding.
+- Days at war includes both the start and end dates, so a participant whose war begins and ends on the same date has one
+  day at war. Ongoing-war durations use the current date as the temporary end date.
 - Estimated values are labeled with `(estimated)`:
   - Start dates are labeled when `start_date_estimated = 1`.
   - End dates are labeled when `end_date_estimated = 1`.

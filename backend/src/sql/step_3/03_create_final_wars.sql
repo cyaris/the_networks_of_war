@@ -85,7 +85,7 @@ select
     a.end_date_estimated,
     a.lagging_war,
     a.leading_war,
-    date_diff('day', a.start_date, a.end_date) total_days_in_war,
+    date_diff('day', a.start_date, a.end_date) + 1 total_days_in_war,
     json_object(
         'war',
         json(to_json([struct_pack(
@@ -105,7 +105,7 @@ select
             end_date_estimated := a.end_date_estimated,
             lagging_war := a.lagging_war,
             leading_war := a.leading_war,
-            total_days_in_war := date_diff('day', a.start_date, a.end_date)
+            total_days_in_war := date_diff('day', a.start_date, a.end_date) + 1
         )])),
         'nodes',
         json(coalesce(b.payload, '[]')),

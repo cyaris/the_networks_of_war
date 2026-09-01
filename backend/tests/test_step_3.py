@@ -149,6 +149,18 @@ def test_step_3_manifest_runs_final_export_transformations(conn):
     )
     assert {"source", "target", "descriptor_timeframes"}.issubset(table_columns(conn, "final_dyads"))
 
+    invalid_war_durations_sql = """
+    select
+        war_id,
+        start_date,
+        end_date,
+        total_days_in_war
+    from final_wars
+    where total_days_in_war != date_diff('day', start_date, end_date) + 1
+    """
+    assert conn.execute(invalid_war_durations_sql).fetchall() == []
+    assert scalar(conn, "select date_diff('day', date '2000-01-01', date '2000-01-01') + 1") == 1
+
 
 def test_step_3_exports_frontend_graph_data(step_3_outputs: tuple[Path, Path]):
     db_path, frontend_data_path = step_3_outputs

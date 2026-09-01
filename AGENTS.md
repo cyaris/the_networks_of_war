@@ -9,9 +9,9 @@
 
 - Keep README pipeline commands aligned with `backend/src/pipeline.py` CLI behavior. Keep frontend build-artifact notes
   near frontend setup or commands rather than in a standalone top-level section.
-- When adding, removing, renaming, or recalculating backend metrics, update
-  `frontend/src/lib/static/metricDataDictionary.json` in the same change. Align README source, calculation, unit, and
-  metric summaries with that file.
+- When adding, removing, renaming, or changing the calculation or formula of a backend metric, update that metric's
+  definition in `frontend/src/lib/static/metricDataDictionary.json` in the same change. Align README source,
+  calculation, unit, and metric summaries with that file.
 - Split long README assumption sections into focused subsections. Show normalization and replacement direction with
   `source -> replacement` example subbullets.
 - Consult relevant source documentation under `backend/data/` before deciding whether a source value, adjustment, or
