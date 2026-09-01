@@ -14,7 +14,14 @@
   let toolRoot
   let dataPaletteColors = []
 
-  const dataPaletteProperties = ["--data-color-1", "--data-color-2", "--data-color-3", "--data-neutral", "--ui-surface"]
+  const dataPaletteProperties = [
+    "--data-color-1",
+    "--data-color-2",
+    "--data-color-3",
+    "--data-color-4",
+    "--data-neutral",
+    "--ui-surface"
+  ]
 
   const timeframeItems = [
     { value: "first_year", label: "First Year" },
@@ -302,13 +309,13 @@
     1: dataPaletteColors[0] || "var(--data-color-1)",
     2: dataPaletteColors[1] || "var(--data-color-2)",
     3: dataPaletteColors[2] || "var(--data-color-3)",
-    null: dataPaletteColors[3] || "var(--data-neutral)",
-    undefined: dataPaletteColors[3] || "var(--data-neutral)"
+    null: dataPaletteColors[4] || "var(--data-neutral)",
+    undefined: dataPaletteColors[4] || "var(--data-neutral)"
   }
 
   function nodeTextColor(side) {
-    return dataPaletteColors[4] && !sideColors[side].startsWith("var(")
-      ? getContrastingTextColor(sideColors[side], dataPaletteColors[4])
+    return dataPaletteColors[5] && !sideColors[side].startsWith("var(")
+      ? getContrastingTextColor(sideColors[side], dataPaletteColors[5])
       : "var(--ui-text)"
   }
 
@@ -1458,9 +1465,10 @@
 
 <style>
   .data-palette {
-    --data-color-1: oklch(from var(--data-palette-reference) 65% 0.14 calc(h - 120));
-    --data-color-2: oklch(from var(--data-palette-reference) 65% 0.14 calc(h + 120));
-    --data-color-3: oklch(from var(--data-palette-reference) 65% 0.14 h);
+    --data-color-1: oklch(from var(--data-palette-reference) 65% 0.14 calc(h + 90));
+    --data-color-2: oklch(from var(--data-palette-reference) 65% 0.14 calc(h + 180));
+    --data-color-3: oklch(from var(--data-palette-reference) 65% 0.14 calc(h + 270));
+    --data-color-4: oklch(from var(--data-palette-reference) 65% 0.14 h);
     --data-neutral: color-mix(in srgb, var(--ui-text) 70%, var(--ui-surface));
   }
 </style>
