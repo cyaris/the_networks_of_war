@@ -227,6 +227,7 @@
   let descriptorNodes = []
   let descriptorLinks = []
   let hoverNode = null
+  let hoverLink = null
   let dragNode = null
   let tooltip = null
   let tooltipWidth = 320
@@ -712,6 +713,17 @@
     return typeof link[endpoint] == "object" ? link[endpoint].id : link[endpoint]
   }
 
+  $: activeNodeId = (dragNode || hoverNode)?.id ?? null
+  $: activeNodeNetworkIds =
+    activeNodeId == null
+      ? null
+      : new Set([
+          activeNodeId,
+          ...links
+            .filter(link => [linkEndpointId(link, "source"), linkEndpointId(link, "target")].includes(activeNodeId))
+            .flatMap(link => [linkEndpointId(link, "source"), linkEndpointId(link, "target")])
+        ])
+
   function identifyPrimaryNode() {
     if (links.length <= 1) return null
 
@@ -841,6 +853,19 @@
       selectValue.linkDescriptor?.value &&
       (numberValue(descriptorValue(link, selectValue.linkDescriptor.value)) ?? 0) > 0
     )
+  }
+
+  function linkIsHighlighted(link, activeId, activeLink) {
+    return (
+      activeLink === link ||
+      (activeId != null && [linkEndpointId(link, "source"), linkEndpointId(link, "target")].includes(activeId))
+    )
+  }
+
+  function nodeDisplayColor(node, color, activeNetworkIds) {
+    return activeNetworkIds && !activeNetworkIds.has(node.id)
+      ? `color-mix(in srgb, ${color} 50%, var(--ui-surface))`
+      : color
   }
 
   function refreshGraph() {
@@ -1067,6 +1092,7 @@
     linkNodes = []
     tooltip = null
     hoverNode = null
+    hoverLink = null
     dragNode = null
     currentSizingSignature = null
     currentLinkDescriptorSignature = null
@@ -1335,18 +1361,36 @@
                     y1={linkY(link, "source")}
                     x2={linkX(link, "target")}
                     y2={linkY(link, "target")}
-                    class="stroke-chart-line-subtle"
-                    stroke-width={1}
+                    stroke="transparent"
+                    stroke-width={12}
+                    on:pointerenter={() => (hoverLink = link)}
+                    on:pointerleave={() => (hoverLink = null)}
                   />
                   <line
                     x1={linkX(link, "source")}
                     y1={linkY(link, "source")}
                     x2={linkX(link, "target")}
                     y2={linkY(link, "target")}
-                    stroke={linkHasDescriptor(link) ? "var(--data-color-3)" : "transparent"}
+                    class={linkIsHighlighted(link, activeNodeId, hoverLink)
+                      ? "stroke-chart-line"
+                      : "stroke-chart-line-subtle"}
+                    stroke-width={1}
+                    pointer-events="none"
+                  />
+                  <line
+                    x1={linkX(link, "source")}
+                    y1={linkY(link, "source")}
+                    x2={linkX(link, "target")}
+                    y2={linkY(link, "target")}
+                    stroke={linkIsHighlighted(link, activeNodeId, hoverLink)
+                      ? "var(--chart-line)"
+                      : linkHasDescriptor(link)
+                        ? "var(--data-color-3)"
+                        : "transparent"}
                     stroke-width={linkDashStrokeWidth}
                     stroke-dasharray="2.5 15"
                     stroke-dashoffset={-7.5}
+                    pointer-events="none"
                     style="transition: stroke-width 1000ms ease 50ms, stroke 1000ms ease 50ms;"
                   />
                 {/each}
@@ -1364,11 +1408,11 @@
                     on:pointerleave={clearTooltip}
                   >
                     <circle
-                      class="stroke-chart-line"
                       r={nodeRadius(node)}
-                      fill={sideColors[node.side]}
+                      fill={nodeDisplayColor(node, sideColors[node.side], activeNodeNetworkIds)}
+                      stroke={nodeDisplayColor(node, "var(--chart-line)", activeNodeNetworkIds)}
                       stroke-width={hoverNode?.id == node.id ? nodeStrokeWidth + 0.75 : nodeStrokeWidth}
-                      style="transition: r 3000ms ease 500ms, stroke-width 150ms ease;"
+                      style="transition: r 3000ms ease 500ms, fill 150ms ease, stroke 150ms ease, stroke-width 150ms ease;"
                     />
                     <g
                       style="transform: translate({label.x}px, {label.y}px); transition: transform 2000ms ease 1500ms;"
@@ -1376,11 +1420,15 @@
                       <text
                         class="text-[12px] font-bold"
                         text-anchor={label.anchor}
-                        fill={label.inside ? nodeTextColor(node.side) : "var(--ui-text, #33413f)"}
+                        fill={nodeDisplayColor(
+                          node,
+                          label.inside ? nodeTextColor(node.side) : "var(--ui-text, #33413f)",
+                          activeNodeNetworkIds
+                        )}
                         stroke={label.inside ? "none" : "var(--ui-surface, #ffffff)"}
                         stroke-width={label.inside ? 0 : 3}
                         paint-order="stroke"
-                        style="transition: fill 2000ms ease 1500ms;"
+                        style="transition: fill 150ms ease;"
                       >
                         {node.participant}
                       </text>
@@ -1394,10 +1442,11 @@
                           class="text-[10px] font-extrabold"
                           text-anchor="middle"
                           dominant-baseline="central"
-                          fill="var(--ui-text, #33413f)"
+                          fill={nodeDisplayColor(node, "var(--ui-text, #33413f)", activeNodeNetworkIds)}
                           stroke="var(--ui-surface, #ffffff)"
                           stroke-width={2.5}
                           paint-order="stroke"
+                          style="transition: fill 150ms ease;"
                         >
                           ?
                         </text>
@@ -1410,7 +1459,7 @@
             {#if tooltip}
               {@const metricRows = nodeMetricRows(tooltip.node)}
               <div
-                class="pointer-events-none absolute z-20 max-w-sm whitespace-pre-wrap rounded border border-solid border-ui-border bg-ui-surface p-3 text-sm text-ui-text shadow-[1px_1px_1px_var(--ui-border)]"
+                class="pointer-events-none absolute z-20 max-w-sm rounded border border-solid border-ui-border bg-ui-surface p-3 text-sm text-ui-text shadow-[1px_1px_1px_var(--ui-border)]"
                 style="left: {tooltip.x}px; top: {tooltip.y}px;"
                 bind:clientWidth={tooltipWidth}
                 bind:clientHeight={tooltipHeight}
@@ -1427,7 +1476,7 @@
                       ? "Ongoing"
                       : displayDate(tooltip.node.end_date, tooltip.node.end_date_estimated)}
                   </div>
-                  <div class="mb-2">
+                  <div>
                     <span class={tooltipLabelClasses}>Days At War:</span>
                     {displayMetricNumber(tooltip.node.metrics?.all_years?.days_at_war, "days_at_war")}
                   </div>
