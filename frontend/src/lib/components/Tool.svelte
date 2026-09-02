@@ -857,11 +857,14 @@
       : color
   }
 
-  function linkDisplayColor(link, color, activeNetworkIds) {
-    return activeNetworkIds &&
-      [linkEndpointId(link, "source"), linkEndpointId(link, "target")].every(id => !activeNetworkIds.has(id))
-      ? `color-mix(in srgb, ${color} 50%, var(--ui-surface))`
-      : color
+  function linkDisplayColor(link, color, activeNodeId, activeNetworkIds) {
+    if (!activeNetworkIds) return color
+
+    let endpointIds = [linkEndpointId(link, "source"), linkEndpointId(link, "target")]
+    let isOutsideActiveNetwork =
+      activeNodeId != null ? !endpointIds.includes(activeNodeId) : endpointIds.every(id => !activeNetworkIds.has(id))
+
+    return isOutsideActiveNetwork ? `color-mix(in srgb, ${color} 50%, var(--ui-surface))` : color
   }
 
   function refreshGraph() {
@@ -1404,6 +1407,7 @@
                       linkIsHighlighted(link, activeNodeId, hoverLink)
                         ? "var(--chart-line)"
                         : "var(--chart-line-subtle)",
+                      activeNodeId,
                       activeNetworkIds
                     )}
                     stroke-width={1}
@@ -1420,6 +1424,7 @@
                           linkIsHighlighted(link, activeNodeId, hoverLink)
                             ? "var(--chart-line)"
                             : "var(--data-color-3)",
+                          activeNodeId,
                           activeNetworkIds
                         )
                       : "transparent"}
