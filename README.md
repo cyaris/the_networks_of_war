@@ -792,7 +792,9 @@ local details:
 
 Runs daily at 12:53 UTC, 30 minutes before the `cyaris.github.io` Pages build, and on manual dispatch, then calls the
 [shared upstream-watch workflow](https://github.com/cyaris/shared-automation#githubworkflowsupstream-watchyml). It
-watches `svelte-lib`'s `dev` and `main` branch commits independently.
+watches `svelte-lib`'s `dev` and `main` branch commits independently. When either branch moves, it dispatches this
+repository's `Rollup` workflow on the matching `dev` or `master` branch so staged and production bundles pick up the
+corresponding upstream code without waiting for a push here.
 
 ### `.github/workflows/auto-release.yml`
 
@@ -804,6 +806,7 @@ for an approved run.
 
 ### `.github/workflows/workflow-validation.yml`
 
-Runs on local workflow and automation configuration changes, then calls the
+Runs on `dev` and `master` pushes that change `.github/release-policy.yml`, `.github/workflows/**`, or `renovate.json`,
+and on manual dispatch, then calls the
 [shared workflow-validation workflow](https://github.com/cyaris/shared-automation#githubworkflowsworkflow-validationyml)
 to validate rollup upload wrapper logic, release-policy configuration, and Renovate configuration.
