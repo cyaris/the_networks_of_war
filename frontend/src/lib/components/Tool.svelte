@@ -1379,7 +1379,7 @@
             >
               <rect class="fill-ui-surface" {width} height={graphLayout.height} />
               <g>
-                {#each links as link, i (i)}
+                {#each links as link}
                   <line
                     x1={linkX(link, "source")}
                     y1={linkY(link, "source")}
