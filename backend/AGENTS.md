@@ -1,4 +1,4 @@
-# Backend Coding Preferences
+# Backend Guidance
 
 ## Backend Python
 
@@ -28,7 +28,8 @@
 
 - Put select-list columns on separate lines when a `select` returns more than one column. Keep `select count(*)` and
   other single-expression selects on one line when they remain readable.
-- In `where` and `having`, put multiple `and`-joined predicates on separate lines. A single `or` within one readable
+- In `where` and `having`, put multiple `and`-joined predicates on separate lines, keeping the leading `and` or `or` on
+  the same line as the predicate it introduces rather than alone on its own line. A single `or` within one readable
   predicate may remain on one line.
 - For SQL `insert into ... values` statements, omit the target column list when inserting into tables created immediately nearby with an obvious column order, and collapse small inline `values` inserts to one row per tuple when that remains readable.
 - Prefer compact DuckDB SQL idioms: concise aliases without `as` unless the grammar requires it, postfix casts, unquoted identifiers unless required, and `group by`-based row deduplication instead of `select distinct`. Quote aliases that are required by downstream graph semantics or reserved-word handling, such as `year`, `source`, and `target`, without `as` when DuckDB accepts that form, such as `clean_int(year) "year"`. Aggregate forms such as `count(distinct ...)` are acceptable when distinctness belongs inside the aggregate.
@@ -40,7 +41,6 @@
   left join table_b b on a.id = b.id
                       and a.year = b.year
   ```
-- In `where` and `having` boolean predicate lists, keep leading `and` or `or` on the same line as the predicate it introduces. Do not leave a boolean operator alone on its own line.
 - In numbered pipeline-stage SQL union blocks, order branches by the stage's source/table construction order. When a source or table contributes mirrored A/B branches, put the original non-flipped branch before the flipped branch for that same source or table.
 - Choose `union all` for additive source stacking when later logic handles deduplication or duplicates are meaningful. Use plain `union` only when set semantics are required at that exact point. Do not write `union distinct`.
 - Avoid ordering tables or query results unless deterministic output order is explicitly needed. In tests, compare unordered results in Python unless the query prints or asserts on raw rows, where a deterministic `order by` makes diagnostics stable.
@@ -77,7 +77,6 @@
 - Tests should protect data semantics and pipeline behavior at the layer that owns them rather than freezing metadata placeholders or treating source row-position fields as transformed participant-side semantics.
 - Diagnostic SQL should be focused and readable: select only columns needed to identify failing rows, avoid unnecessary subselect wrappers, use simple `count(*)` checks plus focused detail queries for broad source-data quality checks, and prefer loops or named helpers over dense inline repeated SQL fragments.
 - Prefer `query` for a single obvious SQL statement in a test. Use role-specific names such as `count_sql`, `flagged_rows_sql`, `detected_rows_sql`, or a compact domain-specific `<subject>_sql` when a test contains multiple SQL statements or when the SQL's role is not clear from nearby code.
-- Put SQL select-list columns on separate lines when a `select` returns more than one column. One-line `select count(*)` and other single-expression selects are fine.
 - For tests that expect no bad rows, query the unexpected rows with identifying columns instead of asserting on `count(*) = 0`; use the shared SQL-check failure helpers when the full SQL and formatted "Detected rows" table are useful, and use `assert rows == []` only for compact checks where pytest's abbreviated diff is enough. Keep scalar count assertions for aggregate totals, positive existence checks, or intentionally numeric invariants.
 - Diagnostic failures and assertions should be self-contained and data-forward: show the SQL query, concise failure summary, and detected rows without Python traceback/code-frame noise. Avoid decorative or noisy styled formatting, but keep targeted problem-cell highlighting, such as existing `colorama` styling, when it makes detected rows easier to read. Fetch and assert on raw unexpected rows when useful, and prefer named SQL variables with compact scalar assertions.
 - Keep the missing COW-code value test metadata-driven: any new pipeline table with `c_code`, `c_code_a`, or `c_code_b`
