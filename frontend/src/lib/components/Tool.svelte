@@ -2,15 +2,25 @@
   import { forceCenter, forceCollide, forceLink, forceManyBody, forceSimulation, forceX, forceY } from "d3-force"
   import { scaleLinear } from "d3-scale"
   import pluralize from "pluralize"
-  import { onDestroy } from "svelte"
-  import { CheckboxFilter, InfoIcon, Select } from "svelte-lib/components"
-  import { compareText } from "svelte-lib/functions"
+  import { onDestroy, onMount } from "svelte"
+  import { CheckboxFilter, InfoIcon, Select, Toggle } from "svelte-lib/components"
+  import { compareText, getContrastingTextColor, getCSSColors } from "svelte-lib/functions"
 
   import graphData from "../static/graphData.json"
   import dataDictionary from "../static/metricDataDictionary.json"
 
   let wars = graphData.wars
   let graphsByWarId = graphData.graphsByWarId
+  let toolRoot
+  let paletteColors = {}
+
+  const paletteProperties = {
+    neutral: "--data-neutral",
+    side1: "--data-color-1",
+    side2: "--data-color-2",
+    side3: "--data-color-3",
+    surface: "--ui-surface"
+  }
 
   const timeframeItems = [
     { value: "first_year", label: "First Year" },
@@ -216,7 +226,9 @@
   let descriptorNodes = []
   let descriptorLinks = []
   let hoverNode = null
+  let hoverLink = null
   let dragNode = null
+  let tooltipsEnabled = true
   let tooltip = null
   let tooltipWidth = 320
   let tooltipHeight = 96
@@ -294,7 +306,19 @@
     "tons",
     "wars"
   ])
-  const sideColors = { 1: "#2f7f66", 2: "#b54f72", 3: "#5f70b8", null: "#71717a", undefined: "#71717a" }
+  $: sideColors = {
+    1: paletteColors.side1 || "var(--data-color-1)",
+    2: paletteColors.side2 || "var(--data-color-2)",
+    3: paletteColors.side3 || "var(--data-color-3)",
+    null: paletteColors.neutral || "var(--data-neutral)",
+    undefined: paletteColors.neutral || "var(--data-neutral)"
+  }
+
+  function nodeTextColor(side) {
+    return paletteColors.surface && !sideColors[side].startsWith("var(")
+      ? getContrastingTextColor(sideColors[side], paletteColors.surface)
+      : "var(--ui-text)"
+  }
 
   $: if (viewportWidth !== lastViewportWidthForHeight) {
     lastViewportWidthForHeight = viewportWidth
@@ -458,30 +482,16 @@
   function dateDays(startDate, endDate) {
     let start = new Date(`${startDate}T00:00:00`)
     let end = endDate ? new Date(`${endDate}T00:00:00`) : new Date()
+
+    if (!endDate) end.setHours(0, 0, 0, 0)
+
     let days = Math.round((end - start) / 86400000) + 1
 
     return Number.isFinite(days) ? Math.max(1, days) : null
   }
 
   function nodeDescriptorNumericValue(node, field) {
-    if (field == "days_at_war") {
-      let totalDays = dateDays(node.start_date, Number(node.ongoing_war) == 1 ? null : node.end_date)
-
-      return totalDays == null ? null : totalDays - (numberValue(descriptorValue(node, "days_not_at_war")) ?? 0)
-    }
-
     if (field == "battle_deaths") return numberValue(node.battle_deaths)
-
-    if (field == "battle_deaths_per_day") {
-      let totalDays = dateDays(node.start_date, Number(node.ongoing_war) == 1 ? null : node.end_date)
-      let daysAtWar =
-        totalDays == null ? null : totalDays - (numberValue(descriptorValue(node, "days_not_at_war")) ?? 0)
-      let battleDeaths = numberValue(descriptorValue(node, "battle_deaths")) ?? numberValue(node.battle_deaths)
-
-      return Number.isFinite(daysAtWar) && battleDeaths != null
-        ? Math.round((battleDeaths / daysAtWar) * 100) / 100
-        : null
-    }
 
     return numberValue(descriptorValue(node, field))
   }
@@ -578,22 +588,16 @@
       let battleDeaths = numberValue(node.battle_deaths)
       let battleDeathsPerDay =
         Number.isFinite(daysAtWar) && battleDeaths != null ? Math.round((battleDeaths / daysAtWar) * 100) / 100 : null
-      let allYearMetrics = {
-        ...(node.metrics?.all_years || {}),
+      let derivedMetrics = {
         battle_deaths: battleDeaths,
-        days_at_war: daysAtWar,
-        battle_deaths_per_day: battleDeathsPerDay
+        battle_deaths_per_day: battleDeathsPerDay,
+        days_at_war: daysAtWar
       }
 
       return {
         ...node,
-        metrics: { ...(node.metrics || {}), all_years: allYearMetrics },
-        all_years: {
-          ...(node.all_years || {}),
-          battle_deaths: battleDeaths,
-          days_at_war: daysAtWar,
-          battle_deaths_per_day: battleDeathsPerDay
-        }
+        metrics: { ...(node.metrics || {}), all_years: { ...(node.metrics?.all_years || {}), ...derivedMetrics } },
+        all_years: { ...(node.all_years || {}), ...derivedMetrics }
       }
     })
   }
@@ -688,6 +692,19 @@
   function linkEndpointId(link, endpoint) {
     return typeof link[endpoint] == "object" ? link[endpoint].id : link[endpoint]
   }
+
+  $: activeNodeId = (dragNode || hoverNode)?.id ?? null
+  $: activeNetworkIds =
+    activeNodeId != null
+      ? new Set([
+          activeNodeId,
+          ...links
+            .filter(link => [linkEndpointId(link, "source"), linkEndpointId(link, "target")].includes(activeNodeId))
+            .flatMap(link => [linkEndpointId(link, "source"), linkEndpointId(link, "target")])
+        ])
+      : hoverLink
+        ? new Set([linkEndpointId(hoverLink, "source"), linkEndpointId(hoverLink, "target")])
+        : null
 
   function identifyPrimaryNode() {
     if (links.length <= 1) return null
@@ -820,6 +837,29 @@
     )
   }
 
+  function linkIsHighlighted(link, activeId, activeLink) {
+    return (
+      activeLink === link ||
+      (activeId != null && [linkEndpointId(link, "source"), linkEndpointId(link, "target")].includes(activeId))
+    )
+  }
+
+  function nodeDisplayColor(node, color, activeNetworkIds) {
+    return activeNetworkIds && !activeNetworkIds.has(node.id)
+      ? `color-mix(in srgb, ${color} 50%, var(--ui-surface))`
+      : color
+  }
+
+  function linkDisplayColor(link, color, activeNodeId, activeNetworkIds) {
+    if (!activeNetworkIds) return color
+
+    let endpointIds = [linkEndpointId(link, "source"), linkEndpointId(link, "target")]
+    let isOutsideActiveNetwork =
+      activeNodeId != null ? !endpointIds.includes(activeNodeId) : endpointIds.every(id => !activeNetworkIds.has(id))
+
+    return isOutsideActiveNetwork ? `color-mix(in srgb, ${color} 50%, var(--ui-surface))` : color
+  }
+
   function refreshGraph() {
     nodes = nodes
     links = links
@@ -928,31 +968,42 @@
   }
 
   function tooltipBounds() {
-    let rect = svg.parentElement.getBoundingClientRect()
-
-    return { width: rect.width || width, height: rect.height || graphLayout.height }
+    return { width: viewportWidth, height: viewportHeight }
   }
 
-  function clampTooltipCoordinates(x, y, bounds) {
+  function measureTooltip(element) {
+    function updateSize() {
+      let bounds = element.getBoundingClientRect()
+      tooltipWidth = bounds.width
+      tooltipHeight = bounds.height
+    }
+
+    let observer = new ResizeObserver(updateSize)
+    observer.observe(element)
+    updateSize()
+
+    return { destroy: () => observer.disconnect() }
+  }
+
+  function clampTooltipCoordinates(x, y, bounds, currentTooltipWidth, currentTooltipHeight) {
     return {
-      x: clampToBounds(tooltipPadding, bounds.width - tooltipWidth - tooltipPadding, x),
-      y: clampToBounds(tooltipPadding, bounds.height - tooltipHeight - tooltipPadding, y)
+      x: clampToBounds(tooltipPadding, bounds.width - currentTooltipWidth - tooltipPadding, x),
+      y: clampToBounds(tooltipPadding, bounds.height - currentTooltipHeight - tooltipPadding, y)
     }
   }
 
   function tooltipPoint(event) {
-    let rect = svg.parentElement.getBoundingClientRect()
-    let x = event.clientX - rect.left + tooltipOffset
-    let y = event.clientY - rect.top + tooltipOffset
+    let x = event.clientX + tooltipOffset
+    let y = event.clientY + tooltipOffset
 
-    return clampTooltipCoordinates(x, y, { width: rect.width || width, height: rect.height || graphLayout.height })
+    return clampTooltipCoordinates(x, y, tooltipBounds(), tooltipWidth, tooltipHeight)
   }
 
   function showTooltip(node, event) {
     if (dragNode) return
 
     hoverNode = node
-    tooltip = { node, ...tooltipPoint(event) }
+    tooltip = tooltipsEnabled ? { node, ...tooltipPoint(event) } : null
   }
 
   function clearTooltip() {
@@ -963,7 +1014,7 @@
   }
 
   function moveTooltip(event) {
-    if (hoverNode && !dragNode) {
+    if (tooltipsEnabled && hoverNode && !dragNode) {
       tooltip = { node: hoverNode, ...tooltipPoint(event) }
     }
   }
@@ -1044,6 +1095,7 @@
     linkNodes = []
     tooltip = null
     hoverNode = null
+    hoverLink = null
     dragNode = null
     currentSizingSignature = null
     currentLinkDescriptorSignature = null
@@ -1122,8 +1174,14 @@
     unknownNodeSizeCount > 0 &&
     unknownNodeSizeCount <= maxVisibleNodeSizeWarnings
   )
-  $: if (tooltip) {
-    let point = clampTooltipCoordinates(tooltip.x, tooltip.y, tooltipBounds())
+  $: if (tooltip && viewportWidth && viewportHeight) {
+    let point = clampTooltipCoordinates(
+      tooltip.x,
+      tooltip.y,
+      { width: viewportWidth, height: viewportHeight },
+      tooltipWidth,
+      tooltipHeight
+    )
 
     if (point.x != tooltip.x || point.y != tooltip.y) {
       tooltip = { ...tooltip, ...point }
@@ -1134,36 +1192,54 @@
     stopSimulation()
     clearTimeout(linkDashPulseTimer)
   })
+
+  onMount(() => (paletteColors = getCSSColors(paletteProperties, toolRoot)))
 </script>
 
 <svelte:window
   bind:innerWidth={viewportWidth}
   bind:innerHeight={viewportHeight}
+  on:palettechange={() => (paletteColors = getCSSColors(paletteProperties, toolRoot))}
   on:pointermove={drag}
   on:pointerup={endDrag}
 />
-<main class="relative flex h-full w-full flex-col items-center justify-center" data-svelte-lib-tooltip-root>
+<main
+  class="data-palette relative flex h-full w-full flex-col items-center justify-center"
+  data-svelte-lib-tooltip-root
+  bind:this={toolRoot}
+>
   <div class="box-border flex w-full flex-col gap-4 px-3 py-4 min-[1300px]:w-[70%] min-[1300px]:px-0 min-[1300px]:py-5">
     <section
       class="network-filter-panel grid min-w-0 gap-3 border border-solid border-chart-line bg-ui-surface p-3 min-[1300px]:p-4"
     >
-      <div>
-        <div class="mb-1 text-sm font-bold text-ui-text">War Types</div>
-        <div class="grid gap-x-2 text-sm">
-          {#each warTypeItems as warTypeItem (warTypeItem.value)}
-            <CheckboxFilter
-              labelClasses="mb-0 font-normal"
-              label={warTypeItem.label}
-              value={warTypeItem.value}
-              selection={selectedWarTypes}
-              deselection={deselectedWarTypes}
-              on:update={({ detail }) => {
-                selectedWarTypes = detail.selection
-                deselectedWarTypes = detail.deselection
-              }}
-            />
-          {/each}
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <div class="mb-1 text-sm font-bold text-ui-text">War Types</div>
+          <div class="grid gap-x-2 text-sm">
+            {#each warTypeItems as warTypeItem (warTypeItem.value)}
+              <CheckboxFilter
+                labelClasses="mb-0 font-normal"
+                label={warTypeItem.label}
+                value={warTypeItem.value}
+                selection={selectedWarTypes}
+                deselection={deselectedWarTypes}
+                on:update={({ detail }) => {
+                  selectedWarTypes = detail.selection
+                  deselectedWarTypes = detail.deselection
+                }}
+              />
+            {/each}
+          </div>
         </div>
+        <Toggle
+          checked={tooltipsEnabled}
+          label="Tooltips"
+          labelClasses="font-bold text-ui-text"
+          on:change={({ detail }) => {
+            tooltipsEnabled = detail.checked
+            if (!tooltipsEnabled) tooltip = null
+          }}
+        />
       </div>
       <div>
         <div class={controlLabelClasses}>
@@ -1199,9 +1275,13 @@
       </div>
     </section>
     <div class="relative w-full overflow-x-auto overflow-y-hidden border border-solid border-chart-line">
-      <section class="bg-[#fbfcf9]">
+      <section class="bg-ui-surface">
         <div class="flex flex-col gap-4 border-b border-chart-line bg-ui-surface px-4 py-3">
           {#if selectedWar}
+            {@const selectedWarDays = dateDays(
+              selectedWar.start_date,
+              selectedWar.ongoing_war ? null : selectedWar.end_date
+            )}
             <div class="min-w-0 text-center text-sm">
               <div
                 class="max-w-full break-words text-sm font-extrabold leading-snug min-[1300px]:text-base min-[1300px]:leading-normal"
@@ -1210,9 +1290,9 @@
               </div>
               <div class="mt-1 grid min-w-0 gap-1 font-semibold text-ui-text min-[1300px]:grid-cols-3">
                 <div class="min-[1300px]:col-start-2 min-[1300px]:row-start-1 min-[1300px]:text-center">
-                  {selectedWar.start_year}–{selectedWar.ongoing_war ? "Present" : selectedWar.end_year}
-                  {#if selectedWar.total_days_in_war != null}
-                    ({Number(selectedWar.total_days_in_war).toLocaleString()} Days)
+                  {selectedWar.start_year}{#if selectedWar.ongoing_war}–Present{:else if selectedWar.end_year != selectedWar.start_year}–{selectedWar.end_year}{/if}
+                  {#if selectedWarDays != null}
+                    ({plural(selectedWarDays, "Day")})
                   {/if}
                   <br class="min-[1300px]:hidden" />
                   <br class="min-[1300px]:hidden" />
@@ -1297,28 +1377,54 @@
               on:pointermove={moveTooltip}
               on:pointerleave={clearTooltip}
             >
-              <rect {width} height={graphLayout.height} fill="#fbfcf9" />
+              <rect class="fill-ui-surface" {width} height={graphLayout.height} />
               <g>
-                {#each links as link, i (i)}
+                {#each links as link}
                   <line
                     x1={linkX(link, "source")}
                     y1={linkY(link, "source")}
                     x2={linkX(link, "target")}
                     y2={linkY(link, "target")}
-                    stroke="#8a948f"
-                    stroke-opacity={0.45}
-                    stroke-width={1}
+                    stroke="transparent"
+                    stroke-width={12}
+                    on:pointerenter={() => (hoverLink = link)}
+                    on:pointerleave={() => (hoverLink = null)}
                   />
                   <line
                     x1={linkX(link, "source")}
                     y1={linkY(link, "source")}
                     x2={linkX(link, "target")}
                     y2={linkY(link, "target")}
-                    stroke={linkHasDescriptor(link) ? "blue" : "transparent"}
-                    stroke-opacity={0.9}
+                    stroke={linkDisplayColor(
+                      link,
+                      linkIsHighlighted(link, activeNodeId, hoverLink)
+                        ? "var(--chart-line)"
+                        : "var(--chart-line-subtle)",
+                      activeNodeId,
+                      activeNetworkIds
+                    )}
+                    stroke-width={1}
+                    pointer-events="none"
+                  />
+                  <line
+                    x1={linkX(link, "source")}
+                    y1={linkY(link, "source")}
+                    x2={linkX(link, "target")}
+                    y2={linkY(link, "target")}
+                    stroke={linkHasDescriptor(link)
+                      ? linkDisplayColor(
+                          link,
+                          linkIsHighlighted(link, activeNodeId, hoverLink)
+                            ? "var(--chart-line)"
+                            : "var(--data-color-3)",
+                          activeNodeId,
+                          activeNetworkIds
+                        )
+                      : "transparent"}
                     stroke-width={linkDashStrokeWidth}
                     stroke-dasharray="2.5 15"
                     stroke-dashoffset={-7.5}
+                    pointer-events="none"
                     style="transition: stroke-width 1000ms ease 50ms, stroke 1000ms ease 50ms;"
                   />
                 {/each}
@@ -1336,11 +1442,17 @@
                     on:pointerleave={clearTooltip}
                   >
                     <circle
-                      class="stroke-chart-line"
                       r={nodeRadius(node)}
-                      fill={sideColors[node.side]}
                       stroke-width={hoverNode?.id == node.id ? nodeStrokeWidth + 0.75 : nodeStrokeWidth}
-                      style="transition: r 3000ms ease 500ms, stroke-width 150ms ease;"
+                      style="fill: {nodeDisplayColor(
+                        node,
+                        sideColors[node.side],
+                        activeNetworkIds
+                      )}; stroke: {nodeDisplayColor(
+                        node,
+                        'var(--chart-line)',
+                        activeNetworkIds
+                      )}; transition: r 3000ms ease 500ms, stroke-width 150ms ease;"
                     />
                     <g
                       style="transform: translate({label.x}px, {label.y}px); transition: transform 2000ms ease 1500ms;"
@@ -1348,11 +1460,14 @@
                       <text
                         class="text-[12px] font-bold"
                         text-anchor={label.anchor}
-                        fill={label.inside ? "white" : "var(--ui-text, #33413f)"}
-                        stroke={label.inside ? "none" : "white"}
+                        stroke={label.inside ? "none" : "var(--ui-surface, #ffffff)"}
                         stroke-width={label.inside ? 0 : 3}
                         paint-order="stroke"
-                        style="transition: fill 2000ms ease 1500ms;"
+                        style="fill: {nodeDisplayColor(
+                          node,
+                          label.inside ? nodeTextColor(node.side) : 'var(--ui-text, #33413f)',
+                          activeNetworkIds
+                        )};"
                       >
                         {node.participant}
                       </text>
@@ -1366,10 +1481,10 @@
                           class="text-[10px] font-extrabold"
                           text-anchor="middle"
                           dominant-baseline="central"
-                          fill="var(--ui-text, #33413f)"
-                          stroke="white"
+                          stroke="var(--ui-surface, #ffffff)"
                           stroke-width={2.5}
                           paint-order="stroke"
+                          style="fill: {nodeDisplayColor(node, 'var(--ui-text, #33413f)', activeNetworkIds)};"
                         >
                           ?
                         </text>
@@ -1382,10 +1497,9 @@
             {#if tooltip}
               {@const metricRows = nodeMetricRows(tooltip.node)}
               <div
-                class="pointer-events-none absolute z-20 max-w-sm border border-solid border-ui-border bg-ui-surface px-3 py-2 text-xs text-ui-text shadow-sm"
-                style="left: {tooltip.x}px; top: {tooltip.y}px;"
-                bind:clientWidth={tooltipWidth}
-                bind:clientHeight={tooltipHeight}
+                class="pointer-events-none fixed z-50 w-max max-w-sm overflow-y-auto rounded border border-solid border-ui-border bg-ui-surface p-3 text-sm text-ui-text shadow-[1px_1px_1px_var(--ui-border)]"
+                style="left: {tooltip.x}px; top: {tooltip.y}px; max-height: calc(100vh - {tooltipPadding * 2}px);"
+                use:measureTooltip
               >
                 <div class="text-sm font-extrabold">{tooltip.node.participant}</div>
                 <div class="mt-1 space-y-0.5 text-ui-text">
@@ -1399,7 +1513,7 @@
                       ? "Ongoing"
                       : displayDate(tooltip.node.end_date, tooltip.node.end_date_estimated)}
                   </div>
-                  <div class="mb-2">
+                  <div>
                     <span class={tooltipLabelClasses}>Days At War:</span>
                     {displayMetricNumber(tooltip.node.metrics?.all_years?.days_at_war, "days_at_war")}
                   </div>
@@ -1434,3 +1548,12 @@
     </div>
   </div>
 </main>
+
+<style>
+  .data-palette {
+    --data-color-1: oklch(from var(--data-palette-reference) 65% 0.14 calc(h + 90));
+    --data-color-2: oklch(from var(--data-palette-reference) 65% 0.14 calc(h + 180));
+    --data-color-3: oklch(from var(--data-palette-reference) 65% 0.14 calc(h + 270));
+    --data-neutral: color-mix(in srgb, var(--ui-text) 70%, var(--ui-surface));
+  }
+</style>

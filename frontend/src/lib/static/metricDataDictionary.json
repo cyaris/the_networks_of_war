@@ -249,7 +249,7 @@
       "unit": "days",
       "valueSuffix": "days",
       "source": "Calculated from this project's participant start and end dates",
-      "calculation": "Counts the inclusive number of days the participant is active in the war. For ongoing wars, the current date is used as the temporary end date."
+      "calculation": "Counts the start and end dates inclusively, so a participant whose war begins and ends on the same date has one day at war. For ongoing wars, the current date is used as the temporary end date."
     },
     "battle_deaths": {
       "label": "Battle Deaths",

@@ -112,14 +112,13 @@ The backend build runs three ordered steps:
 ### Frontend
 
 - The Svelte frontend lives in `frontend/`.
-- The frontend provides a routed Svelte network analysis tool backed by the Step 3 graph export.
+- The frontend renders a routed Svelte network analysis tool backed by the Step 3 graph export.
 - In Vite development, routes are mirrored for the local root and the simulated GitHub Pages base:
   - `/` and `/the_networks_of_war` render the menu.
   - `/tool` and `/the_networks_of_war/tool` render the network analysis tool.
 - The pipeline writes generated frontend data to `frontend/src/lib/static/graphData.json`.
   - The export query lives at `backend/src/sql/step_3/04_export_frontend_graph_data.sql`.
-  - TODO: Replace the current committed `graphData.json` CI unblock with a cleaner generated-data path, such as a
-    release asset, S3/R2 download, Git LFS, or a CI prebuild step that can reliably recreate the file from source data.
+  - The repository commits that JSON so clean GitHub Actions checkouts can build the Rollup bundle.
 - Generated graph rows keep two metric layers:
   - Top-level timeframe fields hold descriptor values that can appear in node-size or link-style controls.
   - Each node's `metrics` object holds participant metric values for tooltips, including fields that are not eligible
@@ -368,10 +367,8 @@ same timeframe keys as top-level JSON properties on each node or link:
 
 ## Metric And Descriptor Notes
 
-Link descriptor:
-
-- `shared_arms_technology`: link-dash descriptor equal to `1` when both countries in a dyad used at least one of the
-  same COW arms technologies in the descriptor year.
+The link descriptor `shared_arms_technology` drives link dashing and equals `1` when both countries in a dyad used at
+least one of the same COW arms technologies in the descriptor year.
 
 Recalculated source metrics:
 
@@ -404,6 +401,10 @@ Node tooltip behavior:
 
 - Tooltips show participant start date, end date, days at war, and every non-null participant metric present for the
   selected timeframe.
+- The Tooltips toggle enables tooltips by default and can hide them without disabling graph hover emphasis.
+- Tooltips can extend beyond the chart and stay within the browser viewport padding.
+- Days at war includes both the start and end dates, so a participant whose war begins and ends on the same date has one
+  day at war. Ongoing-war durations use the current date as the temporary end date.
 - Estimated values are labeled with `(estimated)`:
   - Start dates are labeled when `start_date_estimated = 1`.
   - End dates are labeled when `end_date_estimated = 1`.
@@ -772,13 +773,13 @@ behavior, inputs, and secrets.
 
 ### `.github/workflows/auto-create-dev-pr.yml`
 
-The `Auto-create dev pull request` workflow runs on pushes to `dev` and calls the
+Runs on pushes to `dev` and calls the
 [shared auto-create-dev-pr workflow](https://github.com/cyaris/shared-automation#githubworkflowsauto-create-dev-pryml).
 
 ### `.github/workflows/rollup.yml`
 
-The `Rollup` workflow calls the
-[shared rollup workflow](https://github.com/cyaris/shared-automation#githubworkflowsrollupyml) with these local details:
+Calls the [shared rollup workflow](https://github.com/cyaris/shared-automation#githubworkflowsrollupyml) with these
+local details:
 
 - triggers: pushes to `dev` and `master`, plus manual dispatch
 - working directory: `frontend`
@@ -789,8 +790,7 @@ The `Rollup` workflow calls the
 
 ### `.github/workflows/upstream-watch.yml`
 
-The `Upstream Watch` workflow runs daily at 12:53 UTC, 30 minutes before the `cyaris.github.io` Pages build, and on
-manual dispatch, then calls the
+Runs daily at 12:53 UTC, 30 minutes before the `cyaris.github.io` Pages build, and on manual dispatch, then calls the
 [shared upstream-watch workflow](https://github.com/cyaris/shared-automation#githubworkflowsupstream-watchyml). It
 watches `svelte-lib`'s `dev` and `main` branch commits independently. When either branch moves, it dispatches this
 repository's `Rollup` workflow on the matching `dev` or `master` branch so staged and production bundles pick up the
@@ -798,14 +798,15 @@ corresponding upstream code without waiting for a push here.
 
 ### `.github/workflows/auto-release.yml`
 
-The `Auto release` workflow runs from manual dispatch only and calls the
+Runs from manual dispatch only and calls the
 [shared auto-release workflow](https://github.com/cyaris/shared-automation#githubworkflowsauto-releaseyml). This
 repository contributes `.github/release-policy.yml` overrides; manual runs read the shared release policy from `main`.
-Release creation or existing-release updates require reviewing the generated plan and explicitly enabling publication for
-an approved run.
+Release creation or existing-release updates require reviewing the generated plan and explicitly enabling publication
+for an approved run.
 
 ### `.github/workflows/workflow-validation.yml`
 
-The `Workflow validation` workflow runs on local workflow and automation configuration changes, then calls the
+Runs on `dev` and `master` pushes that change `.github/release-policy.yml`, `.github/workflows/**`, or `renovate.json`,
+and on manual dispatch, then calls the
 [shared workflow-validation workflow](https://github.com/cyaris/shared-automation#githubworkflowsworkflow-validationyml)
 to validate rollup upload wrapper logic, release-policy configuration, and Renovate configuration.
