@@ -5,6 +5,11 @@
 - Inherit README and Markdown style, GitHub Actions, reusable workflow wrapper, release policy, dispatch, pull-request
   review, workflow failure, commit, and release-management rules from `../shared-automation/AGENTS.md`.
 
+## Data Generation
+
+- Regenerate and commit `frontend/src/lib/static/graphData.json` after changing the backend pipeline, its SQL, or
+  source data under `backend/data/`.
+
 ## Documentation And Data Semantics
 
 - Keep README pipeline commands aligned with `backend/src/pipeline.py` CLI behavior. Keep frontend build-artifact notes
