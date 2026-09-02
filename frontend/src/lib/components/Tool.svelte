@@ -12,16 +12,15 @@
   let wars = graphData.wars
   let graphsByWarId = graphData.graphsByWarId
   let toolRoot
-  let dataPaletteColors = []
+  let paletteColors = {}
 
-  const dataPaletteProperties = [
-    "--data-color-1",
-    "--data-color-2",
-    "--data-color-3",
-    "--data-color-4",
-    "--data-neutral",
-    "--ui-surface"
-  ]
+  const paletteProperties = {
+    neutral: "--data-neutral",
+    side1: "--data-color-1",
+    side2: "--data-color-2",
+    side3: "--data-color-3",
+    surface: "--ui-surface"
+  }
 
   const timeframeItems = [
     { value: "first_year", label: "First Year" },
@@ -308,16 +307,16 @@
     "wars"
   ])
   $: sideColors = {
-    1: dataPaletteColors[0] || "var(--data-color-1)",
-    2: dataPaletteColors[1] || "var(--data-color-2)",
-    3: dataPaletteColors[2] || "var(--data-color-3)",
-    null: dataPaletteColors[4] || "var(--data-neutral)",
-    undefined: dataPaletteColors[4] || "var(--data-neutral)"
+    1: paletteColors.side1 || "var(--data-color-1)",
+    2: paletteColors.side2 || "var(--data-color-2)",
+    3: paletteColors.side3 || "var(--data-color-3)",
+    null: paletteColors.neutral || "var(--data-neutral)",
+    undefined: paletteColors.neutral || "var(--data-neutral)"
   }
 
   function nodeTextColor(side) {
-    return dataPaletteColors[5] && !sideColors[side].startsWith("var(")
-      ? getContrastingTextColor(sideColors[side], dataPaletteColors[5])
+    return paletteColors.surface && !sideColors[side].startsWith("var(")
+      ? getContrastingTextColor(sideColors[side], paletteColors.surface)
       : "var(--ui-text)"
   }
 
@@ -589,22 +588,16 @@
       let battleDeaths = numberValue(node.battle_deaths)
       let battleDeathsPerDay =
         Number.isFinite(daysAtWar) && battleDeaths != null ? Math.round((battleDeaths / daysAtWar) * 100) / 100 : null
-      let allYearMetrics = {
-        ...(node.metrics?.all_years || {}),
+      let derivedMetrics = {
         battle_deaths: battleDeaths,
-        days_at_war: daysAtWar,
-        battle_deaths_per_day: battleDeathsPerDay
+        battle_deaths_per_day: battleDeathsPerDay,
+        days_at_war: daysAtWar
       }
 
       return {
         ...node,
-        metrics: { ...(node.metrics || {}), all_years: allYearMetrics },
-        all_years: {
-          ...(node.all_years || {}),
-          battle_deaths: battleDeaths,
-          days_at_war: daysAtWar,
-          battle_deaths_per_day: battleDeathsPerDay
-        }
+        metrics: { ...(node.metrics || {}), all_years: { ...(node.metrics?.all_years || {}), ...derivedMetrics } },
+        all_years: { ...(node.all_years || {}), ...derivedMetrics }
       }
     })
   }
@@ -1200,13 +1193,13 @@
     clearTimeout(linkDashPulseTimer)
   })
 
-  onMount(() => (dataPaletteColors = getCSSColors(dataPaletteProperties, toolRoot)))
+  onMount(() => (paletteColors = getCSSColors(paletteProperties, toolRoot)))
 </script>
 
 <svelte:window
   bind:innerWidth={viewportWidth}
   bind:innerHeight={viewportHeight}
-  on:palettechange={() => (dataPaletteColors = getCSSColors(dataPaletteProperties, toolRoot))}
+  on:palettechange={() => (paletteColors = getCSSColors(paletteProperties, toolRoot))}
   on:pointermove={drag}
   on:pointerup={endDrag}
 />
@@ -1561,7 +1554,6 @@
     --data-color-1: oklch(from var(--data-palette-reference) 65% 0.14 calc(h + 90));
     --data-color-2: oklch(from var(--data-palette-reference) 65% 0.14 calc(h + 180));
     --data-color-3: oklch(from var(--data-palette-reference) 65% 0.14 calc(h + 270));
-    --data-color-4: oklch(from var(--data-palette-reference) 65% 0.14 h);
     --data-neutral: color-mix(in srgb, var(--ui-text) 70%, var(--ui-surface));
   }
 </style>
