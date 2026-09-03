@@ -1057,13 +1057,6 @@
     }
   }
 
-  function moveTooltip(event) {
-    if (tooltipsEnabled && hoverNode && !dragNode && !tooltipPinned) {
-      keepTooltipOpen()
-      tooltip = { node: hoverNode, ...tooltipPoint(event) }
-    }
-  }
-
   function startDrag(node, event) {
     event.preventDefault()
     event.stopPropagation()
@@ -1435,7 +1428,6 @@
               viewBox="0 0 {width} {graphLayout.height}"
               role="img"
               bind:this={svg}
-              on:pointermove={moveTooltip}
               on:pointerleave={clearTooltip}
             >
               <rect class="fill-ui-surface" {width} height={graphLayout.height} />
@@ -1499,7 +1491,6 @@
                     transform="translate({getXAdjusted(node.id, node.x)}, {getYAdjusted(node.id, node.y)})"
                     on:pointerdown={event => startDrag(node, event)}
                     on:pointerenter={event => showTooltip(node, event)}
-                    on:pointermove={event => showTooltip(node, event)}
                     on:pointerleave={clearTooltip}
                   >
                     <circle
