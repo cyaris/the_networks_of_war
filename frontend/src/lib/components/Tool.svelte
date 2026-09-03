@@ -235,6 +235,7 @@
   let tooltipPinned = false
   let tooltipWidth = 320
   let tooltipHeight = 96
+  let tooltipHideTimer = null
   let dragStart = null
   let currentGraph = null
   let currentSizingSignature = null
@@ -277,6 +278,7 @@
   const addedMarginSize = Math.max(linkNodeSize, 10)
   const tooltipOffset = 16
   const tooltipPadding = 8
+  const tooltipHideDelay = 100
   const tapMovementLimit = 10
   const compactNumberUnits = [
     { value: 1_000_000_000_000, label: "trillion" },
@@ -996,16 +998,14 @@
 
   // Keep the tooltip inside the viewport and below the graph so it never covers the filter controls.
   function tooltipPlacement(x, y) {
-    let top = clampToBounds(
-      tooltipPadding,
-      viewportHeight / 2,
-      graphContainer?.getBoundingClientRect().top ?? tooltipPadding
-    )
+    let top = Math.max(tooltipPadding, graphContainer?.getBoundingClientRect().top ?? tooltipPadding)
+    let maxHeight = Math.max(1, viewportHeight - top - tooltipPadding)
+    let visibleTooltipHeight = Math.min(tooltipHeight, maxHeight)
 
     return {
       x: clampToBounds(tooltipPadding, viewportWidth - tooltipWidth - tooltipPadding, x),
-      y: clampToBounds(top, viewportHeight - tooltipHeight - tooltipPadding, y),
-      maxHeight: viewportHeight - top - tooltipPadding
+      y: clampToBounds(top, viewportHeight - visibleTooltipHeight - tooltipPadding, y),
+      maxHeight
     }
   }
 
@@ -1022,12 +1022,14 @@
   function showTooltip(node, event) {
     if (dragNode || event.pointerType == "touch") return
 
+    clearTimeout(tooltipHideTimer)
     tooltipPinned = false
     hoverNode = node
     tooltip = tooltipsEnabled ? { node, ...tooltipPoint(event) } : null
   }
 
   function unpinTooltip() {
+    clearTimeout(tooltipHideTimer)
     tooltipPinned = false
     hoverNode = null
     tooltip = null
@@ -1039,13 +1041,25 @@
 
   function clearTooltip() {
     if (!dragNode && !tooltipPinned) {
-      hoverNode = null
-      tooltip = null
+      clearTimeout(tooltipHideTimer)
+      tooltipHideTimer = setTimeout(() => {
+        tooltipHideTimer = null
+        hoverNode = null
+        tooltip = null
+      }, tooltipHideDelay)
+    }
+  }
+
+  function keepTooltipOpen() {
+    if (!tooltipPinned) {
+      clearTimeout(tooltipHideTimer)
+      tooltipHideTimer = null
     }
   }
 
   function moveTooltip(event) {
     if (tooltipsEnabled && hoverNode && !dragNode && !tooltipPinned) {
+      keepTooltipOpen()
       tooltip = { node: hoverNode, ...tooltipPoint(event) }
     }
   }
@@ -1053,6 +1067,8 @@
   function startDrag(node, event) {
     event.preventDefault()
     event.stopPropagation()
+    clearTimeout(tooltipHideTimer)
+    tooltipHideTimer = null
     dragStart = { pointerType: event.pointerType, x: event.clientX, y: event.clientY }
     dragNode = node
     hoverNode = null
@@ -1233,6 +1249,7 @@
   onDestroy(() => {
     stopSimulation()
     clearTimeout(linkDashPulseTimer)
+    clearTimeout(tooltipHideTimer)
   })
 
   onMount(() => {
@@ -1543,10 +1560,12 @@
               <div
                 class="fixed z-50 w-max max-w-sm overflow-y-auto rounded border border-solid border-ui-border bg-ui-surface p-3 text-sm text-ui-text shadow-[1px_1px_1px_var(--ui-border)] {tooltipPinned
                   ? 'touch-pan-y overscroll-contain'
-                  : 'pointer-events-none'}"
+                  : ''}"
                 style="left: {tooltip.x}px; top: {tooltip.y}px; max-height: {tooltip.maxHeight}px;"
                 bind:this={tooltipElement}
                 use:measureTooltip
+                on:pointerenter={keepTooltipOpen}
+                on:pointerleave={clearTooltip}
               >
                 <div class="flex items-start justify-between gap-3">
                   <div class="text-sm font-extrabold">{tooltip.node.participant}</div>
