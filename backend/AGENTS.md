@@ -1,13 +1,5 @@
 # Backend Guidance
 
-## Backend Python
-
-- Format Python from `backend` with the repository's Black and isort settings. Remove a trailing comma when it only
-  forces an otherwise fitting expression to remain multiline; keep it when syntax requires it or the formatter restores
-  it.
-- Prefer guard-clause early exits with bare `return` when ending a no-op path improves readability. Do not write `return None`; use bare `return` for early no-value exits, and omit blank `return` statements at the natural end of a function.
-- When backend code directly imports a runtime package, declare that package explicitly in `backend/pyproject.toml` rather than relying on transitive dependencies.
-
 ## Pipeline Structure
 
 - Keep transformations as native DuckDB SQL in `.sql` files instead of embedding transformation SQL or Python transformation functions in pipeline code.
