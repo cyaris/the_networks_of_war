@@ -231,8 +231,11 @@
   let dragNode = null
   let tooltipsEnabled = true
   let tooltip = null
+  let tooltipElement = null
+  let tooltipPinned = false
   let tooltipWidth = 320
   let tooltipHeight = 96
+  let dragStart = null
   let currentGraph = null
   let currentSizingSignature = null
   let currentLinkDescriptorSignature = null
@@ -274,6 +277,7 @@
   const addedMarginSize = Math.max(linkNodeSize, 10)
   const tooltipOffset = 16
   const tooltipPadding = 8
+  const tapMovementLimit = 10
   const compactNumberUnits = [
     { value: 1_000_000_000_000, label: "trillion" },
     { value: 1_000_000_000, label: "billion" },
@@ -976,10 +980,6 @@
     width = graphContainer?.clientWidth || width
   }
 
-  function tooltipBounds() {
-    return { width: viewportWidth, height: viewportHeight }
-  }
-
   function measureTooltip(element) {
     function updateSize() {
       let bounds = element.getBoundingClientRect()
@@ -994,36 +994,58 @@
     return { destroy: () => observer.disconnect() }
   }
 
-  function clampTooltipCoordinates(x, y, bounds, currentTooltipWidth, currentTooltipHeight) {
+  // Keep the tooltip inside the viewport and below the graph so it never covers the filter controls.
+  function tooltipPlacement(x, y) {
+    let top = clampToBounds(
+      tooltipPadding,
+      viewportHeight / 2,
+      graphContainer?.getBoundingClientRect().top ?? tooltipPadding
+    )
+
     return {
-      x: clampToBounds(tooltipPadding, bounds.width - currentTooltipWidth - tooltipPadding, x),
-      y: clampToBounds(tooltipPadding, bounds.height - currentTooltipHeight - tooltipPadding, y)
+      x: clampToBounds(tooltipPadding, viewportWidth - tooltipWidth - tooltipPadding, x),
+      y: clampToBounds(top, viewportHeight - tooltipHeight - tooltipPadding, y),
+      maxHeight: viewportHeight - top - tooltipPadding
     }
   }
 
   function tooltipPoint(event) {
-    let x = event.clientX + tooltipOffset
-    let y = event.clientY + tooltipOffset
+    // Keep a tapped tooltip clear of the finger by flipping it above a touch in the lower half.
+    let y =
+      event.pointerType == "touch" && event.clientY > viewportHeight / 2
+        ? event.clientY - tooltipHeight - tooltipOffset
+        : event.clientY + tooltipOffset
 
-    return clampTooltipCoordinates(x, y, tooltipBounds(), tooltipWidth, tooltipHeight)
+    return tooltipPlacement(event.clientX + tooltipOffset, y)
   }
 
   function showTooltip(node, event) {
-    if (dragNode) return
+    if (dragNode || event.pointerType == "touch") return
 
+    tooltipPinned = false
     hoverNode = node
     tooltip = tooltipsEnabled ? { node, ...tooltipPoint(event) } : null
   }
 
+  function unpinTooltip() {
+    tooltipPinned = false
+    hoverNode = null
+    tooltip = null
+  }
+
+  function dismissTooltip(event) {
+    if (tooltipPinned && !tooltipElement?.contains(event.target)) unpinTooltip()
+  }
+
   function clearTooltip() {
-    if (!dragNode) {
+    if (!dragNode && !tooltipPinned) {
       hoverNode = null
       tooltip = null
     }
   }
 
   function moveTooltip(event) {
-    if (tooltipsEnabled && hoverNode && !dragNode) {
+    if (tooltipsEnabled && hoverNode && !dragNode && !tooltipPinned) {
       tooltip = { node: hoverNode, ...tooltipPoint(event) }
     }
   }
@@ -1031,9 +1053,11 @@
   function startDrag(node, event) {
     event.preventDefault()
     event.stopPropagation()
+    dragStart = { pointerType: event.pointerType, x: event.clientX, y: event.clientY }
     dragNode = node
     hoverNode = null
     tooltip = null
+    tooltipPinned = false
     let point = graphPoint(event)
     let adjustedPoint = { x: getXAdjusted(node.id, point.x), y: getYAdjusted(node.id, point.y) }
     node.fx = adjustedPoint.x
@@ -1058,14 +1082,27 @@
     refreshGraph()
   }
 
-  function endDrag() {
+  function endDrag(event) {
     if (!dragNode) return
+
+    let tappedNode =
+      dragStart?.pointerType == "touch" &&
+      Math.hypot(event.clientX - dragStart.x, event.clientY - dragStart.y) <= tapMovementLimit
+        ? dragNode
+        : null
 
     dragNode.fx = null
     dragNode.fy = null
     dragNode = null
+    dragStart = null
     hoverNode = null
     tooltip = null
+
+    if (tappedNode && tooltipsEnabled) {
+      tooltipPinned = true
+      hoverNode = tappedNode
+      tooltip = { node: tappedNode, ...tooltipPoint(event) }
+    }
 
     if (simulation) {
       simulation.alphaTarget(0)
@@ -1103,9 +1140,11 @@
     links = descriptorLinks.map(d => ({ ...d }))
     linkNodes = []
     tooltip = null
+    tooltipPinned = false
     hoverNode = null
     hoverLink = null
     dragNode = null
+    dragStart = null
     currentSizingSignature = null
     currentLinkDescriptorSignature = null
 
@@ -1184,16 +1223,10 @@
     unknownNodeSizeCount <= maxVisibleNodeSizeWarnings
   )
   $: if (tooltip && viewportWidth && viewportHeight) {
-    let point = clampTooltipCoordinates(
-      tooltip.x,
-      tooltip.y,
-      { width: viewportWidth, height: viewportHeight },
-      tooltipWidth,
-      tooltipHeight
-    )
+    let placement = tooltipPlacement(tooltip.x, tooltip.y)
 
-    if (point.x != tooltip.x || point.y != tooltip.y) {
-      tooltip = { ...tooltip, ...point }
+    if (placement.x != tooltip.x || placement.y != tooltip.y || placement.maxHeight != tooltip.maxHeight) {
+      tooltip = { ...tooltip, ...placement }
     }
   }
 
@@ -1210,6 +1243,7 @@
 
 <svelte:window
   on:palettechange={() => (paletteColors = getCSSColors(paletteProperties, toolRoot))}
+  on:pointerdown={dismissTooltip}
   on:pointermove={drag}
   on:pointerup={endDrag}
 />
@@ -1247,7 +1281,7 @@
           labelClasses="font-bold text-ui-text"
           on:change={({ detail }) => {
             tooltipsEnabled = detail.checked
-            if (!tooltipsEnabled) tooltip = null
+            if (!tooltipsEnabled) unpinTooltip()
           }}
         />
       </div>
@@ -1507,11 +1541,25 @@
             {#if tooltip}
               {@const metricRows = nodeMetricRows(tooltip.node)}
               <div
-                class="pointer-events-none fixed z-50 w-max max-w-sm overflow-y-auto rounded border border-solid border-ui-border bg-ui-surface p-3 text-sm text-ui-text shadow-[1px_1px_1px_var(--ui-border)]"
-                style="left: {tooltip.x}px; top: {tooltip.y}px; max-height: calc(100vh - {tooltipPadding * 2}px);"
+                class="fixed z-50 w-max max-w-sm overflow-y-auto rounded border border-solid border-ui-border bg-ui-surface p-3 text-sm text-ui-text shadow-[1px_1px_1px_var(--ui-border)] {tooltipPinned
+                  ? 'touch-pan-y overscroll-contain'
+                  : 'pointer-events-none'}"
+                style="left: {tooltip.x}px; top: {tooltip.y}px; max-height: {tooltip.maxHeight}px;"
+                bind:this={tooltipElement}
                 use:measureTooltip
               >
-                <div class="text-sm font-extrabold">{tooltip.node.participant}</div>
+                <div class="flex items-start justify-between gap-3">
+                  <div class="text-sm font-extrabold">{tooltip.node.participant}</div>
+                  {#if tooltipPinned}
+                    <button
+                      class="-mr-1 -mt-1 px-1 text-lg leading-none text-ui-muted"
+                      aria-label="Close tooltip"
+                      on:click={unpinTooltip}
+                    >
+                      &times;
+                    </button>
+                  {/if}
+                </div>
                 <div class="mt-1 space-y-0.5 text-ui-text">
                   <div>
                     <span class={tooltipLabelClasses}>Start Date:</span>
