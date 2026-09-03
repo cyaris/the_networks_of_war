@@ -4,7 +4,7 @@
   import pluralize from "pluralize"
   import { onDestroy, onMount } from "svelte"
   import { CheckboxFilter, InfoIcon, Select, Toggle } from "svelte-lib/components"
-  import { compareText, getContrastingTextColor, getCSSColors } from "svelte-lib/functions"
+  import { compareText, createZoomStableViewport, getContrastingTextColor, getCSSColors } from "svelte-lib/functions"
 
   import graphData from "../static/graphData.json"
   import dataDictionary from "../static/metricDataDictionary.json"
@@ -216,6 +216,8 @@
   let width = 900
   let viewportWidth = 900
   let viewportHeight = 700
+  let zoomStableViewport = createZoomStableViewport()
+  let graphContainer
   let stableViewportHeight = viewportHeight
   let lastViewportWidthForHeight = null
   let simulation
@@ -967,6 +969,15 @@
     }
   }
 
+  function syncLayoutSize() {
+    let viewport = zoomStableViewport.update()
+    if (viewport.zoomOnly) return
+
+    viewportWidth = viewport.width
+    viewportHeight = viewport.height
+    width = graphContainer?.clientWidth || width
+  }
+
   function tooltipBounds() {
     return { width: viewportWidth, height: viewportHeight }
   }
@@ -1193,12 +1204,23 @@
     clearTimeout(linkDashPulseTimer)
   })
 
-  onMount(() => (paletteColors = getCSSColors(paletteProperties, toolRoot)))
+  onMount(() => {
+    paletteColors = getCSSColors(paletteProperties, toolRoot)
+
+    let observer = new ResizeObserver(syncLayoutSize)
+    observer.observe(graphContainer)
+    syncLayoutSize()
+    window.visualViewport?.addEventListener("resize", syncLayoutSize)
+
+    return () => {
+      observer.disconnect()
+      window.visualViewport?.removeEventListener("resize", syncLayoutSize)
+    }
+  })
 </script>
 
 <svelte:window
-  bind:innerWidth={viewportWidth}
-  bind:innerHeight={viewportHeight}
+  on:resize={syncLayoutSize}
   on:palettechange={() => (paletteColors = getCSSColors(paletteProperties, toolRoot))}
   on:pointermove={drag}
   on:pointerup={endDrag}
@@ -1366,7 +1388,7 @@
             </div>
           {/if}
         </div>
-        <div class="relative min-w-0" style="min-width:{graphMinWidth}px;" bind:clientWidth={width}>
+        <div class="relative min-w-0" style="min-width:{graphMinWidth}px;" bind:this={graphContainer}>
           {#if nodes.length}
             <svg
               class="no-highlight block w-full touch-none"
