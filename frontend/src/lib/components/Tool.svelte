@@ -4,7 +4,7 @@
   import pluralize from "pluralize"
   import { onDestroy, onMount } from "svelte"
   import { CheckboxFilter, InfoIcon, Select, Toggle } from "svelte-lib/components"
-  import { compareText, createZoomStableViewport, getContrastingTextColor, getCSSColors } from "svelte-lib/functions"
+  import { compareText, getContrastingTextColor, getCSSColors, observeZoomStableViewport } from "svelte-lib/functions"
 
   import graphData from "../static/graphData.json"
   import dataDictionary from "../static/metricDataDictionary.json"
@@ -216,7 +216,6 @@
   let width = 900
   let viewportWidth = 900
   let viewportHeight = 700
-  let zoomStableViewport = createZoomStableViewport()
   let graphContainer
   let stableViewportHeight = viewportHeight
   let lastViewportWidthForHeight = null
@@ -969,8 +968,7 @@
     }
   }
 
-  function syncLayoutSize() {
-    let viewport = zoomStableViewport.update()
+  function syncLayoutSize(viewport) {
     if (viewport.zoomOnly) return
 
     viewportWidth = viewport.width
@@ -1206,21 +1204,11 @@
 
   onMount(() => {
     paletteColors = getCSSColors(paletteProperties, toolRoot)
-
-    let observer = new ResizeObserver(syncLayoutSize)
-    observer.observe(graphContainer)
-    syncLayoutSize()
-    window.visualViewport?.addEventListener("resize", syncLayoutSize)
-
-    return () => {
-      observer.disconnect()
-      window.visualViewport?.removeEventListener("resize", syncLayoutSize)
-    }
+    return observeZoomStableViewport(syncLayoutSize, { element: graphContainer })
   })
 </script>
 
 <svelte:window
-  on:resize={syncLayoutSize}
   on:palettechange={() => (paletteColors = getCSSColors(paletteProperties, toolRoot))}
   on:pointermove={drag}
   on:pointerup={endDrag}
