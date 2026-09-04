@@ -30,10 +30,6 @@
 - Do not preserve removed or renamed interfaces unless the user requests a migration bridge. Delete stale parameters,
   aliases, scripts, and docs so old callers fail clearly.
 
-## Notebooks
-
-- Do not edit `.ipynb` files unless the task explicitly includes notebook changes.
-
 ## Rollup Delivery
 
 - Project-specific Rollup inputs include the S3 prefix and bundle file list.
