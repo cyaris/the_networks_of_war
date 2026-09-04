@@ -7,9 +7,7 @@
   import Documentation from "../../routes/documentation/+page.svelte"
   import Tool from "../../routes/tool/+page.svelte"
 
-  let projectRouteBase = "/the_networks_of_war"
-
-  let shellPaths = createShellPaths(projectRouteBase)
+  let shellPaths = createShellPaths("/the_networks_of_war")
 
   let routes = [
     { paths: shellPaths(), component: Home },

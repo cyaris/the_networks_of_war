@@ -11,6 +11,7 @@
 
   let wars = graphData.wars
   let graphsByWarId = graphData.graphsByWarId
+
   let toolRoot
   let paletteColors = {}
 
@@ -39,6 +40,7 @@
     nodeDescriptor: "Choose a node size.",
     linkDescriptor: "Choose a link dash."
   }
+
   const metricDictionary = dataDictionary.metrics || {}
   const controlTooltips = dataDictionary.controls || {}
 
@@ -193,6 +195,7 @@
     })
     .sort((a, b) => compareText(a.label, b.label))
   let initialWarItems = wars.map(warItem)
+
   let selectItems = {
     country: [],
     war: initialWarItems,
@@ -209,9 +212,10 @@
   }
   let selectedWarTypes = warTypeItems.map(item => item.value)
   let deselectedWarTypes = []
+  let warManuallySelected = false
+
   let graph = { nodes: [], links: [] }
   let selectedWar = null
-  let warManuallySelected = false
 
   let width = 900
   let viewportWidth = 900
@@ -219,6 +223,7 @@
   let graphContainer
   let stableViewportHeight = viewportHeight
   let lastViewportWidthForHeight = null
+
   let simulation
   let svg
   let nodes = []
@@ -226,9 +231,12 @@
   let linkNodes = []
   let descriptorNodes = []
   let descriptorLinks = []
+
   let hoverNode = null
   let hoverLink = null
   let dragNode = null
+  let dragStart = null
+
   let tooltipsEnabled = true
   let tooltip = null
   let tooltipElement = null
@@ -236,12 +244,14 @@
   let tooltipWidth = 320
   let tooltipHeight = 96
   let tooltipHideTimer = null
-  let dragStart = null
+
   let currentGraph = null
   let currentSizingSignature = null
   let currentLinkDescriptorSignature = null
+
   let linkDashPulseTimer = null
   let linkDashStrokeWidth = 3
+
   let nodeSizingValues = []
   let nodeSizingById = {}
   let maxDomain = 2
@@ -265,17 +275,20 @@
   const dyadMinLinkDistance = 380
   const linkNodeSize = 2.5
   const nodeStrokeWidth = 1
-  const nodeSizeWarningOffset = 10
-  const nodeSizeWarningLabelGap = 14
-  const maxVisibleNodeSizeWarnings = 6
   const denseGraphReferenceSize = 40
   const graphMinWidth = 640
   const mobileGraphHeightScale = 0.63
+  const addedMarginSize = Math.max(linkNodeSize, 10)
+
+  const nodeSizeWarningOffset = 10
+  const nodeSizeWarningLabelGap = 14
+  const maxVisibleNodeSizeWarnings = 6
+
   const controlLabelClasses = "mb-1 flex items-center gap-2 text-sm font-bold text-ui-text"
   const summaryLabelClasses = "font-bold text-ui-text"
   const tooltipLabelClasses = "font-bold text-ui-text"
   const tooltipMetricLabelClasses = "font-semibold text-ui-text"
-  const addedMarginSize = Math.max(linkNodeSize, 10)
+
   const tooltipOffset = 16
   const tooltipPadding = 8
   const tooltipHideDelay = 100
@@ -287,6 +300,7 @@
   ]
   const compactNumberMinimum = 1_000_000
   const tooltipFractionDigits = 2
+
   const fixedFractionDigitMetricFields = new Set(["cinc_score"])
   const alwaysShowZeroMetricFields = new Set(["battle_deaths", "battle_deaths_per_day"])
   const metricSuffixOmittedByField = new Set([
