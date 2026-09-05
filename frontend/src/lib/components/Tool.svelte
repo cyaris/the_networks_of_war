@@ -9,6 +9,7 @@
   import Toggle from "svelte-lib/components/Toggle"
   import { getContrastingTextColor } from "svelte-lib/functions/color"
   import { getCSSColors, observeZoomStableViewport } from "svelte-lib/functions/dom"
+  import { clamp } from "svelte-lib/functions/math"
   import { compareText } from "svelte-lib/functions/textFormatting"
 
   import graphData from "../static/graphData.json"
@@ -691,28 +692,26 @@
     )
   }
 
-  function clampToBounds(min, max, value) {
-    if (min > max) return (min + max) / 2
-
-    return Math.max(min, Math.min(max, value))
-  }
-
   function getXAdjusted(id, xLoc) {
     if (id == primaryNode && nodes.length > 2) return graphLayout.centerX
 
     let horizontalMargin = nodeHorizontalBoundsMargin(id)
+    let maxX = width - horizontalMargin
 
-    return clampToBounds(horizontalMargin, width - horizontalMargin, xLoc ?? graphLayout.centerX)
+    if (horizontalMargin > maxX) return graphLayout.centerX
+
+    return clamp(xLoc ?? graphLayout.centerX, horizontalMargin, maxX)
   }
 
   function getYAdjusted(id, yLoc) {
     if (id == primaryNode && nodes.length > 2) return graphLayout.centerY
 
-    return clampToBounds(
-      nodeMargins.added_top_margin[id] ?? graphLayout.marginSize,
-      graphLayout.height - (nodeMargins.added_bottom_margin[id] ?? graphLayout.marginSize),
-      yLoc ?? graphLayout.centerY
-    )
+    let minY = nodeMargins.added_top_margin[id] ?? graphLayout.marginSize
+    let maxY = graphLayout.height - (nodeMargins.added_bottom_margin[id] ?? graphLayout.marginSize)
+
+    if (minY > maxY) return graphLayout.centerY
+
+    return clamp(yLoc ?? graphLayout.centerY, minY, maxY)
   }
 
   function linkEndpointId(link, endpoint) {
@@ -764,7 +763,8 @@
     let minLabelCenterX = graphLayout.marginSize + labelHalfWidth
     let maxLabelCenterX = width - graphLayout.marginSize - labelHalfWidth
 
-    labelCenterX = clampToBounds(minLabelCenterX, maxLabelCenterX, labelCenterX)
+    labelCenterX =
+      minLabelCenterX > maxLabelCenterX ? graphLayout.centerX : clamp(labelCenterX, minLabelCenterX, maxLabelCenterX)
 
     return labelCenterX - nodeX
   }
@@ -1020,10 +1020,12 @@
     let top = Math.max(tooltipPadding, graphContainer?.getBoundingClientRect().top ?? tooltipPadding)
     let maxHeight = Math.max(1, viewportHeight - top - tooltipPadding)
     let visibleTooltipHeight = Math.min(tooltipHeight, maxHeight)
+    let right = viewportWidth - tooltipWidth - tooltipPadding
+    let bottom = viewportHeight - visibleTooltipHeight - tooltipPadding
 
     return {
-      x: clampToBounds(tooltipPadding, viewportWidth - tooltipWidth - tooltipPadding, x),
-      y: clampToBounds(top, viewportHeight - visibleTooltipHeight - tooltipPadding, y),
+      x: tooltipPadding > right ? (tooltipPadding + right) / 2 : clamp(x, tooltipPadding, right),
+      y: top > bottom ? (top + bottom) / 2 : clamp(y, top, bottom),
       maxHeight
     }
   }
