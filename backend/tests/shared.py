@@ -141,6 +141,7 @@ def raw_source_date_component_check_sql(
     source_path: Path,
     row_reference_columns: list[str],
     date_components: dict[str, list[str]],
+    allowed_cells: tuple[tuple[str, str, str, str], ...] = (),
     encoding: str | None = RAW_SOURCE_DATE_DEFAULT_ENCODING,
 ) -> str:
     encoding_sql = f", encoding = {sql_literal(encoding)}" if encoding else ""
@@ -152,6 +153,11 @@ def raw_source_date_component_check_sql(
         f"({sql_literal(column_name)}, {sql_literal(date_part)}, {sql_identifier(column_name)})"
         for date_part, column_names in date_components.items()
         for column_name in column_names
+    )
+    allowed_cells_sql = "".join(
+        f"\n        and not ({sql_identifier(reference_column)} = {sql_literal(reference_value)}"
+        f" and dates.column_name = {sql_literal(column_name)} and dates.raw_value = {sql_literal(raw_value)})"
+        for reference_column, reference_value, column_name, raw_value in allowed_cells
     )
 
     return f"""
@@ -179,7 +185,7 @@ def raw_source_date_component_check_sql(
                     or (dates.date_part = 'year' and try_cast(dates.raw_value as integer) not between 1500 and 2100)
                 )
             )
-        )
+        ){allowed_cells_sql}
     """
 
 

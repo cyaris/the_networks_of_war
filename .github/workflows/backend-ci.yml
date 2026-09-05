@@ -1,0 +1,23 @@
+name: Backend CI
+
+on:
+  push:
+    branches:
+      - dev
+      - main
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  python-ci:
+    uses: cyaris/shared-automation/.github/workflows/python-ci.yml@dev
+    with:
+      working-directory: backend
+      pre-test-python-script: prepare_test_data.py
+      data-cache-path: data
+      data-cache-key: source-data-v1

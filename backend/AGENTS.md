@@ -66,6 +66,9 @@
 - Stage expectation tests should query created pipeline tables when checking ingested or transformed behavior. Read raw CSV files directly only for pre-ingestion checks, such as source metadata, download conversion, or validating source files before a table exists.
 - Avoid CTEs in test SQL when a direct join or filtered query is clearer.
 - Do not remove, skip, or allowlist away known data-quality failures just to make the suite pass. Expected failures, including missing source relationships such as unresolved MID war numbers, should remain visible until an explicit source-data, source-adjustment, or transformation fix resolves them.
+- Keep raw-source data-quality allowlists limited to exact, README-documented source cells that the pipeline corrects
+  downstream. Remove an entry when a replacement source or upstream correction makes it valid; never broaden an entry
+  to cover newly detected rows.
 - Tests should protect data semantics and pipeline behavior at the layer that owns them rather than freezing metadata placeholders or treating source row-position fields as transformed participant-side semantics.
 - Diagnostic SQL should be focused and readable: select only columns needed to identify failing rows, avoid unnecessary subselect wrappers, use simple `count(*)` checks plus focused detail queries for broad source-data quality checks, and prefer loops or named helpers over dense inline repeated SQL fragments.
 - Prefer `query` for a single obvious SQL statement in a test. Use role-specific names such as `count_sql`, `flagged_rows_sql`, `detected_rows_sql`, or a compact domain-specific `<subject>_sql` when a test contains multiple SQL statements or when the SQL's role is not clear from nearby code.

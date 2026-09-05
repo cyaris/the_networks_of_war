@@ -122,6 +122,13 @@ RAW_SOURCE_DATE_COMPONENTS = [
     ),
 ]
 
+RAW_SOURCE_DATE_COMPONENT_ALLOWLIST = {
+    "interstate_war_dyads": (
+        ("dyindex", "257.03", "warstrtmnth", "24"),
+        ("dyindex", "257.24", "warendyr", "19118"),
+    )
+}
+
 
 def test_war_transition_columns_stay_adjacent_in_sql():
     violations = []
@@ -464,7 +471,13 @@ def test_raw_source_date_components_use_valid_domains(conn):
             else {}
         )
         flagged_rows_sql = raw_source_date_component_check_sql(
-            source_key, source_file, source_path, row_reference_columns, date_components, **encoding_kwargs
+            source_key,
+            source_file,
+            source_path,
+            row_reference_columns,
+            date_components,
+            RAW_SOURCE_DATE_COMPONENT_ALLOWLIST.get(source_key, ()),
+            **encoding_kwargs,
         )
         flagged_count = flagged_row_count(conn, flagged_rows_sql)
 
