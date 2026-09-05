@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   python-ci:
-    uses: cyaris/shared-automation/.github/workflows/python-ci.yml@dev
+    uses: cyaris/shared-automation/.github/workflows/python-ci.yml@main
     with:
       working-directory: backend
       pre-test-python-script: prepare_test_data.py

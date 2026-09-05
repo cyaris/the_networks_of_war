@@ -775,9 +775,8 @@ behavior, inputs, and secrets.
 
 Runs Black, isort, and the complete backend pytest suite for backend changes. It prepares only missing source folders
 before the tests and caches `backend/data/` under the explicit `source-data-v1` cache version; increment that version
-when CI must discard and rebuild the prepared source-data cache. The wrapper temporarily follows shared automation's
-`dev` branch because the reusable Python workflow has not yet been promoted to `main`; move it to `main` after that
-upstream promotion.
+when CI must discard and rebuild the prepared source-data cache. The wrapper follows shared automation's `main` branch;
+it will remain unavailable until the reusable Python workflow is promoted there.
 
 ### `.github/workflows/auto-create-dev-pr.yml`
 
