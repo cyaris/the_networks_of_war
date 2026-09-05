@@ -3,14 +3,21 @@
   import { scaleLinear } from "d3-scale"
   import pluralize from "pluralize"
   import { onDestroy, onMount } from "svelte"
-  import { CheckboxFilter, InfoIcon, Select, Toggle } from "svelte-lib/components"
-  import { compareText, getContrastingTextColor, getCSSColors } from "svelte-lib/functions"
+  import CheckboxFilter from "svelte-lib/components/CheckboxFilter"
+  import InfoIcon from "svelte-lib/components/icons/InfoIcon"
+  import Select from "svelte-lib/components/Select"
+  import Toggle from "svelte-lib/components/Toggle"
+  import { getContrastingTextColor } from "svelte-lib/functions/color"
+  import { getCSSColors, observeZoomStableViewport } from "svelte-lib/functions/dom"
+  import { clamp } from "svelte-lib/functions/math"
+  import { compareText } from "svelte-lib/functions/textFormatting"
 
   import graphData from "../static/graphData.json"
   import dataDictionary from "../static/metricDataDictionary.json"
 
   let wars = graphData.wars
   let graphsByWarId = graphData.graphsByWarId
+
   let toolRoot
   let paletteColors = {}
 
@@ -39,6 +46,7 @@
     nodeDescriptor: "Choose a node size.",
     linkDescriptor: "Choose a link dash."
   }
+
   const metricDictionary = dataDictionary.metrics || {}
   const controlTooltips = dataDictionary.controls || {}
 
@@ -193,6 +201,7 @@
     })
     .sort((a, b) => compareText(a.label, b.label))
   let initialWarItems = wars.map(warItem)
+
   let selectItems = {
     country: [],
     war: initialWarItems,
@@ -209,15 +218,18 @@
   }
   let selectedWarTypes = warTypeItems.map(item => item.value)
   let deselectedWarTypes = []
+  let warManuallySelected = false
+
   let graph = { nodes: [], links: [] }
   let selectedWar = null
-  let warManuallySelected = false
 
   let width = 900
   let viewportWidth = 900
   let viewportHeight = 700
+  let graphContainer
   let stableViewportHeight = viewportHeight
   let lastViewportWidthForHeight = null
+
   let simulation
   let svg
   let nodes = []
@@ -225,18 +237,27 @@
   let linkNodes = []
   let descriptorNodes = []
   let descriptorLinks = []
+
   let hoverNode = null
   let hoverLink = null
   let dragNode = null
+  let dragStart = null
+
   let tooltipsEnabled = true
   let tooltip = null
+  let tooltipElement = null
+  let tooltipPinned = false
   let tooltipWidth = 320
   let tooltipHeight = 96
+  let tooltipHideTimer = null
+
   let currentGraph = null
   let currentSizingSignature = null
   let currentLinkDescriptorSignature = null
+
   let linkDashPulseTimer = null
   let linkDashStrokeWidth = 3
+
   let nodeSizingValues = []
   let nodeSizingById = {}
   let maxDomain = 2
@@ -260,19 +281,24 @@
   const dyadMinLinkDistance = 380
   const linkNodeSize = 2.5
   const nodeStrokeWidth = 1
-  const nodeSizeWarningOffset = 10
-  const nodeSizeWarningLabelGap = 14
-  const maxVisibleNodeSizeWarnings = 6
   const denseGraphReferenceSize = 40
   const graphMinWidth = 640
   const mobileGraphHeightScale = 0.63
+  const addedMarginSize = Math.max(linkNodeSize, 10)
+
+  const nodeSizeWarningOffset = 10
+  const nodeSizeWarningLabelGap = 14
+  const maxVisibleNodeSizeWarnings = 6
+
   const controlLabelClasses = "mb-1 flex items-center gap-2 text-sm font-bold text-ui-text"
   const summaryLabelClasses = "font-bold text-ui-text"
   const tooltipLabelClasses = "font-bold text-ui-text"
   const tooltipMetricLabelClasses = "font-semibold text-ui-text"
-  const addedMarginSize = Math.max(linkNodeSize, 10)
+
   const tooltipOffset = 16
   const tooltipPadding = 8
+  const tooltipHideDelay = 100
+  const tapMovementLimit = 10
   const compactNumberUnits = [
     { value: 1_000_000_000_000, label: "trillion" },
     { value: 1_000_000_000, label: "billion" },
@@ -280,6 +306,7 @@
   ]
   const compactNumberMinimum = 1_000_000
   const tooltipFractionDigits = 2
+
   const fixedFractionDigitMetricFields = new Set(["cinc_score"])
   const alwaysShowZeroMetricFields = new Set(["battle_deaths", "battle_deaths_per_day"])
   const metricSuffixOmittedByField = new Set([
@@ -665,28 +692,26 @@
     )
   }
 
-  function clampToBounds(min, max, value) {
-    if (min > max) return (min + max) / 2
-
-    return Math.max(min, Math.min(max, value))
-  }
-
   function getXAdjusted(id, xLoc) {
     if (id == primaryNode && nodes.length > 2) return graphLayout.centerX
 
     let horizontalMargin = nodeHorizontalBoundsMargin(id)
+    let maxX = width - horizontalMargin
 
-    return clampToBounds(horizontalMargin, width - horizontalMargin, xLoc ?? graphLayout.centerX)
+    if (horizontalMargin > maxX) return graphLayout.centerX
+
+    return clamp(xLoc ?? graphLayout.centerX, horizontalMargin, maxX)
   }
 
   function getYAdjusted(id, yLoc) {
     if (id == primaryNode && nodes.length > 2) return graphLayout.centerY
 
-    return clampToBounds(
-      nodeMargins.added_top_margin[id] ?? graphLayout.marginSize,
-      graphLayout.height - (nodeMargins.added_bottom_margin[id] ?? graphLayout.marginSize),
-      yLoc ?? graphLayout.centerY
-    )
+    let minY = nodeMargins.added_top_margin[id] ?? graphLayout.marginSize
+    let maxY = graphLayout.height - (nodeMargins.added_bottom_margin[id] ?? graphLayout.marginSize)
+
+    if (minY > maxY) return graphLayout.centerY
+
+    return clamp(yLoc ?? graphLayout.centerY, minY, maxY)
   }
 
   function linkEndpointId(link, endpoint) {
@@ -738,7 +763,8 @@
     let minLabelCenterX = graphLayout.marginSize + labelHalfWidth
     let maxLabelCenterX = width - graphLayout.marginSize - labelHalfWidth
 
-    labelCenterX = clampToBounds(minLabelCenterX, maxLabelCenterX, labelCenterX)
+    labelCenterX =
+      minLabelCenterX > maxLabelCenterX ? graphLayout.centerX : clamp(labelCenterX, minLabelCenterX, maxLabelCenterX)
 
     return labelCenterX - nodeX
   }
@@ -967,8 +993,12 @@
     }
   }
 
-  function tooltipBounds() {
-    return { width: viewportWidth, height: viewportHeight }
+  function syncLayoutSize(viewport) {
+    if (viewport.zoomOnly) return
+
+    viewportWidth = viewport.width
+    viewportHeight = viewport.height
+    width = graphContainer?.clientWidth || width
   }
 
   function measureTooltip(element) {
@@ -985,46 +1015,79 @@
     return { destroy: () => observer.disconnect() }
   }
 
-  function clampTooltipCoordinates(x, y, bounds, currentTooltipWidth, currentTooltipHeight) {
+  // Keep the tooltip inside the viewport and below the graph so it never covers the filter controls.
+  function tooltipPlacement(x, y) {
+    let top = Math.max(tooltipPadding, graphContainer?.getBoundingClientRect().top ?? tooltipPadding)
+    let maxHeight = Math.max(1, viewportHeight - top - tooltipPadding)
+    let visibleTooltipHeight = Math.min(tooltipHeight, maxHeight)
+    let right = viewportWidth - tooltipWidth - tooltipPadding
+    let bottom = viewportHeight - visibleTooltipHeight - tooltipPadding
+
     return {
-      x: clampToBounds(tooltipPadding, bounds.width - currentTooltipWidth - tooltipPadding, x),
-      y: clampToBounds(tooltipPadding, bounds.height - currentTooltipHeight - tooltipPadding, y)
+      x: tooltipPadding > right ? (tooltipPadding + right) / 2 : clamp(x, tooltipPadding, right),
+      y: top > bottom ? (top + bottom) / 2 : clamp(y, top, bottom),
+      maxHeight
     }
   }
 
   function tooltipPoint(event) {
-    let x = event.clientX + tooltipOffset
-    let y = event.clientY + tooltipOffset
+    // Keep a tapped tooltip clear of the finger by flipping it above a touch in the lower half.
+    let y =
+      event.pointerType == "touch" && event.clientY > viewportHeight / 2
+        ? event.clientY - tooltipHeight - tooltipOffset
+        : event.clientY + tooltipOffset
 
-    return clampTooltipCoordinates(x, y, tooltipBounds(), tooltipWidth, tooltipHeight)
+    return tooltipPlacement(event.clientX + tooltipOffset, y)
   }
 
   function showTooltip(node, event) {
-    if (dragNode) return
+    if (dragNode || event.pointerType == "touch") return
 
+    clearTimeout(tooltipHideTimer)
+    tooltipPinned = false
     hoverNode = node
     tooltip = tooltipsEnabled ? { node, ...tooltipPoint(event) } : null
   }
 
+  function unpinTooltip() {
+    clearTimeout(tooltipHideTimer)
+    tooltipPinned = false
+    hoverNode = null
+    tooltip = null
+  }
+
+  function dismissTooltip(event) {
+    if (tooltipPinned && !tooltipElement?.contains(event.target)) unpinTooltip()
+  }
+
   function clearTooltip() {
-    if (!dragNode) {
-      hoverNode = null
-      tooltip = null
+    if (!dragNode && !tooltipPinned) {
+      clearTimeout(tooltipHideTimer)
+      tooltipHideTimer = setTimeout(() => {
+        tooltipHideTimer = null
+        hoverNode = null
+        tooltip = null
+      }, tooltipHideDelay)
     }
   }
 
-  function moveTooltip(event) {
-    if (tooltipsEnabled && hoverNode && !dragNode) {
-      tooltip = { node: hoverNode, ...tooltipPoint(event) }
+  function keepTooltipOpen() {
+    if (!tooltipPinned) {
+      clearTimeout(tooltipHideTimer)
+      tooltipHideTimer = null
     }
   }
 
   function startDrag(node, event) {
     event.preventDefault()
     event.stopPropagation()
+    clearTimeout(tooltipHideTimer)
+    tooltipHideTimer = null
+    dragStart = { pointerType: event.pointerType, x: event.clientX, y: event.clientY }
     dragNode = node
     hoverNode = null
     tooltip = null
+    tooltipPinned = false
     let point = graphPoint(event)
     let adjustedPoint = { x: getXAdjusted(node.id, point.x), y: getYAdjusted(node.id, point.y) }
     node.fx = adjustedPoint.x
@@ -1049,14 +1112,27 @@
     refreshGraph()
   }
 
-  function endDrag() {
+  function endDrag(event) {
     if (!dragNode) return
+
+    let tappedNode =
+      dragStart?.pointerType == "touch" &&
+      Math.hypot(event.clientX - dragStart.x, event.clientY - dragStart.y) <= tapMovementLimit
+        ? dragNode
+        : null
 
     dragNode.fx = null
     dragNode.fy = null
     dragNode = null
+    dragStart = null
     hoverNode = null
     tooltip = null
+
+    if (tappedNode && tooltipsEnabled) {
+      tooltipPinned = true
+      hoverNode = tappedNode
+      tooltip = { node: tappedNode, ...tooltipPoint(event) }
+    }
 
     if (simulation) {
       simulation.alphaTarget(0)
@@ -1094,9 +1170,11 @@
     links = descriptorLinks.map(d => ({ ...d }))
     linkNodes = []
     tooltip = null
+    tooltipPinned = false
     hoverNode = null
     hoverLink = null
     dragNode = null
+    dragStart = null
     currentSizingSignature = null
     currentLinkDescriptorSignature = null
 
@@ -1175,31 +1253,28 @@
     unknownNodeSizeCount <= maxVisibleNodeSizeWarnings
   )
   $: if (tooltip && viewportWidth && viewportHeight) {
-    let point = clampTooltipCoordinates(
-      tooltip.x,
-      tooltip.y,
-      { width: viewportWidth, height: viewportHeight },
-      tooltipWidth,
-      tooltipHeight
-    )
+    let placement = tooltipPlacement(tooltip.x, tooltip.y)
 
-    if (point.x != tooltip.x || point.y != tooltip.y) {
-      tooltip = { ...tooltip, ...point }
+    if (placement.x != tooltip.x || placement.y != tooltip.y || placement.maxHeight != tooltip.maxHeight) {
+      tooltip = { ...tooltip, ...placement }
     }
   }
 
   onDestroy(() => {
     stopSimulation()
     clearTimeout(linkDashPulseTimer)
+    clearTimeout(tooltipHideTimer)
   })
 
-  onMount(() => (paletteColors = getCSSColors(paletteProperties, toolRoot)))
+  onMount(() => {
+    paletteColors = getCSSColors(paletteProperties, toolRoot)
+    return observeZoomStableViewport(syncLayoutSize, { element: graphContainer })
+  })
 </script>
 
 <svelte:window
-  bind:innerWidth={viewportWidth}
-  bind:innerHeight={viewportHeight}
   on:palettechange={() => (paletteColors = getCSSColors(paletteProperties, toolRoot))}
+  on:pointerdown={dismissTooltip}
   on:pointermove={drag}
   on:pointerup={endDrag}
 />
@@ -1237,7 +1312,7 @@
           labelClasses="font-bold text-ui-text"
           on:change={({ detail }) => {
             tooltipsEnabled = detail.checked
-            if (!tooltipsEnabled) tooltip = null
+            if (!tooltipsEnabled) unpinTooltip()
           }}
         />
       </div>
@@ -1366,7 +1441,7 @@
             </div>
           {/if}
         </div>
-        <div class="relative min-w-0" style="min-width:{graphMinWidth}px;" bind:clientWidth={width}>
+        <div class="relative min-w-0" style="min-width:{graphMinWidth}px;" bind:this={graphContainer}>
           {#if nodes.length}
             <svg
               class="no-highlight block w-full touch-none"
@@ -1374,7 +1449,6 @@
               viewBox="0 0 {width} {graphLayout.height}"
               role="img"
               bind:this={svg}
-              on:pointermove={moveTooltip}
               on:pointerleave={clearTooltip}
             >
               <rect class="fill-ui-surface" {width} height={graphLayout.height} />
@@ -1438,7 +1512,6 @@
                     transform="translate({getXAdjusted(node.id, node.x)}, {getYAdjusted(node.id, node.y)})"
                     on:pointerdown={event => startDrag(node, event)}
                     on:pointerenter={event => showTooltip(node, event)}
-                    on:pointermove={event => showTooltip(node, event)}
                     on:pointerleave={clearTooltip}
                   >
                     <circle
@@ -1497,11 +1570,27 @@
             {#if tooltip}
               {@const metricRows = nodeMetricRows(tooltip.node)}
               <div
-                class="pointer-events-none fixed z-50 w-max max-w-sm overflow-y-auto rounded border border-solid border-ui-border bg-ui-surface p-3 text-sm text-ui-text shadow-[1px_1px_1px_var(--ui-border)]"
-                style="left: {tooltip.x}px; top: {tooltip.y}px; max-height: calc(100vh - {tooltipPadding * 2}px);"
+                class="fixed z-50 w-max max-w-sm overflow-y-auto rounded border border-solid border-ui-border bg-ui-surface p-3 text-sm text-ui-text shadow-[1px_1px_1px_var(--ui-border)] {tooltipPinned
+                  ? 'touch-pan-y overscroll-contain'
+                  : ''}"
+                style="left: {tooltip.x}px; top: {tooltip.y}px; max-height: {tooltip.maxHeight}px;"
+                bind:this={tooltipElement}
                 use:measureTooltip
+                on:pointerenter={keepTooltipOpen}
+                on:pointerleave={clearTooltip}
               >
-                <div class="text-sm font-extrabold">{tooltip.node.participant}</div>
+                <div class="flex items-start justify-between gap-3">
+                  <div class="text-sm font-extrabold">{tooltip.node.participant}</div>
+                  {#if tooltipPinned}
+                    <button
+                      class="-mr-1 -mt-1 px-1 text-lg leading-none text-ui-muted"
+                      aria-label="Close tooltip"
+                      on:click={unpinTooltip}
+                    >
+                      &times;
+                    </button>
+                  {/if}
+                </div>
                 <div class="mt-1 space-y-0.5 text-ui-text">
                   <div>
                     <span class={tooltipLabelClasses}>Start Date:</span>

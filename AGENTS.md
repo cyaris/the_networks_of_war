@@ -4,6 +4,7 @@
 
 - Inherit README and Markdown style, GitHub Actions, reusable workflow wrapper, release policy, dispatch, pull-request
   review, workflow failure, commit, and release-management rules from `../shared-automation/AGENTS.md`.
+- Inherit shared Python and SQL conventions from `../shared-automation/AGENTS.md`.
 
 ## Data Generation
 
@@ -28,10 +29,6 @@
   JSON documentation.
 - Do not preserve removed or renamed interfaces unless the user requests a migration bridge. Delete stale parameters,
   aliases, scripts, and docs so old callers fail clearly.
-
-## Notebooks
-
-- Do not edit `.ipynb` files unless the task explicitly includes notebook changes.
 
 ## Rollup Delivery
 
