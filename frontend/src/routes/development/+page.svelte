@@ -1,5 +1,5 @@
 <script>
-  import { LinkButton } from "svelte-lib/components"
+  import LinkButton from "svelte-lib/components/LinkButton"
 
   import minardNapoleonCampaign from "../../lib/static/minardNapoleonCampaign.webp"
 </script>

@@ -112,6 +112,16 @@ reviews:
         - Metric dictionary changes that conflict with README descriptions, source documentation, or frontend labels
         - Null values being silently converted to zero when unknown should remain null
 
+    - path: "frontend/src/lib/components/Tool.svelte"
+      instructions: |
+        Check for:
+        - Filter, timeframe, metric, or descriptor state changes that leave selections invalid or display values at the wrong grain
+        - Force-layout, drag, highlight, label, link, or node changes that make network relationships misleading or unstable
+        - Hover and tap-to-pin tooltip behavior that follows the pointer unexpectedly, blocks controls, cannot scroll, escapes the viewport, or remains pinned after dismissal
+        - Touch gestures being mistaken for taps, desktop hover bridges closing too early, or event cleanup leaking across mounts
+        - Responsive or zoom handling that changes established desktop geometry, creates page-level overflow, or leaves Canvas/SVG layers misaligned
+        - War duration, participant side, null, zero, and summary text that disagrees with the selected data
+
     - path: "**/.github/workflows/*.{yml,yaml}"
       instructions: |
         Check for:
@@ -120,7 +130,8 @@ reviews:
         - Unsafe use of pull_request_target
         - Incorrect branch or path filters
         - Deployment steps that could expose secrets
-        - Rollup upload workflows drifting from the shared svelte-lib composite action contract
+        - Rollup, upstream-watch, release, or validation callers drifting from shared-automation contracts
+        - Staged and production bundle names, generated-data steps, dependency refs, or S3 prefixes diverging from repository guidance
 
     - path: "**/*.{md,markdown}"
       instructions: |

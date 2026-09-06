@@ -122,6 +122,13 @@ RAW_SOURCE_DATE_COMPONENTS = [
     ),
 ]
 
+RAW_SOURCE_DATE_COMPONENT_ALLOWLIST = {
+    "interstate_war_dyads": (
+        ("dyindex", "257.03", "warstrtmnth", "24"),
+        ("dyindex", "257.24", "warendyr", "19118"),
+    )
+}
+
 
 def test_war_transition_columns_stay_adjacent_in_sql():
     violations = []
@@ -451,6 +458,29 @@ def test_coded_participant_names_come_from_country_codes(conn):
     )
 
 
+def test_raw_source_date_component_allowlist_ignores_null_reference_rows(tmp_path: Path):
+    source_path = tmp_path / "interstate_war_dyads.csv"
+    source_path.write_text("dyindex,warstrtmnth\n257.03,24\n,24\n", encoding="latin-1")
+
+    flagged_rows_sql = raw_source_date_component_check_sql(
+        "interstate_war_dyads",
+        source_path.name,
+        source_path,
+        ["dyindex"],
+        {"month": ["warstrtmnth"]},
+        (("dyindex", "257.03", "warstrtmnth", "24"),),
+    )
+    conn = duckdb.connect()
+
+    try:
+        detected_rows = query_result(conn, flagged_rows_query(flagged_rows_sql, "row_reference"))
+    finally:
+        conn.close()
+
+    # A null reference column must not match the allowlist and hide its own invalid month.
+    assert [row[2] for row in detected_rows.rows] == ["dyindex=<null>"]
+
+
 def test_raw_source_date_components_use_valid_domains(conn):
     pipeline = Pipeline()
     failures = []
@@ -464,7 +494,13 @@ def test_raw_source_date_components_use_valid_domains(conn):
             else {}
         )
         flagged_rows_sql = raw_source_date_component_check_sql(
-            source_key, source_file, source_path, row_reference_columns, date_components, **encoding_kwargs
+            source_key,
+            source_file,
+            source_path,
+            row_reference_columns,
+            date_components,
+            RAW_SOURCE_DATE_COMPONENT_ALLOWLIST.get(source_key, ()),
+            **encoding_kwargs,
         )
         flagged_count = flagged_row_count(conn, flagged_rows_sql)
 
