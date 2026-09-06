@@ -1030,14 +1030,20 @@
     }
   }
 
-  function tooltipPoint(event) {
-    // Keep a tapped tooltip clear of the finger by flipping it above a touch in the lower half.
+  // Keep a tapped tooltip clear of the finger by flipping it above a touch in the lower half.
+  function tooltipSourcePlacement(source) {
     let y =
-      event.pointerType == "touch" && event.clientY > viewportHeight / 2
-        ? event.clientY - tooltipHeight - tooltipOffset
-        : event.clientY + tooltipOffset
+      source.pointerType == "touch" && source.clientY > viewportHeight / 2
+        ? source.clientY - tooltipHeight - tooltipOffset
+        : source.clientY + tooltipOffset
 
-    return tooltipPlacement(event.clientX + tooltipOffset, y)
+    return tooltipPlacement(source.clientX + tooltipOffset, y)
+  }
+
+  function tooltipPoint(event) {
+    let source = { clientX: event.clientX, clientY: event.clientY, pointerType: event.pointerType }
+
+    return { source, ...tooltipSourcePlacement(source) }
   }
 
   function showTooltip(node, event) {
@@ -1252,8 +1258,10 @@
     unknownNodeSizeCount > 0 &&
     unknownNodeSizeCount <= maxVisibleNodeSizeWarnings
   )
-  $: if (tooltip && viewportWidth && viewportHeight) {
-    let placement = tooltipPlacement(tooltip.x, tooltip.y)
+  // Measured tooltip size arrives after the tooltip mounts, so rerun placement from the original pointer.
+  $: tooltipSize = { height: tooltipHeight, width: tooltipWidth }
+  $: if (tooltip && tooltipSize && viewportWidth && viewportHeight) {
+    let placement = tooltip.source ? tooltipSourcePlacement(tooltip.source) : tooltipPlacement(tooltip.x, tooltip.y)
 
     if (placement.x != tooltip.x || placement.y != tooltip.y || placement.maxHeight != tooltip.maxHeight) {
       tooltip = { ...tooltip, ...placement }

@@ -155,7 +155,7 @@ def raw_source_date_component_check_sql(
         for column_name in column_names
     )
     allowed_cells_sql = "".join(
-        f"\n        and not ({sql_identifier(reference_column)} = {sql_literal(reference_value)}"
+        f"\n        and not (coalesce({sql_identifier(reference_column)} = {sql_literal(reference_value)}, false)"
         f" and dates.column_name = {sql_literal(column_name)} and dates.raw_value = {sql_literal(raw_value)})"
         for reference_column, reference_value, column_name, raw_value in allowed_cells
     )
