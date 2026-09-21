@@ -1,0 +1,24 @@
+name: Frontend CI
+
+on:
+  push:
+    branches:
+      - dev
+    paths:
+      - "frontend/**"
+      - ".github/workflows/frontend-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  node-package-ci:
+    uses: cyaris/shared-automation/.github/workflows/ci.yml@main
+    with:
+      working-directory: frontend
+      local-dependency-repositories: |
+        cyaris/svelte-lib:svelte-lib:${{ github.ref_name == 'dev' && 'dev' || 'main' }}
+    secrets:
+      CHECKOUT_TOKEN: ${{ secrets.CHECKOUT_TOKEN }}
+      RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}

@@ -778,6 +778,11 @@ before the tests and caches `backend/data/` under the explicit `source-data-v1` 
 when CI must discard and rebuild the prepared source-data cache. The wrapper follows shared automation's `main` branch;
 it will remain unavailable until the reusable Python workflow is promoted there.
 
+### `.github/workflows/frontend-ci.yml`
+
+Runs the frontend's formatting, lint, Svelte check, and build through shared CI when frontend files change on `dev`, or
+on manual dispatch. The shared workflow checks out `svelte-lib` `dev` for development runs and `main` otherwise.
+
 ### `.github/workflows/auto-create-dev-pr.yml`
 
 Runs on pushes to `dev` and calls the
@@ -788,7 +793,7 @@ Runs on pushes to `dev` and calls the
 Calls the [shared rollup workflow](https://github.com/cyaris/shared-automation#githubworkflowsrollupyml) with these
 local details:
 
-- triggers: pushes to `dev` and `master`, plus manual dispatch
+- triggers: pushes to `master`, plus manual and upstream-watch dispatches on `dev` or `master`
 - working directory: `frontend`
 - destination: `s3://cyaris.github.io/the_networks_of_war/`
 - production naming: unprefixed bundles from `master`
