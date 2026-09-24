@@ -773,15 +773,16 @@ behavior, inputs, and secrets.
 
 ### `.github/workflows/backend-ci.yml`
 
-Runs Black, isort, and the complete backend pytest suite for backend changes. It prepares only missing source folders
-before the tests and caches `backend/data/` under the explicit `source-data-v1` cache version; increment that version
-when CI must discard and rebuild the prepared source-data cache. The wrapper follows shared automation's `main` branch;
-it will remain unavailable until the reusable Python workflow is promoted there.
+Runs Black, isort, and the complete backend pytest suite for backend changes on `master`, or on manual dispatch. It
+prepares only missing source folders before the tests and caches `backend/data/` under the explicit `source-data-v1`
+cache version; increment that version when CI must discard and rebuild the prepared source-data cache. The wrapper
+follows shared automation's `main` branch; it will remain unavailable until the reusable Python workflow is promoted
+there.
 
 ### `.github/workflows/frontend-ci.yml`
 
-Runs the frontend's formatting, lint, Svelte check, and build through shared CI when frontend files change on `dev`, or
-on manual dispatch. The shared workflow checks out `svelte-lib` `dev` for development runs and `main` otherwise.
+Runs the frontend's formatting, lint, Svelte check, and build through shared CI on manual dispatch. The shared workflow
+checks out `svelte-lib` `dev` for development runs and `main` otherwise.
 
 ### `.github/workflows/auto-create-dev-pr.yml`
 
@@ -818,7 +819,7 @@ for an approved run.
 
 ### `.github/workflows/workflow-validation.yml`
 
-Runs on `dev` and `master` pushes that change `.github/release-policy.yml`, `.github/workflows/**`, or `renovate.json`,
+Runs on `master` pushes that change `.github/release-policy.yml`, `.github/workflows/**`, or `renovate.json`,
 and on manual dispatch, then calls the
 [shared workflow-validation workflow](https://github.com/cyaris/shared-automation#githubworkflowsworkflow-validationyml)
 to validate rollup upload wrapper logic, release-policy configuration, and Renovate configuration.
