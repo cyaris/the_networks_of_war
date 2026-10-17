@@ -10,6 +10,7 @@
   - `embedded-bundles.md`
   - `jekyll-hosting.md`
   - `charts.md`
+  - `web-pages.md`
 
 ## Routing And Hosting
 
@@ -23,4 +24,4 @@
 
 ## Embedded Build
 
-- Run `npm run rollup` from `frontend` when changes must affect the Jekyll-rendered bundle; the artifacts are `dist/bundle.js` and `dist/bundle.css`.
+- The bundle outputs are `dist/bundle.js` and `dist/bundle.css`.

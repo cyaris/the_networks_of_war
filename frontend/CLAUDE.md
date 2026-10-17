@@ -6,3 +6,4 @@
 @../../svelte-lib/agents/embedded-bundles.md
 @../../svelte-lib/agents/jekyll-hosting.md
 @../../svelte-lib/agents/charts.md
+@../../svelte-lib/agents/web-pages.md
