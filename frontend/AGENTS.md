@@ -2,7 +2,14 @@
 
 ## Shared Svelte Conventions
 
-- Use `../../svelte-lib/AGENTS.md` as the source of truth for shared Svelte formatting, config, lint, dependency, D3, Vite, Rollup, CSS import, and scoped embedded styling conventions.
+- Follow the shared Svelte and JavaScript topics in `../../svelte-lib/agents/`, which `CLAUDE.md` imports:
+  - `shared-code.md`
+  - `javascript.md`
+  - `svelte-components.md`
+  - `packages-and-config.md`
+  - `embedded-bundles.md`
+  - `jekyll-hosting.md`
+  - `charts.md`
 
 ## Routing And Hosting
 

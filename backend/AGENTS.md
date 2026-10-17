@@ -1,5 +1,10 @@
 # Backend Guidance
 
+## Shared Conventions
+
+- Inherit the shared Python and SQL conventions in `../../shared-automation/agents/python-sql.md`, which `CLAUDE.md`
+  imports.
+
 ## Pipeline Structure
 
 - Keep transformations as native DuckDB SQL in `.sql` files instead of embedding transformation SQL or Python transformation functions in pipeline code.

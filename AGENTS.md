@@ -2,9 +2,12 @@
 
 ## Shared Conventions
 
-- Inherit README and Markdown style, GitHub Actions, reusable workflow wrapper, release policy, dispatch, pull-request
-  review, workflow failure, commit, and release-management rules from `../shared-automation/AGENTS.md`.
-- Inherit shared Python and SQL conventions from `../shared-automation/AGENTS.md`.
+- Inherit README and Markdown style, link verification, GitHub Actions, reusable workflow, release policy, dispatch,
+  pull-request review and merge authorization, workflow failure, commit, and release-management rules from the
+  shared topics in `../shared-automation/agents/`, which `CLAUDE.md` imports:
+  - `documentation.md`
+  - `git-and-pull-requests.md`
+  - `workflows.md`
 
 ## Data Generation
 
