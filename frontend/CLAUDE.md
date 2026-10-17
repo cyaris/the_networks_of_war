@@ -1,9 +1,1 @@
 @AGENTS.md
-@../../svelte-lib/agents/shared-code.md
-@../../svelte-lib/agents/javascript.md
-@../../svelte-lib/agents/svelte-components.md
-@../../svelte-lib/agents/packages-and-config.md
-@../../svelte-lib/agents/embedded-bundles.md
-@../../svelte-lib/agents/jekyll-hosting.md
-@../../svelte-lib/agents/charts.md
-@../../svelte-lib/agents/web-pages.md
