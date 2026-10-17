@@ -1,11 +1,5 @@
 # Repository Guidance
 
-## Shared Conventions
-
-- Inherit README and Markdown style, GitHub Actions, reusable workflow wrapper, release policy, dispatch, pull-request
-  review, workflow failure, commit, and release-management rules from `../shared-automation/AGENTS.md`.
-- Inherit shared Python and SQL conventions from `../shared-automation/AGENTS.md`.
-
 ## Data Generation
 
 - Regenerate and commit `frontend/src/lib/static/graphData.json` after changing the backend pipeline, its SQL, or
@@ -23,13 +17,5 @@
 - Consult relevant source documentation under `backend/data/` before deciding whether a source value, adjustment, or
   transformation is correct. Use the backend `pdftotext` development dependency to extract searchable PDF text, and
   treat PDF metadata dates as build metadata unless the text identifies a source release date.
-- Preserve the difference between `null` and zero in transformations and displays. Coalesce missing values to `0` only
-  when coverage or derivation proves the value is zero; otherwise keep `null` so the frontend can show unknown values.
-- Treat `backend/data/<source_key>/` as the folder for the matching `source_<source_key>` table's raw data and PDF or
-  JSON documentation.
 - Do not preserve removed or renamed interfaces unless the user requests a migration bridge. Delete stale parameters,
   aliases, scripts, and docs so old callers fail clearly.
-
-## Rollup Delivery
-
-- Project-specific Rollup inputs include the S3 prefix and bundle file list.
